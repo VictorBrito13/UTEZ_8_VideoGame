@@ -18,8 +18,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Install locked production dependencies (cached when lockfile unchanged)
 COPY pyproject.toml uv.lock ./
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev --no-install-project
+RUN uv sync --frozen --no-dev --no-install-project
 
 ENV PATH="/app/.venv/bin:$PATH"
 
