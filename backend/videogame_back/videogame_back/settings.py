@@ -28,7 +28,18 @@ SECRET_KEY = 'django-insecure-5qcj!s4oqf-s0b*3_zj+y6suppj4v(pld8c6xt1ukbi7t%npr=
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+# Local dev + Cloud Run service URL. Extend with DJANGO_ALLOWED_HOSTS=comma,separated
+_extra_allowed = [
+    h.strip()
+    for h in os.environ.get('DJANGO_ALLOWED_HOSTS', '').split(',')
+    if h.strip()
+]
+ALLOWED_HOSTS = [
+    'localhost',
+    '127.0.0.1',
+    'backend-api-73278147951.northamerica-south1.run.app',
+    *_extra_allowed,
+]
 
 
 # Application definition
