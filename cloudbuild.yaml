@@ -10,7 +10,7 @@
 substitutions:
   _REGION: northamerica-south1
   _AR_REPO: devnexus-docker-repository
-  _SERVICE_NAME: videogame-api
+  _SERVICE_NAME: backend-api
 
 options:
   logging: CLOUD_LOGGING_ONLY
@@ -46,3 +46,7 @@ steps:
       - --region=${_REGION}
       - --platform=managed
       - --quiet
+      # --- Console configurations ---
+      - --allow-unauthenticated
+      - --session-affinity                         # Necessary for WebSockets/Chat
+      - --max-instances=1                          # Cost control
