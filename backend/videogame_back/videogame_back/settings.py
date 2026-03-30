@@ -10,8 +10,9 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
-from pathlib import Path
 import os
+from pathlib import Path
+
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -23,119 +24,124 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-5qcj!s4oqf-s0b*3_zj+y6suppj4v(pld8c6xt1ukbi7t%npr='
+SECRET_KEY = (
+  "django-insecure-5qcj!s4oqf-s0b*3_zj+y6suppj4v(pld8c6xt1ukbi7t%npr="
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-# Local dev + Cloud Run service URL. Extend with DJANGO_ALLOWED_HOSTS=comma,separated
+# Local dev + Cloud Run service URL.
+# Extend with DJANGO_ALLOWED_HOSTS=comma,separated
 _extra_allowed = [
-    h.strip()
-    for h in os.environ.get('DJANGO_ALLOWED_HOSTS', '').split(',')
-    if h.strip()
+  h.strip()
+  for h in os.environ.get("DJANGO_ALLOWED_HOSTS", "").split(",")
+  if h.strip()
 ]
 ALLOWED_HOSTS = [
-    'localhost',
-    '127.0.0.1',
-    'backend-api-73278147951.northamerica-south1.run.app',
-    *_extra_allowed,
+  "localhost",
+  "127.0.0.1",
+  "backend-api-73278147951.northamerica-south1.run.app",
+  *_extra_allowed,
 ]
 
 
 # Application definition
 
 INSTALLED_APPS = [
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
+  "django.contrib.admin",
+  "django.contrib.auth",
+  "django.contrib.contenttypes",
+  "django.contrib.sessions",
+  "django.contrib.messages",
+  "django.contrib.staticfiles",
 ]
 
 MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+  "django.middleware.security.SecurityMiddleware",
+  "django.contrib.sessions.middleware.SessionMiddleware",
+  "django.middleware.common.CommonMiddleware",
+  "django.middleware.csrf.CsrfViewMiddleware",
+  "django.contrib.auth.middleware.AuthenticationMiddleware",
+  "django.contrib.messages.middleware.MessageMiddleware",
+  "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-ROOT_URLCONF = 'videogame_back.urls'
+ROOT_URLCONF = "videogame_back.urls"
 
 TEMPLATES = [
-    {
-        'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
-        'APP_DIRS': True,
-        'OPTIONS': {
-            'context_processors': [
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
-            ],
-        },
+  {
+    "BACKEND": "django.template.backends.django.DjangoTemplates",
+    "DIRS": [],
+    "APP_DIRS": True,
+    "OPTIONS": {
+      "context_processors": [
+        "django.template.context_processors.request",
+        "django.contrib.auth.context_processors.auth",
+        "django.contrib.messages.context_processors.messages",
+      ],
     },
+  },
 ]
 
-WSGI_APPLICATION = 'videogame_back.wsgi.application'
+WSGI_APPLICATION = "videogame_back.wsgi.application"
 
 
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
 # If we are in Cloud Run
-if os.environ.get('INSTANCE_CONNECTION_NAME'):
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.mysql',
-            'NAME': os.environ.get('DB_NAME'),
-            'USER': os.environ.get('DB_USER'),
-            'PASSWORD': os.environ.get('DB_PASS'),
-            'HOST': f'/cloudsql/{os.environ.get("INSTANCE_CONNECTION_NAME")}',
-        }
+if os.environ.get("INSTANCE_CONNECTION_NAME"):
+  DATABASES = {
+    "default": {
+      "ENGINE": "django.db.backends.mysql",
+      "NAME": os.environ.get("DB_NAME"),
+      "USER": os.environ.get("DB_USER"),
+      "PASSWORD": os.environ.get("DB_PASS"),
+      "HOST": f"/cloudsql/{os.environ.get('INSTANCE_CONNECTION_NAME')}",
     }
+  }
 else:
-    # Local configuration (MySQL)
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.mysql',
-            'NAME': os.environ.get('DB_NAME'),
-            'USER': os.environ.get('DB_USER'),
-            'PASSWORD': os.environ.get('DB_PASS'),
-            'HOST': os.environ.get('DB_HOST'),
-            'PORT': os.environ.get('DB_PORT'),
-        }
+  # Local configuration (MySQL)
+  DATABASES = {
+    "default": {
+      "ENGINE": "django.db.backends.mysql",
+      "NAME": os.environ.get("DB_NAME"),
+      "USER": os.environ.get("DB_USER"),
+      "PASSWORD": os.environ.get("DB_PASS"),
+      "HOST": os.environ.get("DB_HOST"),
+      "PORT": os.environ.get("DB_PORT"),
     }
+  }
 
 
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
 
 AUTH_PASSWORD_VALIDATORS = [
-    {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
-    },
+  {
+    "NAME": (
+      "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"
+    ),
+  },
+  {
+    "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
+  },
+  {
+    "NAME": "django.contrib.auth.password_validation.CommonPasswordValidator",
+  },
+  {
+    "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
+  },
 ]
 
 
 # Internationalization
 # https://docs.djangoproject.com/en/6.0/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = "en-us"
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = "UTC"
 
 USE_I18N = True
 
@@ -145,4 +151,4 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = "static/"
