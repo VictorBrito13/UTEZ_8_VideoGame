@@ -5,51 +5,98 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
+  initial = True
 
-    initial = True
+  dependencies = []
 
-    dependencies = [
-    ]
-
-    operations = [
-        migrations.CreateModel(
-            name='Ability',
-            fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=100)),
-                ('damage_multiplier', models.FloatField()),
-                ('effect', models.CharField(blank=True, max_length=100, null=True)),
-                ('effect_probability', models.FloatField()),
-            ],
+  operations = [
+    migrations.CreateModel(
+      name="Ability",
+      fields=[
+        (
+          "id",
+          models.BigAutoField(
+            auto_created=True,
+            primary_key=True,
+            serialize=False,
+            verbose_name="ID",
+          ),
         ),
-        migrations.CreateModel(
-            name='Type',
-            fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=50)),
-            ],
+        ("name", models.CharField(max_length=100)),
+        ("damage_multiplier", models.FloatField()),
+        ("effect", models.CharField(blank=True, max_length=100, null=True)),
+        ("effect_probability", models.FloatField()),
+      ],
+    ),
+    migrations.CreateModel(
+      name="Type",
+      fields=[
+        (
+          "id",
+          models.BigAutoField(
+            auto_created=True,
+            primary_key=True,
+            serialize=False,
+            verbose_name="ID",
+          ),
         ),
-        migrations.CreateModel(
-            name='Creature',
-            fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=100)),
-                ('base_health', models.IntegerField()),
-                ('base_damage', models.IntegerField()),
-                ('speed', models.IntegerField()),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('type', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='creatures', to='creatures.type')),
-            ],
+        ("name", models.CharField(max_length=50)),
+      ],
+    ),
+    migrations.CreateModel(
+      name="Creature",
+      fields=[
+        (
+          "id",
+          models.BigAutoField(
+            auto_created=True,
+            primary_key=True,
+            serialize=False,
+            verbose_name="ID",
+          ),
         ),
-        migrations.CreateModel(
-            name='CreatureAbility',
-            fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('ability', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='creatures.ability')),
-                ('creature', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='creatures.creature')),
-            ],
-            options={
-                'unique_together': {('creature', 'ability')},
-            },
+        ("name", models.CharField(max_length=100)),
+        ("base_health", models.IntegerField()),
+        ("base_damage", models.IntegerField()),
+        ("speed", models.IntegerField()),
+        ("created_at", models.DateTimeField(auto_now_add=True)),
+        (
+          "type",
+          models.ForeignKey(
+            on_delete=django.db.models.deletion.CASCADE,
+            related_name="creatures",
+            to="creatures.type",
+          ),
         ),
-    ]
+      ],
+    ),
+    migrations.CreateModel(
+      name="CreatureAbility",
+      fields=[
+        (
+          "id",
+          models.BigAutoField(
+            auto_created=True,
+            primary_key=True,
+            serialize=False,
+            verbose_name="ID",
+          ),
+        ),
+        (
+          "ability",
+          models.ForeignKey(
+            on_delete=django.db.models.deletion.CASCADE, to="creatures.ability"
+          ),
+        ),
+        (
+          "creature",
+          models.ForeignKey(
+            on_delete=django.db.models.deletion.CASCADE, to="creatures.creature"
+          ),
+        ),
+      ],
+      options={
+        "unique_together": {("creature", "ability")},
+      },
+    ),
+  ]
