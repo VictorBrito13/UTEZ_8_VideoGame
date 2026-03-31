@@ -6,23 +6,41 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
+  initial = True
 
-    initial = True
+  dependencies = [
+    ("combat", "0001_initial"),
+    migrations.swappable_dependency(settings.AUTH_USER_MODEL),
+  ]
 
-    dependencies = [
-        ('combat', '0001_initial'),
-        migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-    ]
-
-    operations = [
-        migrations.CreateModel(
-            name='ChatMessage',
-            fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('message', models.TextField()),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('battle', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='combat.battle')),
-                ('sender', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to=settings.AUTH_USER_MODEL)),
-            ],
+  operations = [
+    migrations.CreateModel(
+      name="ChatMessage",
+      fields=[
+        (
+          "id",
+          models.BigAutoField(
+            auto_created=True,
+            primary_key=True,
+            serialize=False,
+            verbose_name="ID",
+          ),
         ),
-    ]
+        ("message", models.TextField()),
+        ("created_at", models.DateTimeField(auto_now_add=True)),
+        (
+          "battle",
+          models.ForeignKey(
+            on_delete=django.db.models.deletion.CASCADE, to="combat.battle"
+          ),
+        ),
+        (
+          "sender",
+          models.ForeignKey(
+            on_delete=django.db.models.deletion.CASCADE,
+            to=settings.AUTH_USER_MODEL,
+          ),
+        ),
+      ],
+    ),
+  ]

@@ -6,38 +6,80 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
+  initial = True
 
-    initial = True
+  dependencies = [
+    migrations.swappable_dependency(settings.AUTH_USER_MODEL),
+  ]
 
-    dependencies = [
-        migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-    ]
-
-    operations = [
-        migrations.CreateModel(
-            name='Object',
-            fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=100)),
-                ('description', models.TextField()),
-                ('effect_type', models.CharField(max_length=50)),
-                ('effect_value', models.FloatField()),
-            ],
+  operations = [
+    migrations.CreateModel(
+      name="Object",
+      fields=[
+        (
+          "id",
+          models.BigAutoField(
+            auto_created=True,
+            primary_key=True,
+            serialize=False,
+            verbose_name="ID",
+          ),
         ),
-        migrations.CreateModel(
-            name='Inventory',
-            fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('user', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='inventory', to=settings.AUTH_USER_MODEL)),
-            ],
+        ("name", models.CharField(max_length=100)),
+        ("description", models.TextField()),
+        ("effect_type", models.CharField(max_length=50)),
+        ("effect_value", models.FloatField()),
+      ],
+    ),
+    migrations.CreateModel(
+      name="Inventory",
+      fields=[
+        (
+          "id",
+          models.BigAutoField(
+            auto_created=True,
+            primary_key=True,
+            serialize=False,
+            verbose_name="ID",
+          ),
         ),
-        migrations.CreateModel(
-            name='InventoryItem',
-            fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('quantity', models.IntegerField()),
-                ('inventory', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='items', to='inventory.inventory')),
-                ('object', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='inventory.object')),
-            ],
+        (
+          "user",
+          models.OneToOneField(
+            on_delete=django.db.models.deletion.CASCADE,
+            related_name="inventory",
+            to=settings.AUTH_USER_MODEL,
+          ),
         ),
-    ]
+      ],
+    ),
+    migrations.CreateModel(
+      name="InventoryItem",
+      fields=[
+        (
+          "id",
+          models.BigAutoField(
+            auto_created=True,
+            primary_key=True,
+            serialize=False,
+            verbose_name="ID",
+          ),
+        ),
+        ("quantity", models.IntegerField()),
+        (
+          "inventory",
+          models.ForeignKey(
+            on_delete=django.db.models.deletion.CASCADE,
+            related_name="items",
+            to="inventory.inventory",
+          ),
+        ),
+        (
+          "object",
+          models.ForeignKey(
+            on_delete=django.db.models.deletion.CASCADE, to="inventory.object"
+          ),
+        ),
+      ],
+    ),
+  ]
