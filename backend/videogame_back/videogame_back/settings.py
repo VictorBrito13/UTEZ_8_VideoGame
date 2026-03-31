@@ -37,12 +37,14 @@ ALLOWED_HOSTS = [
 # Application definition
 
 INSTALLED_APPS = [
+  "daphne",
   "django.contrib.admin",
   "django.contrib.auth",
   "django.contrib.contenttypes",
   "django.contrib.sessions",
   "django.contrib.messages",
   "django.contrib.staticfiles",
+  "channels",
   "chat",
   "combat",
   "creatures",
@@ -78,6 +80,21 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "videogame_back.wsgi.application"
+
+ASGI_APPLICATION = "videogame_back.asgi.application"
+
+CHANNEL_LAYERS = {
+  "default": {
+    "BACKEND": "channels.layers.InMemoryChannelLayer",
+  }
+}
+
+CACHES = {
+  "default": {
+    "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+    "LOCATION": "videogame-backend",
+  }
+}
 
 
 # Database
