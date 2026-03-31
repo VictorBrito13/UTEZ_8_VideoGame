@@ -43,6 +43,7 @@ class MatchmakingConsumer(AsyncWebsocketConsumer):
     # Initialize these early so disconnect won't crash on early close/reject.
     self._in_queue = False
     self._cancel_event = asyncio.Event()
+    self._match_task: asyncio.Task[None] | None = None
 
     user = self.scope.get("user")
     if not user or not user.is_authenticated:
@@ -55,6 +56,10 @@ class MatchmakingConsumer(AsyncWebsocketConsumer):
   async def disconnect(self, code: int) -> None:
     if hasattr(self, "_cancel_event"):
       self._cancel_event.set()
+
+    if getattr(self, "_match_task", None) is not None:
+      self._match_task.cancel()
+      self._match_task = None
 
     if getattr(self, "_in_queue", False):
       backend = get_matchmaking_backend()
@@ -115,36 +120,54 @@ class MatchmakingConsumer(AsyncWebsocketConsumer):
 
     await self.send_json({"type": "matchmaking.queued", "elo": int(elo)})
 
-    while self._in_queue and not self._cancel_event.is_set():
-      pair = try_match_for_user(backend, self.user_id, self.config)
-      if pair is not None:
-        self._in_queue = False
-        battle_id = await _create_battle(
-          pair.player1.user_id,
-          pair.player2.user_id,
-        )
+    if self._match_task is None or self._match_task.done():
+      self._match_task = asyncio.create_task(self._search_for_match())
 
-        await self.channel_layer.send(
-          pair.player1.channel_name,
-          {
-            "type": "match_found",
-            "battle_id": battle_id,
-            "opponent_user_id": pair.player2.user_id,
-            "opponent_elo": pair.player2.elo,
-          },
-        )
-        await self.channel_layer.send(
-          pair.player2.channel_name,
-          {
-            "type": "match_found",
-            "battle_id": battle_id,
-            "opponent_user_id": pair.player1.user_id,
-            "opponent_elo": pair.player1.elo,
-          },
-        )
-        return
+  async def _search_for_match(self) -> None:
+    backend = get_matchmaking_backend()
 
-      await asyncio.sleep(1)
+    try:
+      while self._in_queue and not self._cancel_event.is_set():
+        pair = try_match_for_user(backend, self.user_id, self.config)
+        if pair is not None:
+          self._in_queue = False
+          battle_id = await _create_battle(
+            pair.player1.user_id,
+            pair.player2.user_id,
+          )
+
+          await self.channel_layer.send(
+            pair.player1.channel_name,
+            {
+              "type": "match_found",
+              "battle_id": battle_id,
+              "opponent_user_id": pair.player2.user_id,
+              "opponent_elo": pair.player2.elo,
+            },
+          )
+          await self.channel_layer.send(
+            pair.player2.channel_name,
+            {
+              "type": "match_found",
+              "battle_id": battle_id,
+              "opponent_user_id": pair.player1.user_id,
+              "opponent_elo": pair.player1.elo,
+            },
+          )
+          return
+
+        # If our ticket was removed by someone else's match, stop the search
+        # task so we can handle the incoming match_found event.
+        has_ticket = any(
+          t.user_id == self.user_id for t in backend.list_tickets()
+        )
+        if not has_ticket:
+          self._in_queue = False
+          return
+
+        await asyncio.sleep(1)
+    except asyncio.CancelledError:
+      raise
 
   async def _handle_cancel(self) -> None:
     if not self._in_queue:
@@ -155,6 +178,9 @@ class MatchmakingConsumer(AsyncWebsocketConsumer):
     backend.remove_ticket(self.user_id)
     self._in_queue = False
     self._cancel_event.set()
+    if self._match_task is not None:
+      self._match_task.cancel()
+      self._match_task = None
     await self.send_json({"type": "matchmaking.cancelled"})
 
   async def match_found(self, event: dict[str, Any]) -> None:
