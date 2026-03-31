@@ -20,7 +20,6 @@ django_asgi_app = get_asgi_application()
 from videogame_back.routing import websocket_urlpatterns
 
 
-
 application = ProtocolTypeRouter(
   {
     "http": django_asgi_app,
