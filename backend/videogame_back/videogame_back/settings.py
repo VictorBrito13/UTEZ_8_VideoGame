@@ -193,6 +193,49 @@ SIMPLE_JWT = {
 # CORS Config for local frontend
 CORS_ALLOWED_ORIGINS = ["http://localhost:5173"]
 
+# Logging Configuration - Fallar seguro
+LOGGING = {
+  "version": 1,
+  "disable_existing_loggers": False,
+  "formatters": {
+    "verbose": {
+      "format": "{levelname} {asctime} {module} {process:d} {thread:d} {message}",
+      "style": "{",
+    },
+    "simple": {
+      "format": "{levelname} {message}",
+      "style": "{",
+    },
+  },
+  "handlers": {
+    "console": {
+      "class": "logging.StreamHandler",
+      "formatter": "simple",
+    },
+    "file": {
+      "class": "logging.FileHandler",
+      "filename": "debug.log",
+      "formatter": "verbose",
+    },
+  },
+  "root": {
+    "handlers": ["console"],
+    "level": "INFO",
+  },
+  "loggers": {
+    "combat": {
+      "handlers": ["console", "file"],
+      "level": "INFO",
+      "propagate": False,
+    },
+    "django": {
+      "handlers": ["console"],
+      "level": "INFO",
+      "propagate": False,
+    },
+  },
+}
+
 # Argon2 Password Hashing
 PASSWORD_HASHERS = [
   "django.contrib.auth.hashers.Argon2PasswordHasher",
