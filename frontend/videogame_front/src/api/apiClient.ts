@@ -4,7 +4,7 @@ const apiClient = axios.create({
   baseURL: "http://localhost:8000",
 });
 
-// Interceptor para agregar Token
+// Interceptor to add Token
 apiClient.interceptors.request.use((config) => {
   const token = localStorage.getItem("access_token");
   if (token) {
@@ -13,7 +13,7 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
-// Interceptor para refrescar el token si expira (401)
+// Interceptor to refresh token if expired (401)
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -23,7 +23,7 @@ apiClient.interceptors.response.use(
       try {
         const refresh = localStorage.getItem("refresh_token");
         const { data } = await axios.post(
-          "http://localhost:8000/api/token/refresh/",
+          "http://localhost:8000/api/token/refresh",
           { refresh },
         );
         localStorage.setItem("access_token", data.access);

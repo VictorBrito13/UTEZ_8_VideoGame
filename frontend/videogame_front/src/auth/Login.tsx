@@ -17,7 +17,7 @@ export default function Login() {
 
     try {
       const response = await axios.post(
-        "http://localhost:8000/api/login/",
+        "http://localhost:8000/api/login",
         formData,
       );
       localStorage.setItem("access_token", response.data.access);

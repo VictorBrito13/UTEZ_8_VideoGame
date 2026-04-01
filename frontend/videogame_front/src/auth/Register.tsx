@@ -23,7 +23,7 @@ export default function Register() {
     setError("");
 
     try {
-      await axios.post("http://localhost:8000/api/register/", formData);
+      await axios.post("http://localhost:8000/api/register", formData);
       navigate("/login");
     } catch (err: any) {
       setError(err.response?.data?.error || "Registration failed");

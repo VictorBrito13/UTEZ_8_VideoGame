@@ -174,7 +174,7 @@ SIMPLE_JWT = {
 
 
 # CORS Config for local frontend
-CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOWED_ORIGINS = ["http://localhost:5173"]
 
 # Argon2 Password Hashing
 PASSWORD_HASHERS = [
