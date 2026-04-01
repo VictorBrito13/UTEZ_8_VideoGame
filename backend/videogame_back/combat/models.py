@@ -2,7 +2,6 @@ from django.contrib.auth.models import User
 from django.db import models
 
 
-
 class Battle(models.Model):
   player1 = models.ForeignKey(User, on_delete=models.CASCADE, related_name="p1")
   player2 = models.ForeignKey(User, on_delete=models.CASCADE, related_name="p2")

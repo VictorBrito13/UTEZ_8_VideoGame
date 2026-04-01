@@ -6,58 +6,142 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
+  initial = True
 
-    initial = True
+  dependencies = [
+    ("creatures", "0001_initial"),
+    migrations.swappable_dependency(settings.AUTH_USER_MODEL),
+  ]
 
-    dependencies = [
-        ('creatures', '0001_initial'),
-        migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-    ]
-
-    operations = [
-        migrations.CreateModel(
-            name='Profile',
-            fields=[
-                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('avatar_url', models.URLField(blank=True, max_length=500, null=True)),
-                ('bio', models.TextField(blank=True, max_length=500)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('user', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='profile', to=settings.AUTH_USER_MODEL)),
-            ],
+  operations = [
+    migrations.CreateModel(
+      name="Profile",
+      fields=[
+        (
+          "id",
+          models.AutoField(
+            auto_created=True,
+            primary_key=True,
+            serialize=False,
+            verbose_name="ID",
+          ),
         ),
-        migrations.CreateModel(
-            name='Ranking',
-            fields=[
-                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('wins', models.IntegerField(default=0)),
-                ('losses', models.IntegerField(default=0)),
-                ('elo', models.IntegerField(default=1000)),
-                ('user', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, to=settings.AUTH_USER_MODEL)),
-            ],
+        ("avatar_url", models.URLField(blank=True, max_length=500, null=True)),
+        ("bio", models.TextField(blank=True, max_length=500)),
+        ("created_at", models.DateTimeField(auto_now_add=True)),
+        (
+          "user",
+          models.OneToOneField(
+            on_delete=django.db.models.deletion.CASCADE,
+            related_name="profile",
+            to=settings.AUTH_USER_MODEL,
+          ),
         ),
-        migrations.CreateModel(
-            name='Team',
-            fields=[
-                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('user', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='team', to=settings.AUTH_USER_MODEL)),
-            ],
+      ],
+    ),
+    migrations.CreateModel(
+      name="Ranking",
+      fields=[
+        (
+          "id",
+          models.AutoField(
+            auto_created=True,
+            primary_key=True,
+            serialize=False,
+            verbose_name="ID",
+          ),
         ),
-        migrations.CreateModel(
-            name='UserCreature',
-            fields=[
-                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('level', models.IntegerField(default=1)),
-                ('current_hp', models.IntegerField()),
-                ('creature', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='creatures.creature')),
-                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='creatures', to=settings.AUTH_USER_MODEL)),
-            ],
+        ("wins", models.IntegerField(default=0)),
+        ("losses", models.IntegerField(default=0)),
+        ("elo", models.IntegerField(default=1000)),
+        (
+          "user",
+          models.OneToOneField(
+            on_delete=django.db.models.deletion.CASCADE,
+            to=settings.AUTH_USER_MODEL,
+          ),
         ),
-        migrations.CreateModel(
-            name='TeamCreature',
-            fields=[
-                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('team', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='team_creatures', to='user_profile.team')),
-                ('user_creature', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='user_profile.usercreature')),
-            ],
+      ],
+    ),
+    migrations.CreateModel(
+      name="Team",
+      fields=[
+        (
+          "id",
+          models.AutoField(
+            auto_created=True,
+            primary_key=True,
+            serialize=False,
+            verbose_name="ID",
+          ),
         ),
-    ]
+        (
+          "user",
+          models.OneToOneField(
+            on_delete=django.db.models.deletion.CASCADE,
+            related_name="team",
+            to=settings.AUTH_USER_MODEL,
+          ),
+        ),
+      ],
+    ),
+    migrations.CreateModel(
+      name="UserCreature",
+      fields=[
+        (
+          "id",
+          models.AutoField(
+            auto_created=True,
+            primary_key=True,
+            serialize=False,
+            verbose_name="ID",
+          ),
+        ),
+        ("level", models.IntegerField(default=1)),
+        ("current_hp", models.IntegerField()),
+        (
+          "creature",
+          models.ForeignKey(
+            on_delete=django.db.models.deletion.CASCADE, to="creatures.creature"
+          ),
+        ),
+        (
+          "user",
+          models.ForeignKey(
+            on_delete=django.db.models.deletion.CASCADE,
+            related_name="creatures",
+            to=settings.AUTH_USER_MODEL,
+          ),
+        ),
+      ],
+    ),
+    migrations.CreateModel(
+      name="TeamCreature",
+      fields=[
+        (
+          "id",
+          models.AutoField(
+            auto_created=True,
+            primary_key=True,
+            serialize=False,
+            verbose_name="ID",
+          ),
+        ),
+        (
+          "team",
+          models.ForeignKey(
+            on_delete=django.db.models.deletion.CASCADE,
+            related_name="team_creatures",
+            to="user_profile.team",
+          ),
+        ),
+        (
+          "user_creature",
+          models.ForeignKey(
+            on_delete=django.db.models.deletion.CASCADE,
+            to="user_profile.usercreature",
+          ),
+        ),
+      ],
+    ),
+  ]
