@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from datetime import timedelta
 
 from dotenv import load_dotenv
 
@@ -15,6 +16,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = (
   "django-insecure-5qcj!s4oqf-s0b*3_zj+y6suppj4v(pld8c6xt1ukbi7t%npr="
 )
+
+# Configure default primary key field type
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -90,6 +94,21 @@ CHANNEL_LAYERS = {
   "default": {
     "BACKEND": "channels.layers.InMemoryChannelLayer",
   },
+}
+
+ASGI_APPLICATION = "videogame_back.asgi.application"
+
+CHANNEL_LAYERS = {
+  "default": {
+    "BACKEND": "channels.layers.InMemoryChannelLayer",
+  }
+}
+
+CACHES = {
+  "default": {
+    "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+    "LOCATION": "videogame-backend",
+  }
 }
 
 
@@ -173,7 +192,6 @@ REST_FRAMEWORK = {
 }
 
 # Simple JWT configurations
-from datetime import timedelta
 
 SIMPLE_JWT = {
   "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
@@ -189,6 +207,49 @@ SIMPLE_JWT = {
 
 # CORS Config for local frontend
 CORS_ALLOWED_ORIGINS = ["http://localhost:5173"]
+
+# Logging Configuration - Fallar seguro
+LOGGING = {
+  "version": 1,
+  "disable_existing_loggers": False,
+  "formatters": {
+    "verbose": {
+      "format": "{levelname} {asctime} {module} {process:d} {thread:d} {message}",
+      "style": "{",
+    },
+    "simple": {
+      "format": "{levelname} {message}",
+      "style": "{",
+    },
+  },
+  "handlers": {
+    "console": {
+      "class": "logging.StreamHandler",
+      "formatter": "simple",
+    },
+    "file": {
+      "class": "logging.FileHandler",
+      "filename": "debug.log",
+      "formatter": "verbose",
+    },
+  },
+  "root": {
+    "handlers": ["console"],
+    "level": "INFO",
+  },
+  "loggers": {
+    "combat": {
+      "handlers": ["console", "file"],
+      "level": "INFO",
+      "propagate": False,
+    },
+    "django": {
+      "handlers": ["console"],
+      "level": "INFO",
+      "propagate": False,
+    },
+  },
+}
 
 # Argon2 Password Hashing
 PASSWORD_HASHERS = [
