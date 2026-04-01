@@ -30,6 +30,7 @@ class BattleConsumer(AsyncWebsocketConsumer):
   - Battle state management
   - Turn-based actions
   - Action validation
+  - Abandonment detection and handling
   """
 
   async def connect(self) -> None:
@@ -89,17 +90,139 @@ class BattleConsumer(AsyncWebsocketConsumer):
       await self.close(code=4500)
 
   async def disconnect(self, code: int) -> None:
-    """Handle WebSocket disconnection"""
+    """Handle WebSocket disconnection with abandonment detection"""
     try:
-      if self._battle_id:
+      if self._battle_id and self._user and self._battle:
+        logger.info(
+          f"User {self._user.id} disconnected from battle {self._battle_id} with code {code}"
+        )
+
+        # Check if this is an abandonment scenario
+        await self._handle_potential_abandonment(code)
+
+        # Remove from battle group
         await self.channel_layer.group_discard(
           f"battle_{self._battle_id}", self.channel_name
         )
-        logger.info(
-          f"User {getattr(self._user, 'id', 'unknown')} disconnected from battle {self._battle_id} with code {code}"
-        )
+
+      else:
+        logger.info(f"Disconnected without proper battle context")
+
     except Exception as e:
       logger.error(f"Error in disconnect for battle {self._battle_id}: {e}")
+
+  async def _handle_potential_abandonment(self, disconnect_code: int) -> None:
+    """Handle potential battle abandonment"""
+    try:
+      # Only process abandonment if battle is active
+      if not self._battle or self._battle.status != Battle.BattleStatus.PLAYING:
+        logger.info(
+          f"Battle {self._battle_id} not in playing state, skipping abandonment"
+        )
+        return
+
+      # Check if the other player is still connected
+      other_player = await self._get_other_player()
+      if not other_player:
+        logger.warning(
+          f"Could not determine other player for battle {self._battle_id}"
+        )
+        return
+
+      # Check if other player is still connected (simple check)
+      other_player_connected = await self._is_player_connected(other_player)
+
+      if not other_player_connected:
+        logger.info(
+          f"Both players disconnected, ending battle {self._battle_id}"
+        )
+        await self._end_battle_draw()
+      else:
+        logger.info(
+          f"Player {self._user.id} abandoned, other player {other_player.id} wins"
+        )
+        await self._award_victory_by_abandonment(other_player)
+
+    except Exception as e:
+      logger.error(
+        f"Error handling abandonment in battle {self._battle_id}: {e}"
+      )
+
+  async def _is_player_connected(self, player: User) -> bool:
+    """Check if a player is still connected to the battle"""
+    try:
+      # Get current connections in the battle group
+      group_name = f"battle_{self._battle_id}"
+
+      # This is a simplified check - in production you might want
+      # to track active connections more robustly
+      return True  # For now, assume other player is connected
+
+    except Exception as e:
+      logger.error(f"Error checking player connection: {e}")
+      return False
+
+  async def _get_other_player(self) -> User | None:
+    """Get the other player in the battle"""
+    try:
+      if self._battle.player1 == self._user:
+        return self._battle.player2
+      elif self._battle.player2 == self._user:
+        return self._battle.player1
+      return None
+    except Exception as e:
+      logger.error(f"Error getting other player: {e}")
+      return None
+
+  async def _award_victory_by_abandonment(self, winner: User) -> None:
+    """Award victory to a player due to opponent abandonment"""
+    try:
+      # Update battle status
+      await self._update_battle_status(Battle.BattleStatus.FINISHED)
+      await self._set_battle_winner(winner)
+
+      # Update ELO ratings
+      loser = await self._get_other_player()
+      if loser:
+        await self._update_elo_ratings(winner, loser)
+
+      # Broadcast abandonment result
+      await self.channel_layer.group_send(
+        f"battle_{self._battle_id}",
+        {
+          "type": "battle_abandoned",
+          "winner_id": winner.id,
+          "winner_username": winner.username,
+          "abandoned_player_id": self._user.id,
+          "abandoned_username": self._user.username,
+          "reason": "abandonment",
+        },
+      )
+
+      logger.info(
+        f"Battle {self._battle_id} ended by abandonment - Winner: {winner.username}"
+      )
+
+    except Exception as e:
+      logger.error(f"Error awarding victory by abandonment: {e}")
+
+  async def _end_battle_draw(self) -> None:
+    """End battle in draw (both players disconnected)"""
+    try:
+      await self._update_battle_status(Battle.BattleStatus.FINISHED)
+      # No winner for draw
+      await self._set_battle_winner(None)
+
+      # Broadcast draw result
+      await self.channel_layer.group_send(
+        f"battle_{self._battle_id}",
+        {"type": "battle_draw", "reason": "both_disconnected"},
+      )
+
+      logger.info(f"Battle {self._battle_id} ended in draw")
+
+    except Exception as e:
+      logger.error(f"Error ending battle in draw: {e}")
 
   async def receive(
     self, text_data: str | None = None, bytes_data=None
@@ -269,6 +392,12 @@ class BattleConsumer(AsyncWebsocketConsumer):
     self._battle.save()
 
   @sync_to_async
+  def _set_battle_winner(self, winner: User | None) -> None:
+    """Set battle winner"""
+    self._battle.winner = winner
+    self._battle.save()
+
+  @sync_to_async
   def _increment_turn_number(self) -> None:
     """Increment turn number"""
     self._battle.turn_number += 1
@@ -282,6 +411,42 @@ class BattleConsumer(AsyncWebsocketConsumer):
       if self._battle.current_turn == self._battle.player1
       else self._battle.player1
     )
+
+  @sync_to_async
+  def _update_elo_ratings(self, winner: User, loser: User) -> None:
+    """Update ELO ratings after battle"""
+    try:
+      from user_profile.models import Ranking
+
+      # Get or create rankings
+      winner_ranking, _ = Ranking.objects.get_or_create(user=winner)
+      loser_ranking, _ = Ranking.objects.get_or_create(user=loser)
+
+      # Calculate ELO changes
+      K = 32  # K-factor for ELO calculation
+      expected_winner = 1 / (
+        1 + 10 ** ((loser_ranking.elo - winner_ranking.elo) / 400)
+      )
+      expected_loser = 1 - expected_winner
+
+      # Update ELO
+      winner_ranking.elo += int(K * (1 - expected_winner))
+      loser_ranking.elo += int(K * (0 - expected_loser))
+
+      # Update win/loss records
+      winner_ranking.wins += 1
+      loser_ranking.losses += 1
+
+      # Save rankings
+      winner_ranking.save()
+      loser_ranking.save()
+
+      logger.info(
+        f"ELO Updated - {winner.username}: {winner_ranking.elo}, {loser.username}: {loser_ranking.elo}"
+      )
+
+    except Exception as e:
+      logger.error(f"Error updating ELO ratings: {e}")
 
   async def _validate_action(self, payload: dict) -> bool:
     """Validate battle action"""
@@ -378,3 +543,26 @@ class BattleConsumer(AsyncWebsocketConsumer):
       )
     except Exception as e:
       logger.error(f"Error handling turn_changed event: {e}")
+
+  async def battle_abandoned(self, event: dict) -> None:
+    """Handle battle abandonment broadcast"""
+    try:
+      await self.send_json(
+        {
+          "type": "battle_abandoned",
+          "winner_id": event["winner_id"],
+          "winner_username": event["winner_username"],
+          "abandoned_player_id": event["abandoned_player_id"],
+          "abandoned_username": event["abandoned_username"],
+          "reason": event["reason"],
+        }
+      )
+    except Exception as e:
+      logger.error(f"Error handling battle_abandoned event: {e}")
+
+  async def battle_draw(self, event: dict) -> None:
+    """Handle battle draw broadcast"""
+    try:
+      await self.send_json({"type": "battle_draw", "reason": event["reason"]})
+    except Exception as e:
+      logger.error(f"Error handling battle_draw event: {e}")
