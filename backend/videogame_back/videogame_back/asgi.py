@@ -16,12 +16,11 @@ import chat.routing
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "videogame_back.settings")
 
 # Main application to handle protocols (HTTP and WebSockets)
-application = ProtocolTypeRouter({
+application = ProtocolTypeRouter(
+  {
     "http": get_asgi_application(),
     "websocket": AuthMiddlewareStack(
-        URLRouter(
-            chat.routing.websocket_urlpatterns
-        )
+      URLRouter(chat.routing.websocket_urlpatterns)
     ),
-})
-
+  }
+)

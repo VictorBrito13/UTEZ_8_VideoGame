@@ -44,6 +44,9 @@ INSTALLED_APPS = [
   "django.contrib.sessions",
   "django.contrib.messages",
   "django.contrib.staticfiles",
+  "rest_framework",
+  "rest_framework_simplejwt",
+  "corsheaders",
   "channels",
   "chat",
   "combat",
@@ -55,6 +58,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
   "django.middleware.security.SecurityMiddleware",
   "django.contrib.sessions.middleware.SessionMiddleware",
+  "corsheaders.middleware.CorsMiddleware",
   "django.middleware.common.CommonMiddleware",
   "django.middleware.csrf.CsrfViewMiddleware",
   "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -83,9 +87,9 @@ WSGI_APPLICATION = "videogame_back.wsgi.application"
 ASGI_APPLICATION = "videogame_back.asgi.application"
 
 CHANNEL_LAYERS = {
-    "default": {
-        "BACKEND": "channels.layers.InMemoryChannelLayer",
-    },
+  "default": {
+    "BACKEND": "channels.layers.InMemoryChannelLayer",
+  },
 }
 
 
@@ -160,3 +164,35 @@ STATIC_URL = "static/"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+# REST Framework configurations
+REST_FRAMEWORK = {
+  "DEFAULT_AUTHENTICATION_CLASSES": (
+    "rest_framework_simplejwt.authentication.JWTAuthentication",
+  ),
+  "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
+}
+
+# Simple JWT configurations
+from datetime import timedelta
+
+SIMPLE_JWT = {
+  "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
+  "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
+  "ROTATE_REFRESH_TOKENS": True,
+  "BLACKLIST_AFTER_ROTATION": True,
+  "ALGORITHM": "HS256",
+  "SIGNING_KEY": SECRET_KEY,
+  "AUTH_HEADER_TYPES": ("Bearer",),
+  "USER_ID_FIELD": "id",
+  "USER_ID_CLAIM": "user_id",
+}
+
+# CORS Config for local frontend
+CORS_ALLOWED_ORIGINS = ["http://localhost:5173"]
+
+# Argon2 Password Hashing
+PASSWORD_HASHERS = [
+  "django.contrib.auth.hashers.Argon2PasswordHasher",
+  "django.contrib.auth.hashers.PBKDF2PasswordHasher",
+  "django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher",
+]
