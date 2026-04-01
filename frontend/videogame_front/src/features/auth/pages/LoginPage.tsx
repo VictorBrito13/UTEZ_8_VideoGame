@@ -1,59 +1,28 @@
-import React, { useState } from "react";
-import { useNavigate, Link, useLocation } from "react-router-dom";
-import axios from "axios";
+import React from "react";
+import { Link } from "react-router-dom";
 import { LogIn, User, Lock } from "lucide-react";
+import { useLogin } from "../hooks/useLogin";
+import { Container } from "../../../common/ui/Container";
+import { Heading } from "../../../common/ui/Heading";
+import { Text } from "../../../common/ui/Text";
 
-export default function Login() {
-  const [formData, setFormData] = useState({ username: "", password: "" });
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
-  const location = useLocation();
-
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
-
-    try {
-      const response = await axios.post(
-        "http://localhost:8000/api/login",
-        formData,
-      );
-      localStorage.setItem("access_token", response.data.access);
-      localStorage.setItem("refresh_token", response.data.refresh);
-
-      const from = location.state?.from?.pathname || "/";
-      navigate(from, { replace: true });
-    } catch (err) {
-      setError("Credenciales inválidas");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
+const LoginPage: React.FC = () => {
+  const { formData, error, loading, handleChange, handleLogin } = useLogin();
 
   return (
-    <div className="flex justify-center items-center min-h-screen bg-slate-900 px-4">
-      <div className="w-full max-w-md p-8 space-y-6 bg-slate-800 rounded-2xl shadow-xl shadow-cyan-500/10 border border-slate-700">
+    <Container variant="page">
+      <Container variant="card">
         <div className="text-center">
           <LogIn className="mx-auto h-12 w-12 text-cyan-400" />
-          <h2 className="mt-4 text-3xl font-extrabold text-white">
+          <Heading level={2} className="mt-4">
             Welcome Back
-          </h2>
-          <p className="mt-2 text-sm text-slate-400">
+          </Heading>
+          <Text variant="secondary" className="mt-2">
             Enter your credentials to access your realm
-          </p>
+          </Text>
         </div>
 
-        {error && (
-          <div className="bg-red-500/10 border border-red-500/50 text-red-400 p-3 rounded-lg text-sm text-center">
-            {error}
-          </div>
-        )}
+        {error && <Text variant="error">{error}</Text>}
 
         <form onSubmit={handleLogin} className="mt-8 space-y-4">
           <div className="space-y-4">
@@ -95,7 +64,7 @@ export default function Login() {
           </button>
         </form>
 
-        <p className="text-center text-sm text-slate-400 mt-6">
+        <Text variant="secondary" className="text-center mt-6">
           Don't have an character?{" "}
           <Link
             to="/register"
@@ -103,8 +72,10 @@ export default function Login() {
           >
             Register now
           </Link>
-        </p>
-      </div>
-    </div>
+        </Text>
+      </Container>
+    </Container>
   );
-}
+};
+
+export default LoginPage;

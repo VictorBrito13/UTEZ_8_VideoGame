@@ -1,7 +1,8 @@
 import axios from "axios";
+import { BASE_URL } from "../common/utils/url";
 
 const apiClient = axios.create({
-  baseURL: "http://localhost:8000",
+  baseURL: BASE_URL,
 });
 
 // Interceptor to add Token
@@ -23,7 +24,7 @@ apiClient.interceptors.response.use(
       try {
         const refresh = localStorage.getItem("refresh_token");
         const { data } = await axios.post(
-          "http://localhost:8000/api/token/refresh",
+          `${BASE_URL}/api/token/refresh`,
           { refresh },
         );
         localStorage.setItem("access_token", data.access);
