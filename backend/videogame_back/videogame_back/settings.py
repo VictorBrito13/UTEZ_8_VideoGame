@@ -17,6 +17,9 @@ SECRET_KEY = (
   "django-insecure-5qcj!s4oqf-s0b*3_zj+y6suppj4v(pld8c6xt1ukbi7t%npr="
 )
 
+# Configure default primary key field type
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
