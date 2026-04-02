@@ -1,55 +1,29 @@
-import React, { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
-import axios from "axios";
+import React from "react";
+import { Link } from "react-router-dom";
 import { UserPlus, Mail, Lock, User } from "lucide-react";
+import { useRegister } from "../hooks/useRegister";
+import { Container } from "../../../common/ui/Container";
+import { Heading } from "../../../common/ui/Heading";
+import { Text } from "../../../common/ui/Text";
 
-export default function Register() {
-  const [formData, setFormData] = useState({
-    username: "",
-    email: "",
-    password: "",
-  });
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
-
-  const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
-
-    try {
-      await axios.post("http://localhost:8000/api/register", formData);
-      navigate("/login");
-    } catch (err: any) {
-      setError(err.response?.data?.error || "Registration failed");
-    } finally {
-      setLoading(false);
-    }
-  };
+const RegisterPage: React.FC = () => {
+  const { formData, error, loading, handleChange, handleRegister } =
+    useRegister();
 
   return (
-    <div className="flex justify-center items-center min-h-screen bg-slate-900 px-4">
-      <div className="w-full max-w-md p-8 space-y-6 bg-slate-800 rounded-2xl shadow-xl shadow-cyan-500/10 border border-slate-700">
+    <Container variant="page">
+      <Container variant="card">
         <div className="text-center">
           <UserPlus className="mx-auto h-12 w-12 text-cyan-400" />
-          <h2 className="mt-4 text-3xl font-extrabold text-white">
+          <Heading level={2} className="mt-4">
             Join the Battle
-          </h2>
-          <p className="mt-2 text-sm text-slate-400">
+          </Heading>
+          <Text variant="secondary" className="mt-2">
             Create your new hero account
-          </p>
+          </Text>
         </div>
 
-        {error && (
-          <div className="bg-red-500/10 border border-red-500/50 text-red-400 p-3 rounded-lg text-sm text-center">
-            {error}
-          </div>
-        )}
+        {error && <Text variant="error">{error}</Text>}
 
         <form onSubmit={handleRegister} className="mt-8 space-y-4">
           <div className="space-y-4">
@@ -105,7 +79,7 @@ export default function Register() {
           </button>
         </form>
 
-        <p className="text-center text-sm text-slate-400 mt-6">
+        <Text variant="secondary" className="text-center mt-6">
           Already have an account?{" "}
           <Link
             to="/login"
@@ -113,8 +87,10 @@ export default function Register() {
           >
             Login here
           </Link>
-        </p>
-      </div>
-    </div>
+        </Text>
+      </Container>
+    </Container>
   );
-}
+};
+
+export default RegisterPage;
