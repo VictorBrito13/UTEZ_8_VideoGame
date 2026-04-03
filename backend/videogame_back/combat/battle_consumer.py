@@ -12,6 +12,7 @@ from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 
 from .models import Battle
+from inventory.reward_service import award_battle_rewards
 
 # Configure logging for battle consumer
 logger = logging.getLogger(__name__)
@@ -199,6 +200,9 @@ class BattleConsumer(AsyncWebsocketConsumer):
         },
       )
 
+      # Award rewards to both
+      await self._award_all_rewards(winner, loser)
+
       logger.info(
         f"Battle {self._battle_id} ended by abandonment - Winner: {winner.username}"
       )
@@ -218,6 +222,9 @@ class BattleConsumer(AsyncWebsocketConsumer):
         f"battle_{self._battle_id}",
         {"type": "battle_draw", "reason": "both_disconnected"},
       )
+
+      # Award rewards to both even in draw
+      await self._award_all_rewards(self._battle.player1, self._battle.player2)
 
       logger.info(f"Battle {self._battle_id} ended in draw")
 
@@ -494,6 +501,57 @@ class BattleConsumer(AsyncWebsocketConsumer):
       )
     except Exception as e:
       logger.error(f"Error sending battle state for {self._battle_id}: {e}")
+
+  async def _award_all_rewards(self, winner: User, loser: User) -> None:
+    """Award rewards to both winner and loser"""
+    try:
+      # Award to winner
+      winner_rewards = await sync_to_async(award_battle_rewards)(
+        winner, count=3
+      )
+      # Award to loser
+      loser_rewards = await sync_to_async(award_battle_rewards)(loser, count=3)
+
+      # Broadcast to winner channel
+      await self.channel_layer.group_send(
+        f"battle_{self._battle_id}",
+        {
+          "type": "battle_rewards_assigned",
+          "player_id": winner.id,
+          "rewards": winner_rewards,
+        },
+      )
+
+      # Broadcast to loser channel
+      await self.channel_layer.group_send(
+        f"battle_{self._battle_id}",
+        {
+          "type": "battle_rewards_assigned",
+          "player_id": loser.id,
+          "rewards": loser_rewards,
+        },
+      )
+
+      logger.info(f"Rewards awarded for battle {self._battle_id}")
+
+    except Exception as e:
+      logger.error(f"Error awarding battle rewards: {e}")
+
+  async def battle_rewards_assigned(self, event: dict) -> None:
+    """Handle rewards assigned broadcast"""
+    try:
+      # Only send to the specific player if we want private rewards,
+      # or broadcast to all if we want transparency.
+      # The guide doesn't specify, so we broadcast but client filters.
+      await self.send_json(
+        {
+          "type": "battle.rewards_assigned",
+          "playerId": event["player_id"],
+          "rewards": event["rewards"],
+        }
+      )
+    except Exception as e:
+      logger.error(f"Error handling battle_rewards_assigned event: {e}")
 
   async def send_json(self, payload: dict[str, Any]) -> None:
     """Send JSON response"""

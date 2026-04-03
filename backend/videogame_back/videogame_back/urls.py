@@ -16,4 +16,5 @@ urlpatterns = [
   path("api/register", user_profile_views.register, name="register"),
   path("api/", include("user_profile.urls")),
   path("api/", include("inventory.urls")),
+  path("api/creatures/", include("creatures.urls")),
 ]
