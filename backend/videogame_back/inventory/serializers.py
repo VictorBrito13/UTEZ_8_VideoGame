@@ -9,9 +9,11 @@ class ObjectSerializer(serializers.ModelSerializer):
 
 
 class InventoryItemSerializer(serializers.ModelSerializer):
+    object = ObjectSerializer(read_only=True)
+    
     class Meta:
         model = InventoryItem
-        fields = "__all__"
+        fields = ["id", "object", "quantity"]
 
     def validate_quantity(self, value):
         if value < 0:

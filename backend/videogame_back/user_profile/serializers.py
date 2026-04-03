@@ -67,17 +67,33 @@ class UserSerializer(serializers.ModelSerializer):
 
 class UserCreatureSerializer(serializers.ModelSerializer):
   creature_name = serializers.ReadOnlyField(source="creature.name")
-  creature_id = serializers.ReadOnlyField(source="creature.pokedex_id")
-  sprite = serializers.ReadOnlyField(source="creature.front_sprite")
+  pokedex_id = serializers.ReadOnlyField(source="creature.pokedex_id")
+  front_sprite = serializers.ReadOnlyField(source="creature.front_sprite")
+  back_sprite = serializers.ReadOnlyField(source="creature.back_sprite")
+  
+  # Base Stats from Creature model (RF-06)
+  hp = serializers.ReadOnlyField(source="creature.hp")
+  attack = serializers.ReadOnlyField(source="creature.attack")
+  defense = serializers.ReadOnlyField(source="creature.defense")
+  speed = serializers.ReadOnlyField(source="creature.speed")
+  type_1 = serializers.ReadOnlyField(source="creature.type_1.name")
+  type_2 = serializers.ReadOnlyField(source="creature.type_2.name")
 
   class Meta:
     model = UserCreature
     fields = [
       "id",
-      "creature_id",
+      "pokedex_id",
       "creature_name",
-      "sprite",
+      "front_sprite",
+      "back_sprite",
       "level",
+      "hp",
+      "attack",
+      "defense",
+      "speed",
+      "type_1",
+      "type_2",
       "current_hp",
     ]
 

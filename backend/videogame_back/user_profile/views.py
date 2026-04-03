@@ -1,11 +1,11 @@
-from rest_framework import status
+from rest_framework import status, viewsets
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
-from .serializers import UserRegistrationSerializer
+from .serializers import UserRegistrationSerializer, UserCreatureSerializer
 from django.http import JsonResponse
 from django.views.decorators.http import require_GET
-from .models import Ranking
+from .models import Ranking, UserCreature
 
 
 @api_view(["POST"])
@@ -51,5 +51,18 @@ def leaderboard(request):
     }
     for r in rankings
   ]
-
   return JsonResponse({"results": data})
+
+
+class UserCreatureViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    ViewSet for the user to consult their own creatures and their stats.
+    Fulfills RF-06: Consultation of attributes and abilities.
+    Secure access: only the user's creatures are returned (R3.2).
+    """
+    serializer_class = UserCreatureSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        # Filtering by current user to avoid unauthorized access (R3.2)
+        return UserCreature.objects.filter(user=self.request.user)

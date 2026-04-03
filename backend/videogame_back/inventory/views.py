@@ -11,9 +11,31 @@ from .services import use_object
 
 
 class InventoryViewSet(viewsets.ModelViewSet):
-    queryset = Inventory.objects.all()
     serializer_class = InventorySerializer
     permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        # Filter items with quantity > 0 (RF-07) and own user (R6.1)
+        # Note: Inventory model is 1-to-1 with User.
+        return Inventory.objects.filter(user=self.request.user)
+
+    def retrieve(self, request, *args, **kwargs):
+        # Custom retrieve to ensure filtered items are returned even when fetching single inventory
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+        data = serializer.data
+        # Filter nested items manually in the response if needed, 
+        # but better to handle it in serializer or filtered queryset.
+        data['items'] = [item for item in data['items'] if item['quantity'] > 0]
+        return Response(data)
+
+    def list(self, request, *args, **kwargs):
+        # For listing, we apply the same logic
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        for inventory in serializer.data:
+            inventory['items'] = [item for item in inventory['items'] if item['quantity'] > 0]
+        return Response(serializer.data)
 
     @action(detail=False, methods=["post"], url_path="use-object")
     def use_object_endpoint(self, request):
