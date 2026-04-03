@@ -1,6 +1,6 @@
 from django.contrib.auth.models import User
 from django.db import models
-
+from django.core.exceptions import ValidationError
 
 class Object(models.Model):
     """
@@ -62,3 +62,16 @@ class InventoryItem(models.Model):
 
     def __str__(self):
         return f"{self.inventory.user.username} - {self.object.name} x{self.quantity}"
+  inventory = models.ForeignKey(
+    Inventory, on_delete=models.CASCADE, related_name="items"
+  )
+  object = models.ForeignKey(Object, on_delete=models.CASCADE)
+  quantity = models.IntegerField(default=0)
+
+  def clean(self):
+    if self.quantity < 0:
+      raise ValidationError("Quantity cannot be negative")
+
+  def save(self, *args, **kwargs):
+    self.full_clean()
+    super().save(*args, **kwargs)

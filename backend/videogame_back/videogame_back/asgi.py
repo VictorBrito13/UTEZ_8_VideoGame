@@ -8,13 +8,12 @@ https://docs.djangoproject.com/en/6.0/howto/deployment/asgi/
 """
 
 import os
-
-# Set Django settings module
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "videogame_back.settings")
-
-from channels.auth import AuthMiddlewareStack
-from channels.routing import ProtocolTypeRouter, URLRouter
+import os
 from django.core.asgi import get_asgi_application
+from channels.routing import ProtocolTypeRouter, URLRouter
+from channels.auth import AuthMiddlewareStack
+
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "videogame_back.settings")
 
 django_asgi_app = get_asgi_application()
 from videogame_back.routing import websocket_urlpatterns
@@ -26,3 +25,4 @@ application = ProtocolTypeRouter(
     "websocket": AuthMiddlewareStack(URLRouter(websocket_urlpatterns)),
   }
 )
+
