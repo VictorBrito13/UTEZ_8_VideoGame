@@ -88,6 +88,13 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "videogame_back.wsgi.application"
+ASGI_APPLICATION = "videogame_back.asgi.application"
+
+CHANNEL_LAYERS = {
+  "default": {
+    "BACKEND": "channels.layers.InMemoryChannelLayer",
+  },
+}
 
 ASGI_APPLICATION = "videogame_back.asgi.application"
 
@@ -171,6 +178,11 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 
+# Default primary key field type
+# https://docs.djangoproject.com/en/6.0/ref/settings/#default-auto-field
+
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
 # REST Framework configurations
 REST_FRAMEWORK = {
   "DEFAULT_AUTHENTICATION_CLASSES": (
@@ -180,6 +192,7 @@ REST_FRAMEWORK = {
 }
 
 # Simple JWT configurations
+
 SIMPLE_JWT = {
   "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
   "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
@@ -191,7 +204,6 @@ SIMPLE_JWT = {
   "USER_ID_FIELD": "id",
   "USER_ID_CLAIM": "user_id",
 }
-
 
 # CORS Config for local frontend
 CORS_ALLOWED_ORIGINS = ["http://localhost:5173"]
