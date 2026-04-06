@@ -8,8 +8,7 @@ export interface AuthResponse {
   refresh: string;
 }
 
-export interface RegisterRequest {
-  username: string;
+export interface RegisterRequest extends LoginRequest {
   email: string;
-  password: string;
+  trainer_sprite?: string;
 }

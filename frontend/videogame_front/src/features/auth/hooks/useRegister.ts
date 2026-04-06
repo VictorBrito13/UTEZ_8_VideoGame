@@ -7,10 +7,15 @@ export const useRegister = () => {
     username: "",
     email: "",
     password: "",
+    trainer_sprite: "",
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+
+  const setAvatar = (url: string) => {
+    setFormData((prev) => ({ ...prev, trainer_sprite: url }));
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -37,5 +42,6 @@ export const useRegister = () => {
     loading,
     handleChange,
     handleRegister,
+    setAvatar,
   };
 };

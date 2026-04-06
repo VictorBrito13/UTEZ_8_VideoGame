@@ -17,8 +17,6 @@ export const Container: React.FC<ContainerProps> = ({
   };
 
   return (
-    <div className={`${variants[variant]} ${className}`.trim()}>
-      {children}
-    </div>
+    <div className={`${variants[variant]} ${className}`.trim()}>{children}</div>
   );
 };

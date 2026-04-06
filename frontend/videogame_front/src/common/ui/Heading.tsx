@@ -21,8 +21,6 @@ export const Heading: React.FC<HeadingProps> = ({
   };
 
   return (
-    <Tag className={`${baseStyles[level]} ${className}`.trim()}>
-      {children}
-    </Tag>
+    <Tag className={`${baseStyles[level]} ${className}`.trim()}>{children}</Tag>
   );
 };
