@@ -18,7 +18,7 @@ export const TeamWidget = () => {
   useEffect(() => {
     const fetchTeam = async () => {
       try {
-        const response = await apiClient.get("/api/team/team/");
+        const response = await apiClient.get("/api/team/");
         setTeam(response.data);
       } catch (error) {
         console.error("Error fetching dashboard team:", error);

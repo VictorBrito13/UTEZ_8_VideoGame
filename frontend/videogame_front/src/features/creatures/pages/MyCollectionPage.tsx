@@ -30,7 +30,7 @@ export const MyCollectionPage = () => {
     try {
       const [creaturesRes, teamRes] = await Promise.all([
         apiClient.get("/api/creatures/my-creatures/"),
-        apiClient.get("/api/team/team/"),
+        apiClient.get("/api/team/"),
       ]);
 
       setCreatures(creaturesRes.data);

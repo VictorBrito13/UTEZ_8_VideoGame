@@ -35,7 +35,7 @@ export const InventoryPage = () => {
   useEffect(() => {
     const fetchInventory = async () => {
       try {
-        const response = await apiClient.get("/api/inventory/inventory/");
+        const response = await apiClient.get("/api/inventory/");
         // Expecting response.data.results or response.data if it's the detail
         const invData = Array.isArray(response.data)
           ? response.data[0]
