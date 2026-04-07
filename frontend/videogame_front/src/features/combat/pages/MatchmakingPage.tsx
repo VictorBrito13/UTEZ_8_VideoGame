@@ -6,7 +6,9 @@ import { BackButton } from "../../../common/ui/BackButton";
 import { BASE_URL } from "../../../common/utils/url";
 
 export const MatchmakingPage = () => {
-  const [status, setStatus] = useState<"idle" | "searching" | "found" | "error">("idle");
+  const [status, setStatus] = useState<
+    "idle" | "searching" | "found" | "error"
+  >("idle");
   const [message, setMessage] = useState("");
   const [opponent, setOpponent] = useState<any>(null);
   const wsRef = useRef<WebSocket | null>(null);
@@ -15,10 +17,13 @@ export const MatchmakingPage = () => {
   const handleStartSearch = () => {
     setStatus("searching");
     setMessage("Searching for opponent...");
-    
+
     // Connect to WebSocket
     const token = localStorage.getItem("access_token") || "";
-    const wsUrl = BASE_URL.replace("http://", "ws://").replace("https://", "wss://");
+    const wsUrl = BASE_URL.replace("http://", "ws://").replace(
+      "https://",
+      "wss://",
+    );
     const ws = new WebSocket(`${wsUrl}/ws/matchmaking?token=${token}`);
     wsRef.current = ws;
 
@@ -31,7 +36,7 @@ export const MatchmakingPage = () => {
       try {
         const data = JSON.parse(event.data);
         console.log("Matchmaking event:", data);
-        
+
         switch (data.type) {
           case "matchmaking.queued":
             setMessage(`In queue. Your ELO: ${data.elo}. Broadening search...`);
@@ -40,7 +45,7 @@ export const MatchmakingPage = () => {
             setStatus("found");
             setOpponent(data.opponent);
             setMessage("Opponent found! Connecting to battle arena...");
-            
+
             // Navigate to battle arena after a short delay
             setTimeout(() => {
               navigate(`/battle/${data.battleId}`);
@@ -105,7 +110,7 @@ export const MatchmakingPage = () => {
 
       {/* Decorative background elements */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-red-900/10 blur-[120px] rounded-full pointer-events-none" />
-      
+
       <div className="z-10 w-full max-w-lg mx-auto text-center px-6">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -126,7 +131,9 @@ export const MatchmakingPage = () => {
               <div className="w-32 h-32 rounded-full border border-white/10 bg-neutral-900/50 flex items-center justify-center">
                 <Swords size={48} className="text-neutral-500 animate-pulse" />
               </div>
-              <p className="text-neutral-500 font-bold uppercase tracking-widest text-xs">Initializing Neural Link...</p>
+              <p className="text-neutral-500 font-bold uppercase tracking-widest text-xs">
+                Initializing Neural Link...
+              </p>
             </div>
           )}
 
@@ -147,10 +154,12 @@ export const MatchmakingPage = () => {
                 />
                 <Search size={32} className="text-red-500 animate-pulse" />
               </div>
-              
+
               <div>
                 <h3 className="text-xl font-bold">{message}</h3>
-                <p className="text-neutral-500 text-sm mt-2">Connecting to players with similar skill levels...</p>
+                <p className="text-neutral-500 text-sm mt-2">
+                  Connecting to players with similar skill levels...
+                </p>
               </div>
 
               <button
@@ -176,7 +185,7 @@ export const MatchmakingPage = () => {
                     <span className="text-2xl font-black">YOU</span>
                   </div>
                 </div>
-                
+
                 <div className="flex flex-col items-center">
                   <motion.div
                     animate={{ scale: [1, 1.2, 1] }}
@@ -184,20 +193,28 @@ export const MatchmakingPage = () => {
                   >
                     <Swords size={32} className="text-red-500" />
                   </motion.div>
-                  <span className="text-xs font-black tracking-widest mt-2 uppercase text-red-500">VS</span>
+                  <span className="text-xs font-black tracking-widest mt-2 uppercase text-red-500">
+                    VS
+                  </span>
                 </div>
 
                 <div className="text-center">
                   <div className="w-24 h-24 rounded-full border border-red-500/50 bg-red-900/20 flex items-center justify-center mb-4 relative overflow-hidden">
                     <div className="absolute inset-0 bg-red-500/10 animate-pulse" />
-                    <span className="text-sm font-black uppercase px-2 z-10 break-all">{opponent.username || `User ${opponent.userId}`}</span>
+                    <span className="text-sm font-black uppercase px-2 z-10 break-all">
+                      {opponent.username || `User ${opponent.userId}`}
+                    </span>
                   </div>
-                  <span className="text-xs font-bold text-neutral-500">ELO: {opponent.elo}</span>
+                  <span className="text-xs font-bold text-neutral-500">
+                    ELO: {opponent.elo}
+                  </span>
                 </div>
               </div>
 
               <div className="mt-8 text-center bg-emerald-500/10 border border-emerald-500/30 px-8 py-4 rounded-2xl w-full">
-                <p className="font-black text-emerald-400 uppercase tracking-widest">{message}</p>
+                <p className="font-black text-emerald-400 uppercase tracking-widest">
+                  {message}
+                </p>
               </div>
             </motion.div>
           )}

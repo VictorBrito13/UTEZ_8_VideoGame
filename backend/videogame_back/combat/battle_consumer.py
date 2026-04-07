@@ -190,15 +190,18 @@ class BattleConsumer(AsyncWebsocketConsumer):
         await self._heal_team_sync(loser)
         await self._update_elo_ratings(winner, loser)
 
+      await self._refresh_battle_sync()
+      await self._broadcast_battle_state_to_group()
+
       # Broadcast abandonment result
       await self.channel_layer.group_send(
         f"battle_{self._battle_id}",
         {
           "type": "battle_abandoned",
           "winner_id": winner.id,
-          "winner_username": getattr(winner, 'username', 'Winner'),
+          "winner_username": getattr(winner, "username", "Winner"),
           "abandoned_player_id": self._user.id,
-          "abandoned_username": getattr(self._user, 'username', 'Someone'),
+          "abandoned_username": getattr(self._user, "username", "Someone"),
           "reason": "abandonment",
         },
       )
@@ -219,7 +222,7 @@ class BattleConsumer(AsyncWebsocketConsumer):
       await self._update_battle_status(Battle.BattleStatus.FINISHED)
       # No winner for draw
       await self._set_battle_winner(None)
-      
+
       await self._heal_team_sync(self._battle.player1)
       await self._heal_team_sync(self._battle.player2)
 
@@ -308,10 +311,10 @@ class BattleConsumer(AsyncWebsocketConsumer):
           "status": Battle.BattleStatus.PLAYING,
         },
       )
-      
+
       # Force update of UI with the healed HP values
       await self._send_battle_state()
-      
+
       logger.info(
         f"Battle {self._battle_id} started, first turn: {first_player.id}"
       )
@@ -329,91 +332,112 @@ class BattleConsumer(AsyncWebsocketConsumer):
         return
 
       action = payload.get("action")
-      
+
       if action == "attack":
         attacker = self._user
         defender = await self._get_next_player()
 
         result = await self._apply_damage(attacker, defender)
-        
-        
+
         if result and result.get("success"):
-           await self.channel_layer.group_send(
-             f"battle_{self._battle_id}",
-             {
-               "type": "battle_action",
-               "action": "attack",
-               "player_id": self._user.id,
-               "data": {
-                  "damage": result["damage"],
-                  "defender_active_id": result["defender_active_id"],
-                  "defender_hp": result["defender_hp"],
-                  "is_fainted": result["is_fainted"]
-               },
-             },
-           )
+          await self.channel_layer.group_send(
+            f"battle_{self._battle_id}",
+            {
+              "type": "battle_action",
+              "action": "attack",
+              "player_id": self._user.id,
+              "data": {
+                "damage": result["damage"],
+                "defender_active_id": result["defender_active_id"],
+                "defender_hp": result["defender_hp"],
+                "is_fainted": result["is_fainted"],
+                "defender_user_id": result["defender_user_id"],
+                "forced_switch": result["forced_switch"],
+                "new_defender_active_id": result["new_defender_active_id"],
+              },
+            },
+          )
 
-           if result.get("all_fainted"):
-               await self._award_victory_normal(attacker, defender)
-               return
+          if result.get("all_fainted"):
+            await self._award_victory_normal(attacker, defender)
+            return
 
-           # Automatically end turn
-           await self._handle_end_turn()
-           return
+          # Automatically end turn
+          await self._handle_end_turn()
+          return
         else:
-           await self.send_json({"type": "error", "message": "Attack failed: " + result.get("error", "Unknown")})
-           return
+          await self.send_json(
+            {
+              "type": "error",
+              "message": "Attack failed: " + result.get("error", "Unknown"),
+            }
+          )
+          return
 
-      if (action == "use_item"):
+      if action == "use_item":
         item_id = payload.get("data", {}).get("item_id")
         if not item_id:
-            await self.send_json({"type": "error", "message": "Missing item_id for use_item"})
-            return
-            
+          await self.send_json(
+            {"type": "error", "message": "Missing item_id for use_item"}
+          )
+          return
+
         result = await self._apply_item_effect(self._user, item_id)
         if result and result.get("success"):
-            await self.channel_layer.group_send(
-              f"battle_{self._battle_id}",
-              {
-                "type": "battle_action",
-                "action": "use_item",
-                "player_id": self._user.id,
-                "data": {
-                    "item_id": item_id,
-                    "item_name": result["item_name"],
-                    "heal_amount": result.get("heal_amount", 0),
-                    "new_hp": result.get("new_hp"),
-                    "creature_id": result.get("creature_id")
-                },
+          await self.channel_layer.group_send(
+            f"battle_{self._battle_id}",
+            {
+              "type": "battle_action",
+              "action": "use_item",
+              "player_id": self._user.id,
+              "data": {
+                "item_id": item_id,
+                "item_name": result["item_name"],
+                "heal_amount": result.get("heal_amount", 0),
+                "new_hp": result.get("new_hp"),
+                "creature_id": result.get("creature_id"),
               },
-            )
-            return
+            },
+          )
+          return
         else:
-            await self.send_json({"type": "error", "message": "Item failed: " + result.get("error", "Unknown")})
-            return
+          await self.send_json(
+            {
+              "type": "error",
+              "message": "Item failed: " + result.get("error", "Unknown"),
+            }
+          )
+          return
 
-      if (action == "swap"):
+      if action == "swap":
         creature_id = payload.get("data", {}).get("creature_id")
         if not creature_id:
-            await self.send_json({"type": "error", "message": "Missing creature_id for swap"})
-            return
-            
+          await self.send_json(
+            {"type": "error", "message": "Missing creature_id for swap"}
+          )
+          return
+
         # This is crucial: update server cache of who is active
         success = await self._cache_active_creature(self._user, creature_id)
         if success:
-            await self.channel_layer.group_send(
-              f"battle_{self._battle_id}",
-              {
-                "type": "battle_action",
-                "action": "swap",
-                "player_id": self._user.id,
-                "data": {"creature_id": creature_id},
-              },
-            )
-            return
+          await self.channel_layer.group_send(
+            f"battle_{self._battle_id}",
+            {
+              "type": "battle_action",
+              "action": "swap",
+              "player_id": self._user.id,
+              "data": {"creature_id": creature_id},
+            },
+          )
+          return
         else:
-            await self.send_json({"type": "error", "message": "Swap failed: Creature does not belong to you or is fainted"})
-            return
+          await self.send_json(
+            {
+              "type": "error",
+              "message": "Swap failed: Creature does not belong to you or is fainted",
+            }
+          )
+          return
 
       # For other items/actions, just broadcast for now
       await self.channel_layer.group_send(
@@ -561,246 +585,433 @@ class BattleConsumer(AsyncWebsocketConsumer):
 
   @sync_to_async
   def _initialize_team_state(self, user):
-      """Finds the first alive creature and caches it as active"""
-      from user_profile.models import Team
-      team = Team.objects.get(user=user)
-      for tc in team.team_creatures.all():
-         if tc.user_creature.current_hp > 0:
-             cache.set(f"battle_{self._battle_id}_p_{user.id}_active", tc.user_creature.id, timeout=3600)
-             return
+    """Finds the first alive creature and caches it as active"""
+    from user_profile.models import Team
+
+    team = Team.objects.get(user=user)
+    for tc in team.team_creatures.all():
+      if tc.user_creature.current_hp > 0:
+        cache.set(
+          f"battle_{self._battle_id}_p_{user.id}_active",
+          tc.user_creature.id,
+          timeout=3600,
+        )
+        return
 
   @sync_to_async
   def _cache_active_creature(self, user, creature_id: int):
-      from user_profile.models import Team
-      team = Team.objects.get(user=user)
-      # Validate it belongs to user and is alive
-      for tc in team.team_creatures.all():
-          if tc.user_creature.id == creature_id and tc.user_creature.current_hp > 0:
-              cache.set(f"battle_{self._battle_id}_p_{user.id}_active", creature_id, timeout=3600)
-              return True
-      return False
+    from user_profile.models import Team
+
+    team = Team.objects.get(user=user)
+    # Validate it belongs to user and is alive
+    for tc in team.team_creatures.all():
+      if tc.user_creature.id == creature_id and tc.user_creature.current_hp > 0:
+        cache.set(
+          f"battle_{self._battle_id}_p_{user.id}_active",
+          creature_id,
+          timeout=3600,
+        )
+        return True
+    return False
 
   def _calculate_type_multiplier_sync(self, atk_types, def_types) -> float:
-      """Basic Type Effectiveness Chart"""
-      chart = {
-          "normal": {"rock": 0.5, "ghost": 0, "steel": 0.5},
-          "fire": {"fire": 0.5, "water": 0.5, "grass": 2.0, "ice": 2.0, "bug": 2.0, "rock": 0.5, "dragon": 0.5, "steel": 2.0},
-          "water": {"fire": 2.0, "water": 0.5, "grass": 0.5, "ground": 2.0, "rock": 2.0, "dragon": 0.5},
-          "electric": {"water": 2.0, "electric": 0.5, "grass": 0.5, "ground": 0, "flying": 2.0, "dragon": 0.5},
-          "grass": {"fire": 0.5, "water": 2.0, "grass": 0.5, "poison": 0.5, "ground": 2.0, "flying": 0.5, "bug": 0.5, "rock": 2.0, "dragon": 0.5, "steel": 0.5},
-          "ice": {"fire": 0.5, "water": 0.5, "grass": 2.0, "ice": 0.5, "ground": 2.0, "flying": 2.0, "dragon": 2.0, "steel": 0.5},
-          "fighting": {"normal": 2.0, "ice": 2.0, "poison": 0.5, "flying": 0.5, "psychic": 0.5, "bug": 0.5, "rock": 2.0, "ghost": 0, "dark": 2.0, "steel": 2.0, "fairy": 0.5},
-          "poison": {"grass": 2.0, "poison": 0.5, "ground": 0.5, "rock": 0.5, "ghost": 0.5, "steel": 0, "fairy": 2.0},
-          "ground": {"fire": 2.0, "electric": 2.0, "grass": 0.5, "poison": 2.0, "flying": 0, "bug": 0.5, "rock": 2.0, "steel": 2.0},
-          "flying": {"electric": 0.5, "grass": 2.0, "fighting": 2.0, "bug": 2.0, "rock": 0.5, "steel": 0.5},
-          "psychic": {"fighting": 2.0, "poison": 2.0, "psychic": 0.5, "dark": 0, "steel": 0.5},
-          "bug": {"fire": 0.5, "grass": 2.0, "fighting": 0.5, "poison": 0.5, "flying": 0.5, "psychic": 2.0, "ghost": 0.5, "dark": 2.0, "steel": 0.5, "fairy": 0.5},
-          "rock": {"fire": 2.0, "ice": 2.0, "fighting": 0.5, "ground": 0.5, "flying": 2.0, "bug": 2.0, "steel": 0.5},
-          "ghost": {"normal": 0, "psychic": 2.0, "ghost": 2.0, "dark": 0.5},
-          "dragon": {"dragon": 2.0, "steel": 0.5, "fairy": 0},
-          "dark": {"fighting": 0.5, "psychic": 2.0, "ghost": 2.0, "dark": 0.5, "fairy": 0.5},
-          "steel": {"fire": 0.5, "water": 0.5, "electric": 0.5, "ice": 2.0, "rock": 2.0, "steel": 0.5, "fairy": 2.0},
-          "fairy": {"fire": 0.5, "fighting": 2.0, "poison": 0.5, "dragon": 2.0, "dark": 2.0, "steel": 0.5}
-      }
+    """Basic Type Effectiveness Chart"""
+    chart = {
+      "normal": {"rock": 0.5, "ghost": 0, "steel": 0.5},
+      "fire": {
+        "fire": 0.5,
+        "water": 0.5,
+        "grass": 2.0,
+        "ice": 2.0,
+        "bug": 2.0,
+        "rock": 0.5,
+        "dragon": 0.5,
+        "steel": 2.0,
+      },
+      "water": {
+        "fire": 2.0,
+        "water": 0.5,
+        "grass": 0.5,
+        "ground": 2.0,
+        "rock": 2.0,
+        "dragon": 0.5,
+      },
+      "electric": {
+        "water": 2.0,
+        "electric": 0.5,
+        "grass": 0.5,
+        "ground": 0,
+        "flying": 2.0,
+        "dragon": 0.5,
+      },
+      "grass": {
+        "fire": 0.5,
+        "water": 2.0,
+        "grass": 0.5,
+        "poison": 0.5,
+        "ground": 2.0,
+        "flying": 0.5,
+        "bug": 0.5,
+        "rock": 2.0,
+        "dragon": 0.5,
+        "steel": 0.5,
+      },
+      "ice": {
+        "fire": 0.5,
+        "water": 0.5,
+        "grass": 2.0,
+        "ice": 0.5,
+        "ground": 2.0,
+        "flying": 2.0,
+        "dragon": 2.0,
+        "steel": 0.5,
+      },
+      "fighting": {
+        "normal": 2.0,
+        "ice": 2.0,
+        "poison": 0.5,
+        "flying": 0.5,
+        "psychic": 0.5,
+        "bug": 0.5,
+        "rock": 2.0,
+        "ghost": 0,
+        "dark": 2.0,
+        "steel": 2.0,
+        "fairy": 0.5,
+      },
+      "poison": {
+        "grass": 2.0,
+        "poison": 0.5,
+        "ground": 0.5,
+        "rock": 0.5,
+        "ghost": 0.5,
+        "steel": 0,
+        "fairy": 2.0,
+      },
+      "ground": {
+        "fire": 2.0,
+        "electric": 2.0,
+        "grass": 0.5,
+        "poison": 2.0,
+        "flying": 0,
+        "bug": 0.5,
+        "rock": 2.0,
+        "steel": 2.0,
+      },
+      "flying": {
+        "electric": 0.5,
+        "grass": 2.0,
+        "fighting": 2.0,
+        "bug": 2.0,
+        "rock": 0.5,
+        "steel": 0.5,
+      },
+      "psychic": {
+        "fighting": 2.0,
+        "poison": 2.0,
+        "psychic": 0.5,
+        "dark": 0,
+        "steel": 0.5,
+      },
+      "bug": {
+        "fire": 0.5,
+        "grass": 2.0,
+        "fighting": 0.5,
+        "poison": 0.5,
+        "flying": 0.5,
+        "psychic": 2.0,
+        "ghost": 0.5,
+        "dark": 2.0,
+        "steel": 0.5,
+        "fairy": 0.5,
+      },
+      "rock": {
+        "fire": 2.0,
+        "ice": 2.0,
+        "fighting": 0.5,
+        "ground": 0.5,
+        "flying": 2.0,
+        "bug": 2.0,
+        "steel": 0.5,
+      },
+      "ghost": {"normal": 0, "psychic": 2.0, "ghost": 2.0, "dark": 0.5},
+      "dragon": {"dragon": 2.0, "steel": 0.5, "fairy": 0},
+      "dark": {
+        "fighting": 0.5,
+        "psychic": 2.0,
+        "ghost": 2.0,
+        "dark": 0.5,
+        "fairy": 0.5,
+      },
+      "steel": {
+        "fire": 0.5,
+        "water": 0.5,
+        "electric": 0.5,
+        "ice": 2.0,
+        "rock": 2.0,
+        "steel": 0.5,
+        "fairy": 2.0,
+      },
+      "fairy": {
+        "fire": 0.5,
+        "fighting": 2.0,
+        "poison": 0.5,
+        "dragon": 2.0,
+        "dark": 2.0,
+        "steel": 0.5,
+      },
+    }
 
-      multiplier = 1.0
-      for atk_type in atk_types:
-          a_type = atk_type.lower()
-          if a_type not in chart:
-              continue
-          for def_type in def_types:
-              d_type = def_type.lower()
-              if d_type in chart[a_type]:
-                  multiplier *= chart[a_type][d_type]
-      
-      # If no move types are provided, we just use the first typing of the attacker as STAB/Main typing
-      if not atk_types:
-          return 1.0
-          
-      return multiplier
+    multiplier = 1.0
+    for atk_type in atk_types:
+      a_type = atk_type.lower()
+      if a_type not in chart:
+        continue
+      for def_type in def_types:
+        d_type = def_type.lower()
+        if d_type in chart[a_type]:
+          multiplier *= chart[a_type][d_type]
+
+    # If no move types are provided, we just use the first typing of the attacker as STAB/Main typing
+    if not atk_types:
+      return 1.0
+
+    return multiplier
 
   @sync_to_async
   def _apply_damage(self, attacker: User, defender: User) -> dict:
-     from user_profile.models import Team, UserCreature
-     try:
-       attacker_team = Team.objects.get(user=attacker)
-       defender_team = Team.objects.get(user=defender)
-       
-       atk_id = cache.get(f"battle_{self._battle_id}_p_{attacker.id}_active")
-       def_id = cache.get(f"battle_{self._battle_id}_p_{defender.id}_active")
-       
-       if not atk_id or not def_id:
-           return {"success": False, "error": "Active creatures not set properly in cache"}
-           
-       atk_tc = UserCreature.objects.filter(id=atk_id, user=attacker).first()
-       def_tc = UserCreature.objects.filter(id=def_id, user=defender).first()
-       
-       if not atk_tc or not def_tc:
-         return {"success": False, "error": "Active creatures not found in DB"}
-         
-       if atk_tc.current_hp <= 0 or def_tc.current_hp <= 0:
-         return {"success": False, "error": "Cannot attack with or target a fainted creature"}
-         
-       level = atk_tc.level
-       atk_stat = atk_tc.creature.attack
-       def_stat = def_tc.creature.defense
-       power = 50 # Default baseline power for basic attacks
-       
-       # Extract types
-       atk_types = [atk_tc.creature.type_1.name]
-       if atk_tc.creature.type_2:
-           atk_types.append(atk_tc.creature.type_2.name)
-           
-       def_types = [def_tc.creature.type_1.name]
-       if def_tc.creature.type_2:
-           def_types.append(def_tc.creature.type_2.name)
-           
-       # Use the primary type of the Pokemon for its basic attack
-       move_type = [atk_types[0]]
-       
-       # Fetch type multiplier
-       import asyncio
-       multiplier = self._calculate_type_multiplier_sync(move_type, def_types)
-       
-       # Pokemon Damage Formula
-       import random
-       random_factor = random.uniform(0.85, 1.0)
-       
-       base_damage = (((2 * level / 5 + 2) * power * (atk_stat / max(1, def_stat))) / 50) + 2
-       damage = int(base_damage * multiplier * random_factor * 1.5) # x1.5 STAB bonus for using own type
-       
-       # Ensure at least 1 damage is dealt
-       damage = max(1, damage)
-       
-       def_tc.current_hp = max(0, def_tc.current_hp - damage)
-       def_tc.save()
+    from user_profile.models import Team, UserCreature
 
-       # Check if entire team fainted
-       from user_profile.models import UserCreature
-       all_fainted = not defender_team.team_creatures.filter(user_creature__current_hp__gt=0).exists()
+    try:
+      defender_team = Team.objects.get(user=defender)
 
-       return {
-         "success": True,
-         "damage": damage,
-         "defender_active_id": def_tc.id,
-         "defender_hp": def_tc.current_hp,
-         "is_fainted": def_tc.current_hp <= 0,
-         "all_fainted": all_fainted
-       }
-     except Exception as e:
-       logger.error(f"Error applying damage: {e}")
-       return {"success": False, "error": str(e)}
+      atk_id = cache.get(f"battle_{self._battle_id}_p_{attacker.id}_active")
+      def_id = cache.get(f"battle_{self._battle_id}_p_{defender.id}_active")
+
+      if not atk_id or not def_id:
+        return {
+          "success": False,
+          "error": "Active creatures not set properly in cache",
+        }
+
+      atk_tc = UserCreature.objects.filter(id=atk_id, user=attacker).first()
+      def_tc = UserCreature.objects.filter(id=def_id, user=defender).first()
+
+      if not atk_tc or not def_tc:
+        return {"success": False, "error": "Active creatures not found in DB"}
+
+      if atk_tc.current_hp <= 0 or def_tc.current_hp <= 0:
+        return {
+          "success": False,
+          "error": "Cannot attack with or target a fainted creature",
+        }
+
+      level = atk_tc.level
+      atk_stat = atk_tc.creature.attack
+      def_stat = def_tc.creature.defense
+      power = 50  # Default baseline power for basic attacks
+
+      # Extract types
+      atk_types = [atk_tc.creature.type_1.name]
+      if atk_tc.creature.type_2:
+        atk_types.append(atk_tc.creature.type_2.name)
+
+      def_types = [def_tc.creature.type_1.name]
+      if def_tc.creature.type_2:
+        def_types.append(def_tc.creature.type_2.name)
+
+      # Use the primary type of the Pokemon for its basic attack
+      move_type = [atk_types[0]]
+
+      # Fetch type multiplier
+      multiplier = self._calculate_type_multiplier_sync(move_type, def_types)
+
+      # Pokemon Damage Formula
+      import random
+
+      random_factor = random.uniform(0.85, 1.0)
+
+      base_damage = (
+        ((2 * level / 5 + 2) * power * (atk_stat / max(1, def_stat))) / 50
+      ) + 2
+      damage = int(
+        base_damage * multiplier * random_factor * 1.5
+      )  # x1.5 STAB bonus for using own type
+
+      # Ensure at least 1 damage is dealt
+      damage = max(1, damage)
+
+      def_tc.current_hp = max(0, def_tc.current_hp - damage)
+      def_tc.save()
+
+      # Fresh query so bench HP reflects DB (avoids stale prefetch edge cases)
+      all_fainted = not defender_team.team_creatures.filter(
+        user_creature__current_hp__gt=0
+      ).exists()
+
+      forced_switch = False
+      new_defender_active_id = def_tc.id
+      if def_tc.current_hp <= 0 and not all_fainted:
+        for tc in defender_team.team_creatures.select_related(
+          "user_creature"
+        ).order_by("id"):
+          uc = tc.user_creature
+          if uc.current_hp > 0:
+            cache.set(
+              f"battle_{self._battle_id}_p_{defender.id}_active",
+              uc.id,
+              timeout=3600,
+            )
+            new_defender_active_id = uc.id
+            forced_switch = True
+            break
+
+      return {
+        "success": True,
+        "damage": damage,
+        "defender_active_id": def_tc.id,
+        "defender_hp": def_tc.current_hp,
+        "is_fainted": def_tc.current_hp <= 0,
+        "all_fainted": all_fainted,
+        "defender_user_id": defender.id,
+        "forced_switch": forced_switch,
+        "new_defender_active_id": new_defender_active_id,
+      }
+    except Exception as e:
+      logger.error(f"Error applying damage: {e}")
+      return {"success": False, "error": str(e)}
 
   @sync_to_async
   def _apply_item_effect(self, user: User, item_id: int) -> dict:
-      from inventory.models import InventoryItem
-      from user_profile.models import UserCreature
-      try:
-          # Verify item availability
-          inv_item = InventoryItem.objects.filter(id=item_id, inventory__user=user).select_related('object').first()
-          if not inv_item or inv_item.quantity <= 0:
-              return {"success": False, "error": "Item not owned or out of stock"}
-          
-          # Get active creature
-          active_id = cache.get(f"battle_{self._battle_id}_p_{user.id}_active")
-          if not active_id:
-              return {"success": False, "error": "No active creature to use item on"}
-              
-          creature = UserCreature.objects.filter(id=active_id, user=user).first()
-          if not creature:
-              return {"success": False, "error": "Active creature not found"}
+    from inventory.models import InventoryItem
+    from user_profile.models import UserCreature
 
-          if creature.current_hp <= 0:
-              return {"success": False, "error": "Cannot use items on fainted creatures"}
+    try:
+      # Verify item availability
+      inv_item = (
+        InventoryItem.objects.filter(id=item_id, inventory__user=user)
+        .select_related("object")
+        .first()
+      )
+      if not inv_item or inv_item.quantity <= 0:
+        return {"success": False, "error": "Item not owned or out of stock"}
 
-          obj = inv_item.object
-          applied = False
-          res = {"success": True, "item_name": obj.name, "creature_id": creature.id}
+      # Get active creature
+      active_id = cache.get(f"battle_{self._battle_id}_p_{user.id}_active")
+      if not active_id:
+        return {"success": False, "error": "No active creature to use item on"}
 
-          # Apply healing based on the object's effect values
-          if obj.vfx_type == "HEAL":
-              old_hp = creature.current_hp
-              creature.current_hp = min(creature.creature.hp, creature.current_hp + int(obj.effect_value))
-              creature.save()
-              res["heal_amount"] = creature.current_hp - old_hp
-              res["new_hp"] = creature.current_hp
-              applied = True
-          
-          # Add other effects (REVIVE, BUFFs) if needed in future
-          
-          if applied:
-              inv_item.quantity -= 1
-              if inv_item.quantity <= 0:
-                  inv_item.delete()
-              else:
-                  inv_item.save()
-              return res
-          else:
-              return {"success": False, "error": "Item effect not implemented for battle yet"}
+      creature = UserCreature.objects.filter(id=active_id, user=user).first()
+      if not creature:
+        return {"success": False, "error": "Active creature not found"}
 
-      except Exception as e:
-          logger.error(f"Error applying item effect: {e}")
-          return {"success": False, "error": str(e)}
+      if creature.current_hp <= 0:
+        return {
+          "success": False,
+          "error": "Cannot use items on fainted creatures",
+        }
+
+      obj = inv_item.object
+      applied = False
+      res = {"success": True, "item_name": obj.name, "creature_id": creature.id}
+
+      # Apply healing based on the object's effect values
+      if obj.vfx_type == "HEAL":
+        old_hp = creature.current_hp
+        creature.current_hp = min(
+          creature.creature.hp, creature.current_hp + int(obj.effect_value)
+        )
+        creature.save()
+        res["heal_amount"] = creature.current_hp - old_hp
+        res["new_hp"] = creature.current_hp
+        applied = True
+
+      # Add other effects (REVIVE, BUFFs) if needed in future
+
+      if applied:
+        inv_item.quantity -= 1
+        if inv_item.quantity <= 0:
+          inv_item.delete()
+        else:
+          inv_item.save()
+        return res
+      else:
+        return {
+          "success": False,
+          "error": "Item effect not implemented for battle yet",
+        }
+
+    except Exception as e:
+      logger.error(f"Error applying item effect: {e}")
+      return {"success": False, "error": str(e)}
 
   @sync_to_async
   def _finalize_battle_sync(self, winner: User, loser: User) -> dict:
-      """All-in-one sync method to update DB at victory to avoid async errors"""
-      from .models import Battle
-      try:
-          # 1. Update status and winner
-          self._battle.status = Battle.BattleStatus.FINISHED
-          self._battle.winner = winner
-          self._battle.save()
+    """All-in-one sync method to update DB at victory to avoid async errors"""
+    from .models import Battle
 
-          # 2. Heal both teams
-          from user_profile.models import Team
-          for u in [winner, loser]:
-              team = Team.objects.prefetch_related("team_creatures__user_creature__creature").get(user=u)
-              for tc in team.team_creatures.all():
-                  uc = tc.user_creature
-                  uc.current_hp = uc.creature.hp
-                  uc.save()
-          
-          # 3. Update ELO
-          from user_profile.models import Ranking
-          winner_ranking, _ = Ranking.objects.get_or_create(user=winner)
-          loser_ranking, _ = Ranking.objects.get_or_create(user=loser)
-          K, expected_winner = 32, 1 / (1 + 10 ** ((loser_ranking.elo - winner_ranking.elo) / 400))
-          winner_ranking.elo += int(K * (1 - expected_winner))
-          loser_ranking.elo += int(K * (0 - (1 - expected_winner)))
-          winner_ranking.wins += 1
-          loser_ranking.losses += 1
-          winner_ranking.save()
-          loser_ranking.save()
+    try:
+      # 1. Update status and winner
+      self._battle.status = Battle.BattleStatus.FINISHED
+      self._battle.winner = winner
+      self._battle.save()
 
-          return {
-              "success": True,
-              "winner_id": winner.id,
-              "winner_username": winner.username,
-              "loser_id": loser.id,
-              "loser_username": loser.username
-          }
-      except Exception as e:
-          logger.error(f"Error in _finalize_battle_sync: {e}")
-          return {"success": False, "error": str(e)}
+      # 2. Heal both teams
+      from user_profile.models import Team
+
+      for u in [winner, loser]:
+        team = Team.objects.prefetch_related(
+          "team_creatures__user_creature__creature"
+        ).get(user=u)
+        for tc in team.team_creatures.all():
+          uc = tc.user_creature
+          uc.current_hp = uc.creature.hp
+          uc.save()
+
+      # 3. Update ELO
+      from user_profile.models import Ranking
+
+      winner_ranking, _ = Ranking.objects.get_or_create(user=winner)
+      loser_ranking, _ = Ranking.objects.get_or_create(user=loser)
+      K, expected_winner = (
+        32,
+        1 / (1 + 10 ** ((loser_ranking.elo - winner_ranking.elo) / 400)),
+      )
+      winner_ranking.elo += int(K * (1 - expected_winner))
+      loser_ranking.elo += int(K * (0 - (1 - expected_winner)))
+      winner_ranking.wins += 1
+      loser_ranking.losses += 1
+      winner_ranking.save()
+      loser_ranking.save()
+
+      return {
+        "success": True,
+        "winner_id": winner.id,
+        "winner_username": winner.username,
+        "loser_id": loser.id,
+        "loser_username": loser.username,
+      }
+    except Exception as e:
+      logger.error(f"Error in _finalize_battle_sync: {e}")
+      return {"success": False, "error": str(e)}
 
   async def _award_victory_normal(self, winner: User, loser: User) -> None:
     """Award normal victory (HP depletion)"""
     # Use the definitive sync helper for all DB actions
     result = await self._finalize_battle_sync(winner, loser)
-    
+
     if result.get("success"):
       # Refresh local object
       await self._refresh_battle_sync()
-      
-      # Broadcast final state (Header updates to FINISHED)
-      await self._send_battle_state()
+
+      # All clients must receive finished state + winner_id for the overlay
+      await self._broadcast_battle_state_to_group()
 
       # Broadcast victory specific event (Overlay triggers)
       await self.channel_layer.group_send(
         f"battle_{self._battle_id}",
         {
-          "type": "battle_abandoned", 
+          "type": "battle_abandoned",
           "winner_id": result["winner_id"],
           "winner_username": result["winner_username"],
           "abandoned_player_id": result["loser_id"],
@@ -808,20 +1019,24 @@ class BattleConsumer(AsyncWebsocketConsumer):
           "reason": "knockout",
         },
       )
-      
+
       # Award final items/XP
       await self._award_all_rewards(winner, loser)
-      logger.info(f"Battle {self._battle_id} ended by KO - Winner: {result['winner_username']}")
+      logger.info(
+        f"Battle {self._battle_id} ended by KO - Winner: {result['winner_username']}"
+      )
     else:
       logger.error(f"Failed to finalize battle: {result.get('error')}")
-
 
   @sync_to_async
   def _heal_team_sync(self, user):
     """Heal all creatures of a user back to max HP"""
     from user_profile.models import Team
+
     try:
-      team = Team.objects.prefetch_related("team_creatures__user_creature__creature").get(user=user)
+      team = Team.objects.prefetch_related(
+        "team_creatures__user_creature__creature"
+      ).get(user=user)
       for tc in team.team_creatures.all():
         uc = tc.user_creature
         uc.current_hp = uc.creature.hp
@@ -831,13 +1046,13 @@ class BattleConsumer(AsyncWebsocketConsumer):
 
   @sync_to_async
   def _refresh_battle_sync(self):
-      self._battle.refresh_from_db()
+    self._battle.refresh_from_db()
 
   async def _validate_action(self, payload: dict) -> bool:
     """Validate battle action"""
     # Refresh battle from DB to avoid cached status mismatch between instances
     await self._refresh_battle_sync()
-    
+
     action = payload.get("action")
     if not action:
       await self.send_json({"type": "error", "message": "Action is required"})
@@ -857,45 +1072,51 @@ class BattleConsumer(AsyncWebsocketConsumer):
 
     return True
 
-
   @sync_to_async
   def _get_team_data(self, user):
     from user_profile.models import Team, Profile
+
     try:
       # Pre-fetch everything for the team to avoid lazy-loading issues in async
-      team = Team.objects.select_related("user").prefetch_related(
+      team = (
+        Team.objects.select_related("user")
+        .prefetch_related(
           "team_creatures__user_creature__creature",
           "team_creatures__user_creature__creature__type_1",
-          "team_creatures__user_creature__creature__type_2"
-      ).get(user=user)
-      
+          "team_creatures__user_creature__creature__type_2",
+        )
+        .get(user=user)
+      )
+
       profile, _ = Profile.objects.get_or_create(user=user)
       team_data = []
-      
+
       for tc in team.team_creatures.all():
-           c = tc.user_creature
-           team_data.append({
-             "id": c.id,
-             "name": c.creature.name,
-             "hp": c.current_hp,
-             "max_hp": c.creature.hp,
-             "level": c.level,
-             "sprite": c.creature.front_sprite
-           })
-           
+        c = tc.user_creature
+        team_data.append(
+          {
+            "id": c.id,
+            "name": c.creature.name,
+            "hp": c.current_hp,
+            "max_hp": c.creature.hp,
+            "level": c.level,
+            "sprite": c.creature.front_sprite,
+          }
+        )
+
       active_id = cache.get(f"battle_{self._battle_id}_p_{user.id}_active")
-      
+
       # If no active in cache but team exists, default to first alive
       if not active_id and team_data:
-          for c in team_data:
-              if c["hp"] > 0:
-                  active_id = c["id"]
-                  break
-                  
+        for c in team_data:
+          if c["hp"] > 0:
+            active_id = c["id"]
+            break
+
       return {
-          "team": team_data,
-          "active_creature_id": active_id,
-          "trainer_sprite": profile.trainer_sprite
+        "team": team_data,
+        "active_creature_id": active_id,
+        "trainer_sprite": profile.trainer_sprite,
       }
     except Exception as e:
       logger.error(f"Error getting team data: {e}")
@@ -906,33 +1127,74 @@ class BattleConsumer(AsyncWebsocketConsumer):
     try:
       p1_data = await self._get_team_data(self._battle.player1)
       p2_data = await self._get_team_data(self._battle.player2)
-      
+
       await self.send_json(
         {
           "type": "battle_state",
           "battle_id": self._battle_id,
           "status": self._battle.status,
           "winner_id": self._battle.winner.id if self._battle.winner else None,
-          "current_turn": self._battle.current_turn.id if self._battle.current_turn else None,
+          "current_turn": self._battle.current_turn.id
+          if self._battle.current_turn
+          else None,
           "turn_number": self._battle.turn_number,
           "player1": {
             "id": self._battle.player1.id,
             "username": self._battle.player1.username,
             "team": p1_data["team"],
             "active_creature_id": p1_data["active_creature_id"],
-            "trainer_sprite": p1_data["trainer_sprite"]
+            "trainer_sprite": p1_data["trainer_sprite"],
           },
           "player2": {
             "id": self._battle.player2.id,
             "username": self._battle.player2.username,
             "team": p2_data["team"],
             "active_creature_id": p2_data["active_creature_id"],
-            "trainer_sprite": p2_data["trainer_sprite"]
+            "trainer_sprite": p2_data["trainer_sprite"],
           },
         }
       )
     except Exception as e:
       logger.error(f"Error sending battle state for {self._battle_id}: {e}")
+
+  async def _broadcast_battle_state_to_group(self) -> None:
+    """Push full battle_state to every client in the battle group."""
+    try:
+      await self._refresh_battle_sync()
+      p1_data = await self._get_team_data(self._battle.player1)
+      p2_data = await self._get_team_data(self._battle.player2)
+      payload = {
+        "type": "battle_state",
+        "battle_id": self._battle_id,
+        "status": self._battle.status,
+        "winner_id": self._battle.winner.id if self._battle.winner else None,
+        "current_turn": self._battle.current_turn.id
+        if self._battle.current_turn
+        else None,
+        "turn_number": self._battle.turn_number,
+        "player1": {
+          "id": self._battle.player1.id,
+          "username": self._battle.player1.username,
+          "team": p1_data["team"],
+          "active_creature_id": p1_data["active_creature_id"],
+          "trainer_sprite": p1_data["trainer_sprite"],
+        },
+        "player2": {
+          "id": self._battle.player2.id,
+          "username": self._battle.player2.username,
+          "team": p2_data["team"],
+          "active_creature_id": p2_data["active_creature_id"],
+          "trainer_sprite": p2_data["trainer_sprite"],
+        },
+      }
+      await self.channel_layer.group_send(
+        f"battle_{self._battle_id}",
+        {"type": "battle_state_broadcast", "payload": payload},
+      )
+    except Exception as e:
+      logger.error(
+        f"Error broadcasting battle state for {self._battle_id}: {e}"
+      )
 
   async def _award_all_rewards(self, winner: User, loser: User) -> None:
     """Award rewards to both winner and loser"""
@@ -1033,6 +1295,13 @@ class BattleConsumer(AsyncWebsocketConsumer):
       )
     except Exception as e:
       logger.error(f"Error handling turn_changed event: {e}")
+
+  async def battle_state_broadcast(self, event: dict) -> None:
+    """Forward full battle_state from group_send to this websocket."""
+    try:
+      await self.send_json(event["payload"])
+    except Exception as e:
+      logger.error(f"Error handling battle_state_broadcast: {e}")
 
   async def battle_abandoned(self, event: dict) -> None:
     """Handle battle abandonment broadcast"""

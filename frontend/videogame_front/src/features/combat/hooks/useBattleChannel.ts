@@ -1,0 +1,264 @@
+import {
+  useEffect,
+  useRef,
+  type Dispatch,
+  type MutableRefObject,
+  type SetStateAction,
+} from "react";
+import { BASE_URL } from "../../../common/utils/url";
+import type { BattleState, InventoryItem } from "../types";
+
+type AnimTarget = "p1" | "p2";
+
+type UseBattleChannelParams = {
+  battleId: string | undefined;
+  myId: number | null;
+  setBattleState: Dispatch<SetStateAction<BattleState | null>>;
+  setWinnerId: Dispatch<SetStateAction<number | null>>;
+  setInventory: Dispatch<SetStateAction<InventoryItem[]>>;
+  addLog: (msg: string) => void;
+  setIsAttacking: Dispatch<SetStateAction<string | null>>;
+  setIsHit: Dispatch<SetStateAction<string | null>>;
+  setFloatingDamage: Dispatch<
+    SetStateAction<{ target: AnimTarget; amount: number } | null>
+  >;
+  wsRef: MutableRefObject<WebSocket | null>;
+};
+
+export function useBattleChannel({
+  battleId,
+  myId,
+  setBattleState,
+  setWinnerId,
+  setInventory,
+  addLog,
+  setIsAttacking,
+  setIsHit,
+  setFloatingDamage,
+  wsRef,
+}: UseBattleChannelParams) {
+  const myIdRef = useRef<number | null>(null);
+  const addLogRef = useRef(addLog);
+
+  useEffect(() => {
+    myIdRef.current = myId;
+  }, [myId]);
+
+  useEffect(() => {
+    addLogRef.current = addLog;
+  }, [addLog]);
+
+  useEffect(() => {
+    if (!battleId) return;
+    const token = localStorage.getItem("access_token") || "";
+    const wsUrl = BASE_URL.replace("http://", "ws://").replace(
+      "https://",
+      "wss://",
+    );
+
+    const qs = token
+      ? `?token=${encodeURIComponent(token)}`
+      : "";
+    const ws = new WebSocket(`${wsUrl}/ws/battle/${battleId}${qs}`);
+    wsRef.current = ws;
+
+    ws.onopen = () => {
+      addLogRef.current("System: Connected to Battle Arena.");
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data) as Record<string, unknown>;
+        console.log("Battle event:", data);
+
+        switch (data.type) {
+          case "battle_state":
+            setBattleState(data as unknown as BattleState);
+            if (data.status === "playing") {
+              setWinnerId(null);
+            }
+            if (
+              data.status === "finished" &&
+              data.winner_id !== undefined &&
+              data.winner_id !== null
+            ) {
+              setWinnerId(data.winner_id as number);
+            }
+            break;
+
+          case "battle_started":
+            setBattleState((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    status: "playing",
+                    current_turn: data.first_turn as number,
+                  }
+                : prev,
+            );
+            addLogRef.current("System: The battle has started!");
+            break;
+
+          case "turn_changed":
+            setBattleState((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    current_turn: data.next_player_id as number,
+                    turn_number: data.turn_number as number,
+                  }
+                : prev,
+            );
+            break;
+
+          case "battle_action": {
+            const action = data.action as string;
+            const playerId = data.player_id as number;
+            const payload = data.data as Record<string, unknown>;
+
+            if (action === "attack") {
+              const damage = payload.damage as number;
+              const attackerId = playerId;
+
+              setBattleState((current) => {
+                if (!current) return current;
+                const isAttackerP1 = attackerId === current.player1.id;
+                const attackerTag = isAttackerP1 ? "p1" : "p2";
+                const victimTag = isAttackerP1 ? "p2" : "p1";
+
+                setIsAttacking(attackerTag);
+
+                setTimeout(() => {
+                  setIsHit(victimTag);
+                  setFloatingDamage({ target: victimTag, amount: damage });
+                }, 450);
+
+                setTimeout(() => {
+                  setIsAttacking(null);
+                  setIsHit(null);
+                  setFloatingDamage(null);
+
+                  setBattleState((prev) => {
+                    if (!prev) return prev;
+                    const newState = JSON.parse(
+                      JSON.stringify(prev),
+                    ) as BattleState;
+                    const atkUid = playerId;
+                    const defUid =
+                      (payload.defender_user_id as number | undefined) ??
+                      (atkUid === newState.player1.id
+                        ? newState.player2.id
+                        : newState.player1.id);
+                    const isDefP1 = defUid === newState.player1.id;
+                    const target = isDefP1
+                      ? newState.player1
+                      : newState.player2;
+                    const defActiveId = payload.defender_active_id as number;
+                    const hpAfter = payload.defender_hp as number;
+
+                    const creatureToUpdate = target.team.find(
+                      (c) => c.id === defActiveId,
+                    );
+                    if (creatureToUpdate) {
+                      creatureToUpdate.hp = Math.max(0, hpAfter);
+                    }
+                    if (
+                      payload.forced_switch &&
+                      payload.new_defender_active_id
+                    ) {
+                      target.active_creature_id =
+                        payload.new_defender_active_id as number | null;
+                    }
+                    return newState;
+                  });
+                  const uid = myIdRef.current;
+                  addLogRef.current(
+                    `${playerId === uid ? "Tú" : "Oponente"} atacaste! Daño: ${damage}`,
+                  );
+                }, 1000);
+
+                return current;
+              });
+            } else if (action === "swap") {
+              const targetId = payload.creature_id as number;
+              setBattleState((prev) => {
+                if (!prev) return prev;
+                const newState = JSON.parse(
+                  JSON.stringify(prev),
+                ) as BattleState;
+                const isP1 = playerId === newState.player1.id;
+                if (isP1) {
+                  newState.player1.active_creature_id = targetId;
+                } else {
+                  newState.player2.active_creature_id = targetId;
+                }
+                return newState;
+              });
+            } else if (action === "use_item") {
+              const item_name = payload.item_name as string;
+              const heal_amount = payload.heal_amount as number;
+              const new_hp = payload.new_hp as number;
+              const creature_id = payload.creature_id as number;
+              const uid = myIdRef.current;
+              addLogRef.current(
+                `${playerId === uid ? "Tú" : "Oponente"} usó ${item_name}! (+${heal_amount} HP)`,
+              );
+
+              setBattleState((prev) => {
+                if (!prev) return prev;
+                const newState = JSON.parse(
+                  JSON.stringify(prev),
+                ) as BattleState;
+                const isP1 = playerId === newState.player1.id;
+                const p = isP1 ? newState.player1 : newState.player2;
+                const creature = p.team.find((c) => c.id === creature_id);
+                if (creature) creature.hp = new_hp;
+                return newState;
+              });
+
+              if (playerId === uid) {
+                setInventory((prev) =>
+                  prev
+                    .map((item) => {
+                      if (item.id === (payload.item_id as number)) {
+                        return { ...item, quantity: item.quantity - 1 };
+                      }
+                      return item;
+                    })
+                    .filter((item) => item.quantity > 0),
+                );
+              }
+            }
+            break;
+          }
+
+          case "battle_abandoned":
+            setBattleState((prev) =>
+              prev ? { ...prev, status: "finished" } : prev,
+            );
+            setWinnerId(data.winner_id as number);
+            addLogRef.current(
+              `System: ${data.winner_username as string} wins! Reason: ${data.reason as string}`,
+            );
+            break;
+
+          case "error":
+            addLogRef.current(`Error: ${data.message as string}`);
+            break;
+        }
+      } catch (err) {
+        console.error("Parse error", err);
+      }
+    };
+
+    ws.onerror = () => {
+      addLogRef.current("System: Lost connection to the arena.");
+    };
+
+    return () => {
+      ws.close();
+    };
+    // Intentionally only battleId: setState fns are stable; other deps caused a
+    // reconnect storm when parent passed a new `addLog` every render.
+  }, [battleId]);
+}
