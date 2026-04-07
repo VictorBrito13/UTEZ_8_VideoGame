@@ -10,6 +10,7 @@ interface CreatureData {
   name: string;
   hp: number;
   max_hp: number;
+  level: number;
   sprite: string;
 }
 
@@ -345,8 +346,9 @@ export const BattlePage = () => {
                        <div className="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.8)] animate-pulse" />
                     </div>
                 </div>
-                <div className="mb-4">
+                <div className="mb-4 flex justify-between items-end">
                     <h2 className="text-lg font-black text-white uppercase tracking-tighter leading-none">{oppActive?.name || 'No Creature'}</h2>
+                    <span className="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded border border-white/5 uppercase tracking-widest">Lvl. {oppActive?.level || 0}</span>
                 </div>
                 <div className="space-y-2.5">
                     <div className="h-2.5 bg-neutral-900 rounded-full overflow-hidden border border-white/5 p-[1px]">
@@ -469,8 +471,9 @@ export const BattlePage = () => {
                        <div className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.8)] animate-pulse" />
                     </div>
                 </div>
-                <div className="mb-4">
+                <div className="mb-4 flex justify-between items-end">
                     <h2 className="text-lg font-black text-white uppercase tracking-tighter leading-none">{meActive?.name || 'No Creature'}</h2>
+                    <span className="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded border border-white/5 uppercase tracking-widest">Lvl. {meActive?.level || 0}</span>
                 </div>
                 <div className="space-y-2.5">
                     <div className="h-2.5 bg-neutral-900 rounded-full overflow-hidden border border-white/5 p-[1px]">
@@ -559,17 +562,47 @@ export const BattlePage = () => {
             </button>
           )}
 
-          {battleState.status === "finished" && (
-             <button 
-                onClick={() => navigate('/')}
-                className="w-40 h-20 bg-blue-600 text-white rounded-xl font-black uppercase tracking-widest shadow-lg flex flex-col items-center justify-center gap-1"
-             >
-                <span className="text-sm">{winnerId === myId ? "¡GANASTE!" : "DERROTA"}</span>
-                <span className="text-[8px] opacity-60 uppercase">Finalizar Combate</span>
-             </button>
-          )}
         </div>
       </div>
+
+      {/* Results Overlay (When Finished) */}
+      <AnimatePresence>
+        {battleState.status === "finished" && (
+          <motion.div 
+            initial={{ opacity: 0, backdropFilter: "blur(0px)" }}
+            animate={{ opacity: 1, backdropFilter: "blur(20px)" }}
+            className="absolute inset-0 z-[100] flex items-center justify-center bg-black/60"
+          >
+            <motion.div 
+              initial={{ scale: 0.8, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              className="bg-neutral-900 border border-white/10 p-12 rounded-3xl shadow-[0_0_100px_rgba(0,0,0,0.5)] flex flex-col items-center gap-8 max-w-md w-full text-center"
+            >
+              <div className={`w-24 h-24 rounded-full flex items-center justify-center ${winnerId === myId ? 'bg-emerald-500 shadow-[0_0_40px_rgba(16,185,129,0.4)]' : 'bg-red-500 shadow-[0_0_40px_rgba(239,68,68,0.4)]'}`}>
+                <Activity size={48} className="text-white" />
+              </div>
+
+              <div>
+                <h2 className={`text-5xl font-black italic tracking-tighter uppercase mb-2 ${winnerId === myId ? 'text-emerald-400' : 'text-red-500'}`}>
+                  {winnerId === myId ? "VICTORIA" : "DERROTA"}
+                </h2>
+                <p className="text-neutral-500 font-bold uppercase tracking-widest text-xs">
+                  {winnerId === myId ? "¡Has dominado el campo de batalla!" : "Mejor suerte para la próxima vez"}
+                </p>
+              </div>
+
+              <div className="w-full h-px bg-white/5" />
+
+              <button 
+                onClick={() => navigate('/')}
+                className="w-full py-4 bg-white text-black font-black uppercase tracking-widest rounded-xl hover:bg-emerald-400 transition-colors shadow-lg"
+              >
+                Volver al Menú
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
