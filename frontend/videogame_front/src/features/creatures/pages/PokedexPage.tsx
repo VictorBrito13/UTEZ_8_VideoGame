@@ -111,7 +111,7 @@ export const PokedexPage = () => {
       <BackButton />
 
       <div className="pt-24 px-6 pb-20">
-        <div className="max-w-7xl mx-auto">
+        <div className="w-full px-4 md:px-12">
           <div className="mb-12">
             <h1 className="text-6xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-white to-neutral-700">
               BATTLE_POKEDEX

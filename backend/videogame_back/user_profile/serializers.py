@@ -43,9 +43,12 @@ class ProfileSerializer(serializers.ModelSerializer):
   elo = serializers.IntegerField(source="user.ranking.elo", read_only=True)
   wins = serializers.IntegerField(source="user.ranking.wins", read_only=True)
 
+  user_id = serializers.IntegerField(source="user.id", read_only=True)
+
   class Meta:
     model = Profile
     fields = [
+      "user_id",
       "username",
       "elo",
       "wins",

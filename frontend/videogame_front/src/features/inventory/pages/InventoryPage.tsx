@@ -81,7 +81,7 @@ export const InventoryPage = () => {
     <div className="min-h-screen bg-black text-white">
       <BackButton />
       <div className="p-6">
-        <div className="max-w-6xl mx-auto">
+        <div className="w-full px-4 md:px-12">
           <div className="mb-12">
             <h1 className="text-5xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-orange-600">
               STRATEGY_INVENTORY
