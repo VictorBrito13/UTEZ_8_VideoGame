@@ -170,9 +170,11 @@ const DashboardPage: React.FC = () => {
 
           {/* BIG BATTLE BUTTON */}
           <div className="flex-1 flex justify-center items-center mt-6 md:mt-0 relative z-10 w-full md:w-auto">
-            <button 
-              onClick={() => navigate('/matchmaking')}
-              className="w-full md:w-auto px-12 py-4 bg-gradient-to-r from-red-600 to-orange-600 rounded-2xl border-b-4 border-red-800 hover:translate-y-[2px] hover:border-b-2 active:border-b-0 hover:shadow-[0_0_30px_rgba(239,68,68,0.5)] transition-all font-black uppercase tracking-[0.2em] text-white flex items-center justify-center gap-3 group">
+            <button
+              type="button"
+              onClick={() => navigate("/matchmaking")}
+              className="w-full md:w-auto px-12 py-4 bg-gradient-to-r from-red-600 to-orange-600 rounded-2xl border-b-4 border-red-800 hover:translate-y-[2px] hover:border-b-2 active:border-b-0 hover:shadow-[0_0_30px_rgba(239,68,68,0.5)] transition-all font-black uppercase tracking-[0.2em] text-white flex items-center justify-center gap-3 group"
+            >
               <Swords
                 size={20}
                 className="group-hover:rotate-12 transition-transform"
