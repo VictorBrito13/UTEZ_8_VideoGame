@@ -10,7 +10,8 @@ from .serializers import (
   TeamCreatureSerializer,
   ProfileSerializer,
 )
-from .models import Ranking, UserCreature, Team, TeamCreature, Profile, Creature
+from .models import Ranking, UserCreature, Team, TeamCreature, Profile
+from creatures.models import Creature
 
 
 @api_view(["POST"])
@@ -56,8 +57,19 @@ def leaderboard(request):
     }
     for r in rankings
   ]
-
   return JsonResponse({"results": data})
+
+
+class UserCreatureViewSet(viewsets.ReadOnlyModelViewSet):
+  """
+  Read-only endpoint to consult user creatures and stats.
+  """
+
+  serializer_class = UserCreatureSerializer
+  permission_classes = [IsAuthenticated]
+
+  def get_queryset(self):
+    return UserCreature.objects.filter(user=self.request.user)
 
 
 class TeamViewSet(viewsets.ReadOnlyModelViewSet):
@@ -138,7 +150,7 @@ class ProfileViewSet(viewsets.ModelViewSet):
 
   @action(detail=False, methods=["PATCH"])
   def update_profile(self, request):
-    profile = Profile.objects.get(user=request.user)
+    profile, _ = Profile.objects.get_or_create(user=request.user)
     serializer = self.get_serializer(profile, data=request.data, partial=True)
     if serializer.is_valid():
       serializer.save()

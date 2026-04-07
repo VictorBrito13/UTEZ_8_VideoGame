@@ -1,10 +1,9 @@
 from rest_framework import viewsets, status, permissions
 from rest_framework.response import Response
 from rest_framework.decorators import action
-from django.shortcuts import render, get_object_or_404
 
-from .models import Creature, Type, Ability, CreatureAbility
-from .serializers import CreatureSerializer, AbilitySerializer, TypeSerializer
+from .models import Creature
+from .serializers import CreatureSerializer
 from user_profile.models import UserCreature, Team, TeamCreature
 from user_profile.serializers import UserCreatureSerializer
 
