@@ -196,9 +196,9 @@ class BattleConsumer(AsyncWebsocketConsumer):
         {
           "type": "battle_abandoned",
           "winner_id": winner.id,
-          "winner_username": winner.username,
+          "winner_username": getattr(winner, 'username', 'Winner'),
           "abandoned_player_id": self._user.id,
-          "abandoned_username": self._user.username,
+          "abandoned_username": getattr(self._user, 'username', 'Someone'),
           "reason": "abandonment",
         },
       )
@@ -290,11 +290,15 @@ class BattleConsumer(AsyncWebsocketConsumer):
       first_player = random.choice([self._battle.player1, self._battle.player2])
       await self._set_current_turn(first_player)
 
+      # Heal both teams to full HP before starting
+      await self._heal_team_sync(self._battle.player1)
+      await self._heal_team_sync(self._battle.player2)
+
       # Initialize active creatures in cache defaults to first alive
       await self._initialize_team_state(self._battle.player1)
       await self._initialize_team_state(self._battle.player2)
 
-      # Broadcast battle start to all players
+      # Broadcast battle start and initial state to all players
       await self.channel_layer.group_send(
         f"battle_{self._battle_id}",
         {
@@ -304,6 +308,10 @@ class BattleConsumer(AsyncWebsocketConsumer):
           "status": Battle.BattleStatus.PLAYING,
         },
       )
+      
+      # Force update of UI with the healed HP values
+      await self._send_battle_state()
+      
       logger.info(
         f"Battle {self._battle_id} started, first turn: {first_player.id}"
       )
@@ -382,6 +390,29 @@ class BattleConsumer(AsyncWebsocketConsumer):
             return
         else:
             await self.send_json({"type": "error", "message": "Item failed: " + result.get("error", "Unknown")})
+            return
+
+      if (action == "swap"):
+        creature_id = payload.get("data", {}).get("creature_id")
+        if not creature_id:
+            await self.send_json({"type": "error", "message": "Missing creature_id for swap"})
+            return
+            
+        # This is crucial: update server cache of who is active
+        success = await self._cache_active_creature(self._user, creature_id)
+        if success:
+            await self.channel_layer.group_send(
+              f"battle_{self._battle_id}",
+              {
+                "type": "battle_action",
+                "action": "swap",
+                "player_id": self._user.id,
+                "data": {"creature_id": creature_id},
+              },
+            )
+            return
+        else:
+            await self.send_json({"type": "error", "message": "Swap failed: Creature does not belong to you or is fainted"})
             return
 
       # For other items/actions, just broadcast for now
@@ -645,12 +676,9 @@ class BattleConsumer(AsyncWebsocketConsumer):
        def_tc.save()
 
        # Check if entire team fainted
-       all_fainted = True
-       for tc in defender_team.team_creatures.all():
-           if tc.user_creature.current_hp > 0:
-               all_fainted = False
-               break
-       
+       from user_profile.models import UserCreature
+       all_fainted = not defender_team.team_creatures.filter(user_creature__current_hp__gt=0).exists()
+
        return {
          "success": True,
          "damage": damage,
@@ -714,43 +742,92 @@ class BattleConsumer(AsyncWebsocketConsumer):
           logger.error(f"Error applying item effect: {e}")
           return {"success": False, "error": str(e)}
 
-  async def _award_victory_normal(self, winner: User, loser: User) -> None:
-      """Award normal victory (HP depletion)"""
+  @sync_to_async
+  def _finalize_battle_sync(self, winner: User, loser: User) -> dict:
+      """All-in-one sync method to update DB at victory to avoid async errors"""
+      from .models import Battle
       try:
-          await self._heal_team_sync(winner)
-          await self._heal_team_sync(loser)
-          await self._update_battle_status(Battle.BattleStatus.FINISHED)
-          await self._set_battle_winner(winner)
-          await self._update_elo_ratings(winner, loser)
+          # 1. Update status and winner
+          self._battle.status = Battle.BattleStatus.FINISHED
+          self._battle.winner = winner
+          self._battle.save()
 
-          await self.channel_layer.group_send(
-            f"battle_{self._battle_id}",
-            {
-              "type": "battle_abandoned", # Reuse abandoning struct for simplicity or use new event
+          # 2. Heal both teams
+          from user_profile.models import Team
+          for u in [winner, loser]:
+              team = Team.objects.prefetch_related("team_creatures__user_creature__creature").get(user=u)
+              for tc in team.team_creatures.all():
+                  uc = tc.user_creature
+                  uc.current_hp = uc.creature.hp
+                  uc.save()
+          
+          # 3. Update ELO
+          from user_profile.models import Ranking
+          winner_ranking, _ = Ranking.objects.get_or_create(user=winner)
+          loser_ranking, _ = Ranking.objects.get_or_create(user=loser)
+          K, expected_winner = 32, 1 / (1 + 10 ** ((loser_ranking.elo - winner_ranking.elo) / 400))
+          winner_ranking.elo += int(K * (1 - expected_winner))
+          loser_ranking.elo += int(K * (0 - (1 - expected_winner)))
+          winner_ranking.wins += 1
+          loser_ranking.losses += 1
+          winner_ranking.save()
+          loser_ranking.save()
+
+          return {
+              "success": True,
               "winner_id": winner.id,
               "winner_username": winner.username,
-              "abandoned_player_id": loser.id,
-              "abandoned_username": loser.username,
-              "reason": "knockout",
-            },
-          )
-          await self._award_all_rewards(winner, loser)
-          logger.info(f"Battle {self._battle_id} ended by KO - Winner: {winner.username}")
+              "loser_id": loser.id,
+              "loser_username": loser.username
+          }
       except Exception as e:
-          logger.error(f"Error awarding KO victory: {e}")
+          logger.error(f"Error in _finalize_battle_sync: {e}")
+          return {"success": False, "error": str(e)}
+
+  async def _award_victory_normal(self, winner: User, loser: User) -> None:
+    """Award normal victory (HP depletion)"""
+    # Use the definitive sync helper for all DB actions
+    result = await self._finalize_battle_sync(winner, loser)
+    
+    if result.get("success"):
+      # Refresh local object
+      await self._refresh_battle_sync()
+      
+      # Broadcast final state (Header updates to FINISHED)
+      await self._send_battle_state()
+
+      # Broadcast victory specific event (Overlay triggers)
+      await self.channel_layer.group_send(
+        f"battle_{self._battle_id}",
+        {
+          "type": "battle_abandoned", 
+          "winner_id": result["winner_id"],
+          "winner_username": result["winner_username"],
+          "abandoned_player_id": result["loser_id"],
+          "abandoned_username": result["loser_username"],
+          "reason": "knockout",
+        },
+      )
+      
+      # Award final items/XP
+      await self._award_all_rewards(winner, loser)
+      logger.info(f"Battle {self._battle_id} ended by KO - Winner: {result['winner_username']}")
+    else:
+      logger.error(f"Failed to finalize battle: {result.get('error')}")
 
 
   @sync_to_async
   def _heal_team_sync(self, user):
-      """Heal all creatures of a user back to max HP"""
-      from user_profile.models import Team
-      try:
-          team = Team.objects.get(user=user)
-          for tc in team.team_creatures.all():
-              tc.user_creature.current_hp = tc.user_creature.creature.hp
-              tc.user_creature.save()
-      except Exception as e:
-          logger.error(f"Error healing team for user {user.id}: {e}")
+    """Heal all creatures of a user back to max HP"""
+    from user_profile.models import Team
+    try:
+      team = Team.objects.prefetch_related("team_creatures__user_creature__creature").get(user=user)
+      for tc in team.team_creatures.all():
+        uc = tc.user_creature
+        uc.current_hp = uc.creature.hp
+        uc.save()
+    except Exception as e:
+      logger.error(f"Error healing team for user {user.id}: {e}")
 
   @sync_to_async
   def _refresh_battle_sync(self):
@@ -785,7 +862,13 @@ class BattleConsumer(AsyncWebsocketConsumer):
   def _get_team_data(self, user):
     from user_profile.models import Team, Profile
     try:
-      team = Team.objects.get(user=user)
+      # Pre-fetch everything for the team to avoid lazy-loading issues in async
+      team = Team.objects.select_related("user").prefetch_related(
+          "team_creatures__user_creature__creature",
+          "team_creatures__user_creature__creature__type_1",
+          "team_creatures__user_creature__creature__type_2"
+      ).get(user=user)
+      
       profile, _ = Profile.objects.get_or_create(user=user)
       team_data = []
       
@@ -796,6 +879,7 @@ class BattleConsumer(AsyncWebsocketConsumer):
              "name": c.creature.name,
              "hp": c.current_hp,
              "max_hp": c.creature.hp,
+             "level": c.level,
              "sprite": c.creature.front_sprite
            })
            
@@ -828,9 +912,8 @@ class BattleConsumer(AsyncWebsocketConsumer):
           "type": "battle_state",
           "battle_id": self._battle_id,
           "status": self._battle.status,
-          "current_turn": self._battle.current_turn.id
-          if self._battle.current_turn
-          else None,
+          "winner_id": self._battle.winner.id if self._battle.winner else None,
+          "current_turn": self._battle.current_turn.id if self._battle.current_turn else None,
           "turn_number": self._battle.turn_number,
           "player1": {
             "id": self._battle.player1.id,
