@@ -27,6 +27,16 @@ def _get_or_create_ranking_elo(user_id: int) -> int:
 
 
 @sync_to_async
+def _get_username_sync(user_id: int) -> str:
+  from django.contrib.auth.models import User
+  try:
+    user = User.objects.get(id=user_id)
+    return user.username
+  except User.DoesNotExist:
+    return f"User {user_id}"
+
+
+@sync_to_async
 def _create_battle(player1_id: int, player2_id: int) -> int:
   battle = Battle.objects.create(
     player1_id=player1_id,
@@ -184,12 +194,14 @@ class MatchmakingConsumer(AsyncWebsocketConsumer):
     await self.send_json({"type": "matchmaking.cancelled"})
 
   async def match_found(self, event: dict[str, Any]) -> None:
+    username = await _get_username_sync(event["opponent_user_id"])
     await self.send_json(
       {
         "type": "matchmaking.found",
         "battleId": event["battle_id"],
         "opponent": {
           "userId": event["opponent_user_id"],
+          "username": username,
           "elo": event["opponent_elo"],
         },
       }

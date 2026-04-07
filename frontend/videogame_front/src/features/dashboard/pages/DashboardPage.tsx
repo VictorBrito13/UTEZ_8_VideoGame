@@ -121,7 +121,7 @@ const DashboardPage: React.FC = () => {
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="max-w-5xl w-full mx-auto"
+        className="w-full px-4 md:px-12"
       >
         {/* ROW 1: PROFILE HEADER */}
         <div className="flex flex-col md:flex-row justify-between items-center bg-neutral-950 border border-white/10 rounded-[2rem] p-6 mb-12 shadow-2xl backdrop-blur-xl relative overflow-hidden">
@@ -170,7 +170,9 @@ const DashboardPage: React.FC = () => {
 
           {/* BIG BATTLE BUTTON */}
           <div className="flex-1 flex justify-center items-center mt-6 md:mt-0 relative z-10 w-full md:w-auto">
-            <button className="w-full md:w-auto px-12 py-4 bg-gradient-to-r from-red-600 to-orange-600 rounded-2xl border-b-4 border-red-800 hover:translate-y-[2px] hover:border-b-2 active:border-b-0 hover:shadow-[0_0_30px_rgba(239,68,68,0.5)] transition-all font-black uppercase tracking-[0.2em] text-white flex items-center justify-center gap-3 group">
+            <button 
+              onClick={() => navigate('/matchmaking')}
+              className="w-full md:w-auto px-12 py-4 bg-gradient-to-r from-red-600 to-orange-600 rounded-2xl border-b-4 border-red-800 hover:translate-y-[2px] hover:border-b-2 active:border-b-0 hover:shadow-[0_0_30px_rgba(239,68,68,0.5)] transition-all font-black uppercase tracking-[0.2em] text-white flex items-center justify-center gap-3 group">
               <Swords
                 size={20}
                 className="group-hover:rotate-12 transition-transform"
@@ -235,7 +237,7 @@ const DashboardPage: React.FC = () => {
                 >
                   SELECT YOUR BIOMETRIC SYNCHRONIZATION
                 </Text>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
                   {TRAINER_AVATARS.map((avatar) => {
                     const isSelected = profile?.trainer_sprite === avatar.url;
                     return (
@@ -244,24 +246,24 @@ const DashboardPage: React.FC = () => {
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                         onClick={() => handleSelectAvatar(avatar.url)}
-                        className={`relative aspect-[4/3] rounded-2xl border-2 transition-all cursor-pointer flex flex-col items-center justify-center overflow-hidden bg-neutral-950 ${
+                        className={`relative aspect-square rounded-[2.5rem] border-2 transition-all cursor-pointer flex flex-col items-center justify-center overflow-hidden bg-neutral-950 ${
                           isSelected
-                            ? "border-cyan-500 bg-cyan-500/10 shadow-[0_0_20px_rgba(34,211,238,0.2)]"
+                            ? "border-cyan-500 bg-cyan-500/10 shadow-[0_0_30px_rgba(34,211,238,0.2)]"
                             : "border-white/5 hover:border-white/20"
                         }`}
                       >
                         <img
                           src={avatar.url}
                           alt={avatar.name}
-                          className={`w-14 h-14 object-contain render-pixelated mb-2 ${isSelected ? "drop-shadow-[0_0_8px_rgba(34,211,238,0.5)]" : "opacity-40 hover:opacity-100 transition-opacity"}`}
+                          className={`w-28 h-28 object-contain render-pixelated mb-2 ${isSelected ? "drop-shadow-[0_0_12px_rgba(34,211,238,0.6)]" : "opacity-30 hover:opacity-100 transition-opacity"}`}
                         />
-                        <span className="text-[8px] font-black uppercase text-white/50 tracking-widest">
+                        <span className="text-[10px] font-black uppercase text-white/50 tracking-[0.2em]">
                           {avatar.name}
                         </span>
 
                         {loadingAvatar && isSelected && (
                           <div className="absolute flex items-center justify-center inset-0 bg-black/80 backdrop-blur-sm z-10">
-                            <div className="w-4 h-4 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />
+                            <div className="w-6 h-6 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />
                           </div>
                         )}
                       </motion.div>
