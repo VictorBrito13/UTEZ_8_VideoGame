@@ -1,6 +1,16 @@
 import axios from "axios";
 import { BASE_URL } from "../common/utils/url";
 
+/** WebSocket URL for matchmaking; JWT is sent as ``token`` query param (ASGI middleware). */
+export function getMatchmakingWebSocketUrl(): string {
+  const token = localStorage.getItem("access_token");
+  const wsBase = BASE_URL.replace(/^http/i, (match) =>
+    match.toLowerCase() === "https" ? "wss" : "ws",
+  );
+  const qs = token ? `?token=${encodeURIComponent(token)}` : "";
+  return `${wsBase}/ws/matchmaking${qs}`;
+}
+
 const apiClient = axios.create({
   baseURL: BASE_URL,
 });
@@ -28,7 +38,7 @@ apiClient.interceptors.response.use(
         });
         localStorage.setItem("access_token", data.access);
         return apiClient(originalRequest);
-      } catch (err) {
+      } catch {
         localStorage.clear();
         window.location.href = "/login";
       }
