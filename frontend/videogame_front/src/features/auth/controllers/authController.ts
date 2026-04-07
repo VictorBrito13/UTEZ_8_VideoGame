@@ -4,11 +4,17 @@ import type { LoginRequest, AuthResponse, RegisterRequest } from "../types";
 
 export const authController = {
   login: async (formData: LoginRequest): Promise<AuthResponse> => {
-    const response = await axios.post<AuthResponse>(`${BASE_URL}/api/login`, formData);
+    const response = await axios.post<AuthResponse>(
+      `${BASE_URL}/api/login`,
+      formData,
+    );
     return response.data;
   },
   register: async (formData: RegisterRequest): Promise<AuthResponse> => {
-    const response = await axios.post<AuthResponse>(`${BASE_URL}/api/register`, formData);
+    const response = await axios.post<AuthResponse>(
+      `${BASE_URL}/api/register`,
+      formData,
+    );
     return response.data;
   },
 };

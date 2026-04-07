@@ -14,12 +14,11 @@ export const Text: React.FC<TextProps> = ({
   const variants = {
     normal: "text-slate-200",
     secondary: "text-sm text-slate-400",
-    error: "bg-red-500/10 border border-red-500/50 text-red-400 p-3 rounded-lg text-sm text-center",
+    error:
+      "bg-red-500/10 border border-red-500/50 text-red-400 p-3 rounded-lg text-sm text-center",
   };
 
   return (
-    <p className={`${variants[variant]} ${className}`.trim()}>
-      {children}
-    </p>
+    <p className={`${variants[variant]} ${className}`.trim()}>{children}</p>
   );
 };
