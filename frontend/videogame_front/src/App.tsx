@@ -6,6 +6,7 @@ import { PokedexPage } from "./features/creatures/pages/PokedexPage";
 import { InventoryPage } from "./features/inventory/pages/InventoryPage";
 import { MatchmakingPage } from "./features/combat/pages/MatchmakingPage";
 import { BattlePage } from "./features/combat/pages/BattlePage";
+import LeaderboardPage from "./features/ranking/pages/LeaderboardPage";
 
 function App() {
   return (
@@ -17,6 +18,7 @@ function App() {
         <Route path="/inventory" element={<InventoryPage />} />
         <Route path="/matchmaking" element={<MatchmakingPage />} />
         <Route path="/battle/:battleId" element={<BattlePage />} />
+        <Route path="/leaderboard" element={<LeaderboardPage />} />
         <Route path="/" element={<DashboardPage />} />
       </Routes>
     </Router>

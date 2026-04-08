@@ -8,6 +8,5 @@ router.register("profile", views.ProfileViewSet, basename="profile")
 router.register("user-creatures", views.UserCreatureViewSet, basename="usercreature")
 
 urlpatterns = [
-  path("leaderboard", views.leaderboard, name="leaderboard"),
   path("", include(router.urls)),
 ]
