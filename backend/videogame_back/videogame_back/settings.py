@@ -1,12 +1,15 @@
 import os
-from pathlib import Path
 from datetime import timedelta
+from pathlib import Path
 
 from dotenv import load_dotenv
+from utils.log import configure_logging
 
 load_dotenv()
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+configure_logging(BASE_DIR)
 
 
 # Quick-start development settings - unsuitable for production
@@ -71,7 +74,7 @@ MIDDLEWARE = [
   "django.contrib.auth.middleware.AuthenticationMiddleware",
   "django.contrib.messages.middleware.MessageMiddleware",
   "django.middleware.clickjacking.XFrameOptionsMiddleware",
-  "core.middleware.AuditMiddleware"
+  "core.middleware.AuditMiddleware",
 ]
 
 ROOT_URLCONF = "videogame_back.urls"
@@ -212,46 +215,18 @@ SIMPLE_JWT = {
 # CORS Config for local frontend
 CORS_ALLOWED_ORIGINS = ["http://localhost:5173"]
 
-# Logging Configuration - Fallar seguro
+# Logging: Loguru file sinks + stdlib bridge (see utils.log)
 LOGGING = {
   "version": 1,
   "disable_existing_loggers": False,
-  "formatters": {
-    "verbose": {
-      "format": "{levelname} {asctime} {module} {process:d} {thread:d} {message}",
-      "style": "{",
-    },
-    "simple": {
-      "format": "{levelname} {message}",
-      "style": "{",
-    },
-  },
   "handlers": {
-    "console": {
-      "class": "logging.StreamHandler",
-      "formatter": "simple",
-    },
-    "file": {
-      "class": "logging.FileHandler",
-      "filename": "debug.log",
-      "formatter": "verbose",
+    "loguru": {
+      "class": "utils.log.interceptor.InterceptHandler",
     },
   },
   "root": {
-    "handlers": ["console"],
-    "level": "INFO",
-  },
-  "loggers": {
-    "combat": {
-      "handlers": ["console", "file"],
-      "level": "INFO",
-      "propagate": False,
-    },
-    "django": {
-      "handlers": ["console"],
-      "level": "INFO",
-      "propagate": False,
-    },
+    "handlers": ["loguru"],
+    "level": "DEBUG",
   },
 }
 
