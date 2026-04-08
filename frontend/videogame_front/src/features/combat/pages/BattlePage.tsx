@@ -1,11 +1,12 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Swords, Zap, Activity } from "lucide-react";
 import apiClient from "../../../api/apiClient";
 import { BattleEndOverlay } from "../components/BattleEndOverlay";
 import { useBattleChannel } from "../hooks/useBattleChannel";
-import type { BattleState, InventoryItem, PlayerData } from "../types";
+import { useBattleChatChannel } from "../hooks/useBattleChatChannel";
+import type { BattleState, ChatMessage, InventoryItem, PlayerData } from "../types";
 
 export const BattlePage = () => {
   const { battleId } = useParams();
@@ -22,10 +23,26 @@ export const BattlePage = () => {
   } | null>(null);
   const [winnerId, setWinnerId] = useState<number | null>(null);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatInput, setChatInput] = useState("");
+  const [chatStatus, setChatStatus] = useState<string | null>(null);
+  const chatListRef = useRef<HTMLDivElement | null>(null);
 
   const addLog = (msg: string) => {
     setLogs((prev) => [msg, ...prev].slice(0, 10));
   };
+
+  const handleChatMessage = useCallback(
+    (message: ChatMessage) => {
+      setChatMessages((prev) => [...prev, message]);
+    },
+    []
+  );
+
+  const handleChatStatus = useCallback((message: string) => {
+    setChatStatus(message);
+  }, []);
+
 
   // Fetch my profile and inventory
   useEffect(() => {
@@ -63,6 +80,13 @@ export const BattlePage = () => {
     setFloatingDamage,
     wsRef,
   });
+
+  const { connected: chatConnected, sendMessage: sendChatMessage } =
+    useBattleChatChannel({
+      battleId,
+      onMessage: handleChatMessage,
+      onSystemMessage: handleChatStatus,
+    });
 
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -107,6 +131,7 @@ export const BattlePage = () => {
       }, 1500);
       return () => clearTimeout(timer);
     }
+    return undefined;
   }, [battleState?.status, isPlayer1]);
 
   const handleAttack = () => {
@@ -145,6 +170,25 @@ export const BattlePage = () => {
     }
   };
 
+  const handleSendChat = () => {
+    const trimmed = chatInput.trim();
+    if (!trimmed) return;
+
+    const sent = sendChatMessage(trimmed);
+    if (sent) {
+      setChatInput("");
+    } else {
+      addLog("System: Unable to send chat message.");
+    }
+  };
+
+  useEffect(() => {
+    if (chatListRef.current) {
+      chatListRef.current.scrollTop = chatListRef.current.scrollHeight;
+    }
+  }, [chatMessages]);
+
+  // Early return check - AFTER all hooks
   if (!battleState || !myId) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center text-red-500 font-bold uppercase tracking-widest">
@@ -161,14 +205,15 @@ export const BattlePage = () => {
   const getActive = (p: PlayerData | undefined) => {
     if (!p) return null;
     const creature = p.team.find((c) => c.id === p.active_creature_id);
-    if (!creature && p.team.length > 0) return p.team[0]; // Fallback to first if ID is weird
+    if (!creature && p.team.length > 0) return p.team[0];
     return creature;
   };
   const oppActive = getActive(opponent);
   const meActive = getActive(me);
 
+
   return (
-    <div className="min-h-screen bg-neutral-950 text-white font-sans relative flex flex-col overflow-hidden">
+    <div className="h-screen bg-neutral-950 text-white font-sans relative flex flex-col overflow-hidden">
       <div className="absolute top-0 left-0 w-full h-1/2 bg-gradient-to-b from-red-900/20 to-transparent pointer-events-none" />
       <div className="absolute bottom-0 left-0 w-full h-1/2 bg-gradient-to-t from-blue-900/20 to-transparent pointer-events-none" />
 
@@ -206,7 +251,7 @@ export const BattlePage = () => {
       </div>
 
       {/* Arena Viewport */}
-      <div className="flex-1 w-full px-4 md:px-12 relative flex flex-col justify-center gap-4 py-8">
+      <div className="flex-1 min-h-0 w-full px-3 md:px-8 lg:px-12 relative flex flex-col justify-center gap-3 md:gap-4 py-3 md:py-6 overflow-hidden">
         {/* Opponent Area */}
         <div className="flex justify-end pr-10">
           <div className="flex items-center gap-12">
@@ -403,24 +448,62 @@ export const BattlePage = () => {
       </div>
 
       {/* Control Panel (LARGE CENTERED BALANCE) */}
-      <div className="bg-neutral-950/90 border-t border-white/5 px-10 py-5 relative z-10 flex items-center justify-center gap-8 backdrop-blur-lg">
-        {/* Battle Logs */}
-        <div className="bg-black/50 rounded-xl p-4 border border-white/10 h-32 w-[30%] shrink-0 overflow-y-auto shadow-inner">
-          <div className="text-[10px] font-black text-neutral-500 mb-2 uppercase tracking-widest border-b border-white/5 pb-1">
-            Logs de Combate
+      <div className="bg-neutral-950/90 border-t border-white/5 px-3 md:px-6 lg:px-10 py-2 md:py-3 relative z-10 flex flex-wrap lg:flex-nowrap items-stretch lg:items-end justify-center gap-3 md:gap-4 lg:gap-6 backdrop-blur-lg shrink-0 overflow-hidden">
+        {/* Battle Chat */}
+        <div className="bg-black/50 rounded-xl p-3 border border-white/10 h-[24vh] min-h-[150px] max-h-[240px] lg:h-[220px] lg:max-h-[220px] w-full lg:w-[24%] shadow-inner flex flex-col">
+          <div className="text-[10px] font-black text-neutral-500 uppercase tracking-widest border-b border-white/5 pb-1">
+            Chat de Combate
           </div>
-          {logs.map((log, i) => (
-            <p
-              key={i}
-              className="text-xs font-mono text-neutral-400 mb-1 leading-tight"
+          <div
+            ref={chatListRef}
+            className="flex-1 min-h-0 overflow-y-auto bg-neutral-900/70 rounded-xl p-2 mt-2 space-y-1.5 border border-white/10"
+          >
+            {chatMessages.length > 0 ? (
+              chatMessages.map((message) => (
+                <div key={message.id} className="text-xs leading-snug">
+                  <span className="font-bold text-white">
+                    {message.senderId === myId ? "Tú" : message.senderName}:
+                  </span>{" "}
+                  <span className="text-neutral-300">{message.text}</span>
+                </div>
+              ))
+            ) : (
+              <p className="text-[10px] text-neutral-500">No hay mensajes aún.</p>
+            )}
+          </div>
+
+          <div className="mt-2 flex gap-2">
+            <input
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  handleSendChat();
+                }
+              }}
+              placeholder="Escribe un mensaje..."
+              className="flex-1 rounded-xl border border-white/10 bg-neutral-950/90 px-2.5 py-1.5 text-xs text-white outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20"
+            />
+            <button
+              onClick={handleSendChat}
+              disabled={!chatInput.trim() || !chatConnected}
+              className={`rounded-xl px-3 py-1.5 text-[10px] font-black uppercase tracking-widest transition-all ${
+                chatInput.trim() && chatConnected
+                  ? "bg-cyan-500 text-neutral-950 hover:bg-cyan-400"
+                  : "bg-neutral-800 text-neutral-500 cursor-not-allowed"
+              }`}
             >
-              {log}
-            </p>
-          ))}
+              Enviar
+            </button>
+          </div>
+          {chatStatus && (
+            <div className="mt-2 text-[10px] text-neutral-500">{chatStatus}</div>
+          )}
         </div>
 
         {/* Tactical Items */}
-        <div className="bg-neutral-900/40 rounded-xl p-4 border border-white/10 h-32 w-[35%] shrink-0 flex flex-col shadow-inner">
+        <div className="bg-neutral-900/40 rounded-xl p-3 md:p-4 border border-white/10 h-[18vh] min-h-[110px] max-h-[180px] lg:h-[180px] lg:max-h-[180px] w-full lg:w-[33%] flex flex-col shadow-inner">
           <div className="text-[10px] font-black text-neutral-500 mb-2 uppercase tracking-widest text-center border-b border-white/5 pb-1">
             Recursos Tácticos
           </div>
@@ -446,13 +529,13 @@ export const BattlePage = () => {
         </div>
 
         {/* Bench (Horizontal) */}
-        <div className="flex gap-2 shrink-0">
+        <div className="flex gap-2 shrink-0 w-full lg:w-auto overflow-x-auto pb-1 max-w-full">
           {me.team.map((c) => (
             <button
               key={c.id}
               onClick={() => handleSwap(c.id)}
               disabled={!myTurn || c.hp === 0 || c.id === me.active_creature_id}
-              className={`relative w-24 h-24 rounded-2xl bg-neutral-900/80 border-2 ${c.id === me.active_creature_id ? "border-amber-500 shadow-[0_0_20px_rgba(245,158,11,0.3)]" : "border-white/10"} hover:border-white transition-all overflow-hidden p-2 ${c.hp === 0 ? "opacity-30 grayscale cursor-not-allowed" : "hover:scale-105"}`}
+              className={`relative w-20 h-20 lg:w-24 lg:h-24 rounded-2xl bg-neutral-900/80 border-2 ${c.id === me.active_creature_id ? "border-amber-500 shadow-[0_0_20px_rgba(245,158,11,0.3)]" : "border-white/10"} hover:border-white transition-all overflow-hidden p-2 ${c.hp === 0 ? "opacity-30 grayscale cursor-not-allowed" : "hover:scale-105"}`}
             >
               <img
                 src={c.sprite}
@@ -472,7 +555,7 @@ export const BattlePage = () => {
         </div>
 
         {/* Attack Button */}
-        <div className="h-32 flex items-center shrink-0">
+        <div className="h-auto lg:h-32 flex items-center justify-center shrink-0 w-full lg:w-auto">
           {battleState.status === "playing" && (
             <button
               onClick={handleAttack}

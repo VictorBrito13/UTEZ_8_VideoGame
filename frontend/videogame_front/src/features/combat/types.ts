@@ -28,6 +28,13 @@ export interface InventoryItem {
   };
 }
 
+export interface ChatMessage {
+  id: number;
+  senderId: number;
+  senderName: string;
+  text: string;
+}
+
 export interface BattleState {
   battle_id: number;
   status: "waiting" | "matched" | "playing" | "finished";
