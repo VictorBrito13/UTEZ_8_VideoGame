@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Swords, Zap, Activity } from "lucide-react";
+import { Swords, Zap, Activity, Heart, Shield, ArrowUp, Star } from "lucide-react";
 import apiClient from "../../../api/apiClient";
 import { BattleEndOverlay } from "../components/BattleEndOverlay";
 import { useBattleChannel } from "../hooks/useBattleChannel";
@@ -13,7 +13,7 @@ export const BattlePage = () => {
   const navigate = useNavigate();
   const [battleState, setBattleState] = useState<BattleState | null>(null);
   const [myId, setMyId] = useState<number | null>(null);
-  const [logs, setLogs] = useState<string[]>([]);
+  const [, setLogs] = useState<string[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
   const [isAttacking, setIsAttacking] = useState<string | null>(null);
   const [isHit, setIsHit] = useState<string | null>(null);
@@ -21,6 +21,11 @@ export const BattlePage = () => {
     target: "p1" | "p2";
     amount: number;
   } | null>(null);
+  const [useItemVfx, setUseItemVfx] = useState<{
+    target: "p1" | "p2";
+    type: string;
+  } | null>(null);
+  const [selectingReviveTarget, setSelectingReviveTarget] = useState<number | null>(null);
   const [winnerId, setWinnerId] = useState<number | null>(null);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
@@ -78,6 +83,7 @@ export const BattlePage = () => {
     setIsAttacking,
     setIsHit,
     setFloatingDamage,
+    setUseItemVfx,
     wsRef,
   });
 
@@ -150,14 +156,39 @@ export const BattlePage = () => {
     );
   };
 
-  const handleUseItem = (itemId: number) => {
+  const handleUseItem = (itemId: number, forceTargetId?: number) => {
+    const item = inventory.find((i) => i.id === itemId);
+    if (!item) return;
+
+    if (item.object.effect_type === "REVIVE" && !forceTargetId) {
+      const fainted = me.team.filter((c) => c.hp === 0);
+      if (fainted.length === 0) {
+        addLog("No tienes criaturas debilitadas para revivir.");
+        return;
+      }
+      if (fainted.length === 1) {
+        // Auto-select the only fainted creature
+        handleUseItem(itemId, fainted[0].id);
+        return;
+      }
+      // Start selection mode
+      setSelectingReviveTarget(itemId);
+      addLog("Selecciona a qué criatura regresar al combate.");
+      return;
+    }
+
+    const payload: any = { item_id: itemId };
+    if (forceTargetId) payload.target_id = forceTargetId;
+
     wsRef.current?.send(
       JSON.stringify({
         type: "battle.action",
         action: "use_item",
-        data: { item_id: itemId },
+        data: payload,
       }),
     );
+    
+    setSelectingReviveTarget(null);
   };
 
   const handleSurrender = () => {
@@ -210,6 +241,18 @@ export const BattlePage = () => {
   };
   const oppActive = getActive(opponent);
   const meActive = getActive(me);
+
+  const getVfxIcon = (type: string) => {
+    switch (type) {
+      case "HEAL":
+      case "REVIVE": return <Heart className="text-red-500 w-24 h-24 drop-shadow-[0_0_20px_rgba(239,68,68,0.9)]" />;
+      case "BUFF_ATK": return <Swords className="text-orange-500 w-24 h-24 drop-shadow-[0_0_20px_rgba(249,115,22,0.9)]" />;
+      case "BUFF_DEF": return <Shield className="text-blue-500 w-24 h-24 drop-shadow-[0_0_20px_rgba(59,130,246,0.9)]" />;
+      case "BUFF_SPEED": return <Zap className="text-yellow-400 w-24 h-24 drop-shadow-[0_0_20px_rgba(250,204,21,0.9)]" />;
+      case "EQUIP": return <ArrowUp className="text-purple-500 w-24 h-24 drop-shadow-[0_0_20px_rgba(168,85,247,0.9)]" />;
+      default: return <Star className="text-white w-24 h-24 drop-shadow-[0_0_20px_rgba(255,255,255,0.9)]" />;
+    }
+  };
 
 
   return (
@@ -297,6 +340,15 @@ export const BattlePage = () => {
                     {oppActive?.hp || 0} / {oppActive?.max_hp || 0} HP
                   </span>
                 </div>
+                {oppActive?.buffs && (
+                  <div className="flex gap-1.5 mt-2 justify-end">
+                    {oppActive.buffs.atk > 1 && <Swords className="w-3.5 h-3.5 text-orange-400 drop-shadow-[0_0_5px_rgba(251,146,60,0.8)]" />}
+                    {oppActive.buffs.def > 1 && <Shield className="w-3.5 h-3.5 text-blue-400 drop-shadow-[0_0_5px_rgba(96,165,250,0.8)]" />}
+                    {oppActive.buffs.has_choice && <Star className="w-3.5 h-3.5 text-purple-400 drop-shadow-[0_0_5px_rgba(192,132,252,0.8)]" />}
+                    {oppActive.buffs.has_focus && <Activity className="w-3.5 h-3.5 text-emerald-400 drop-shadow-[0_0_5px_rgba(52,211,153,0.8)]" />}
+                    {oppActive.buffs.has_oran && <Heart className="w-3.5 h-3.5 text-red-400 drop-shadow-[0_0_5px_rgba(248,113,113,0.8)]" />}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -324,6 +376,16 @@ export const BattlePage = () => {
                       -{floatingDamage.amount}
                     </motion.div>
                   )}
+                  {useItemVfx?.target === (isPlayer1 ? "p2" : "p1") && (
+                    <motion.div
+                      initial={{ scale: 0, opacity: 0, y: 20 }}
+                      animate={{ scale: 1.5, opacity: 1, y: -40 }}
+                      exit={{ scale: 2, opacity: 0, y: -80 }}
+                      className="absolute inset-0 z-20 flex items-center justify-center"
+                    >
+                      {getVfxIcon(useItemVfx.type)}
+                    </motion.div>
+                  )}
                 </AnimatePresence>
                 <motion.img
                   animate={
@@ -335,7 +397,11 @@ export const BattlePage = () => {
                         }
                       : isAttacking === (isPlayer1 ? "p2" : "p1")
                         ? { x: -80 }
-                        : { y: [0, -5, 0], filter: "sepia(0) saturate(1)" }
+                        : { 
+                            y: [0, -5, 0], 
+                            filter: (oppActive?.buffs?.atk || 1) > 1.4 ? "drop-shadow(0 0 15px rgba(251,146,60,0.8))" : "none",
+                            scale: (oppActive?.buffs?.atk || 1) > 1.4 ? [1, 1.05, 1] : 1
+                          }
                   }
                   transition={{
                     y: { repeat: Infinity, duration: 4 },
@@ -376,6 +442,16 @@ export const BattlePage = () => {
                       -{floatingDamage.amount}
                     </motion.div>
                   )}
+                  {useItemVfx?.target === (isPlayer1 ? "p1" : "p2") && (
+                    <motion.div
+                      initial={{ scale: 0, opacity: 0, y: 20 }}
+                      animate={{ scale: 1.5, opacity: 1, y: -40 }}
+                      exit={{ scale: 2, opacity: 0, y: -80 }}
+                      className="absolute inset-0 z-20 flex items-center justify-center"
+                    >
+                      {getVfxIcon(useItemVfx.type)}
+                    </motion.div>
+                  )}
                 </AnimatePresence>
                 <motion.img
                   animate={
@@ -387,7 +463,11 @@ export const BattlePage = () => {
                         }
                       : isAttacking === (isPlayer1 ? "p1" : "p2")
                         ? { x: 80 }
-                        : { y: [0, -5, 0], filter: "sepia(0) saturate(1)" }
+                        : { 
+                            y: [0, -5, 0], 
+                            filter: (meActive?.buffs?.atk || 1) > 1.4 ? "drop-shadow(0 0 15px rgba(251,146,60,0.8))" : "none",
+                            scale: (meActive?.buffs?.atk || 1) > 1.4 ? [1, 1.05, 1] : 1
+                          }
                   }
                   transition={{
                     y: { repeat: Infinity, duration: 3.5, delay: 0.5 },
@@ -441,6 +521,15 @@ export const BattlePage = () => {
                     {meActive?.hp || 0} / {meActive?.max_hp || 0} HP
                   </span>
                 </div>
+                {meActive?.buffs && (
+                  <div className="flex gap-1.5 mt-2">
+                    {meActive.buffs.atk > 1 && <Swords className="w-3.5 h-3.5 text-orange-400 drop-shadow-[0_0_5px_rgba(251,146,60,0.8)]" />}
+                    {meActive.buffs.def > 1 && <Shield className="w-3.5 h-3.5 text-blue-400 drop-shadow-[0_0_5px_rgba(96,165,250,0.8)]" />}
+                    {meActive.buffs.has_choice && <Star className="w-3.5 h-3.5 text-purple-400 drop-shadow-[0_0_5px_rgba(192,132,252,0.8)]" />}
+                    {meActive.buffs.has_focus && <Activity className="w-3.5 h-3.5 text-emerald-400 drop-shadow-[0_0_5px_rgba(52,211,153,0.8)]" />}
+                    {meActive.buffs.has_oran && <Heart className="w-3.5 h-3.5 text-red-400 drop-shadow-[0_0_5px_rgba(248,113,113,0.8)]" />}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -513,8 +602,8 @@ export const BattlePage = () => {
                 <button
                   key={item.id}
                   onClick={() => handleUseItem(item.id)}
-                  disabled={!myTurn || meActive?.hp === 0}
-                  className="group flex flex-col items-center justify-center p-2 bg-neutral-800/80 rounded-lg border border-white/5 hover:border-cyan-500 transition-all disabled:opacity-30"
+                  disabled={!myTurn || selectingReviveTarget !== null}
+                  className="group flex flex-col items-center justify-center p-2 bg-neutral-800/80 rounded-lg border border-white/5 hover:border-cyan-500 transition-all disabled:opacity-30 relative"
                 >
                   <span className="text-xs font-black text-cyan-400">
                     x{item.quantity}
@@ -522,6 +611,9 @@ export const BattlePage = () => {
                   <span className="text-[8px] font-bold text-neutral-500 uppercase truncate w-full text-center">
                     {item.object.name}
                   </span>
+                  {selectingReviveTarget === item.id && (
+                     <div className="absolute inset-0 ring-2 ring-emerald-500 rounded-lg animate-pulse pointer-events-none" />
+                  )}
                 </button>
               ))}
             </div>
@@ -533,9 +625,15 @@ export const BattlePage = () => {
           {me.team.map((c) => (
             <button
               key={c.id}
-              onClick={() => handleSwap(c.id)}
-              disabled={!myTurn || c.hp === 0 || c.id === me.active_creature_id}
-              className={`relative w-20 h-20 lg:w-24 lg:h-24 rounded-2xl bg-neutral-900/80 border-2 ${c.id === me.active_creature_id ? "border-amber-500 shadow-[0_0_20px_rgba(245,158,11,0.3)]" : "border-white/10"} hover:border-white transition-all overflow-hidden p-2 ${c.hp === 0 ? "opacity-30 grayscale cursor-not-allowed" : "hover:scale-105"}`}
+              onClick={() => {
+                if (selectingReviveTarget) {
+                   if (c.hp === 0) handleUseItem(selectingReviveTarget, c.id);
+                } else {
+                   handleSwap(c.id);
+                }
+              }}
+              disabled={!myTurn || (!selectingReviveTarget && (c.hp === 0 || c.id === me.active_creature_id)) || (selectingReviveTarget !== null && c.hp > 0)}
+              className={`relative w-20 h-20 lg:w-24 lg:h-24 rounded-2xl bg-neutral-900/80 border-2 ${c.id === me.active_creature_id ? "border-amber-500 shadow-[0_0_20px_rgba(245,158,11,0.3)]" : (selectingReviveTarget && c.hp === 0 ? "border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.4)] animate-pulse" : "border-white/10")} hover:border-white transition-all overflow-hidden p-2 ${c.hp === 0 && !selectingReviveTarget ? "opacity-30 grayscale cursor-not-allowed" : "hover:scale-105"}`}
             >
               <img
                 src={c.sprite}

@@ -5,6 +5,13 @@ export interface CreatureData {
   max_hp: number;
   level: number;
   sprite: string;
+  buffs?: {
+    atk: number;
+    def: number;
+    has_choice: boolean;
+    has_focus: boolean;
+    has_oran: boolean;
+  };
 }
 
 export interface PlayerData {
@@ -23,6 +30,7 @@ export interface InventoryItem {
     name: string;
     description: string;
     rarity: string;
+    effect_type: string;
     vfx_type: string;
     effect_value: number;
   };
