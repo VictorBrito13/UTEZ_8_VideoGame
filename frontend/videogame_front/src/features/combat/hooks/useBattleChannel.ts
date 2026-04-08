@@ -22,6 +22,9 @@ type UseBattleChannelParams = {
   setFloatingDamage: Dispatch<
     SetStateAction<{ target: AnimTarget; amount: number } | null>
   >;
+  setUseItemVfx: Dispatch<
+    SetStateAction<{ target: AnimTarget; type: string } | null>
+  >;
   wsRef: MutableRefObject<WebSocket | null>;
 };
 
@@ -35,6 +38,7 @@ export function useBattleChannel({
   setIsAttacking,
   setIsHit,
   setFloatingDamage,
+  setUseItemVfx,
   wsRef,
 }: UseBattleChannelParams) {
   const myIdRef = useRef<number | null>(null);
@@ -196,25 +200,38 @@ export function useBattleChannel({
               });
             } else if (action === "use_item") {
               const item_name = payload.item_name as string;
-              const heal_amount = payload.heal_amount as number;
-              const new_hp = payload.new_hp as number;
+              const heal_amount = payload.heal_amount as number | undefined;
+              const new_hp = payload.new_hp as number | undefined | null;
               const creature_id = payload.creature_id as number;
+              const vfx_type = payload.vfx_type as string;
               const uid = myIdRef.current;
-              addLogRef.current(
-                `${playerId === uid ? "Tú" : "Oponente"} usó ${item_name}! (+${heal_amount} HP)`,
-              );
-
+              
               setBattleState((prev) => {
                 if (!prev) return prev;
+                const isItemUserP1 = playerId === prev.player1.id;
+                const targetTag = isItemUserP1 ? "p1" : "p2";
+                
+                // Trigger animation
+                setUseItemVfx({ target: targetTag, type: vfx_type });
+                setTimeout(() => {
+                  setUseItemVfx(null);
+                }, 1500);
+
                 const newState = JSON.parse(
                   JSON.stringify(prev),
                 ) as BattleState;
-                const isP1 = playerId === newState.player1.id;
-                const p = isP1 ? newState.player1 : newState.player2;
+                const p = isItemUserP1 ? newState.player1 : newState.player2;
                 const creature = p.team.find((c) => c.id === creature_id);
-                if (creature) creature.hp = new_hp;
+                if (creature) {
+                   if (new_hp !== undefined && new_hp !== null) creature.hp = new_hp;
+                   if (payload.buffs) creature.buffs = payload.buffs;
+                }
                 return newState;
               });
+
+              let logMsg = `${playerId === uid ? "Tú" : "Oponente"} usó ${item_name}!`;
+              if (heal_amount && heal_amount > 0) logMsg += ` (+${heal_amount} HP)`;
+              addLogRef.current(logMsg);
 
               if (playerId === uid) {
                 setInventory((prev) =>
@@ -228,6 +245,9 @@ export function useBattleChannel({
                     .filter((item) => item.quantity > 0),
                 );
               }
+            } else if (action === "skip_turn") {
+               const msg = payload.message as string;
+               addLogRef.current(msg);
             }
             break;
           }
