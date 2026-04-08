@@ -29,6 +29,7 @@ def _get_or_create_ranking_elo(user_id: int) -> int:
 @sync_to_async
 def _get_username_sync(user_id: int) -> str:
   from django.contrib.auth.models import User
+
   try:
     user = User.objects.get(id=user_id)
     return user.username
