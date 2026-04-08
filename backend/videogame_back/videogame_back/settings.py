@@ -57,6 +57,7 @@ INSTALLED_APPS = [
   "creatures",
   "inventory",
   "user_profile",
+  "ranking",
   "audit",
   "core",
 ]

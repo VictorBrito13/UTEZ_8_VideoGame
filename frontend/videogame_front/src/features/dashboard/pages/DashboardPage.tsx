@@ -101,6 +101,13 @@ const DashboardPage: React.FC = () => {
 
   const navItems = [
     {
+      title: "Leaderboard",
+      desc: "Global ELO rankings",
+      icon: <Trophy className="text-amber-400" />,
+      path: "/leaderboard",
+      color: "from-amber-500/20 to-yellow-500/20",
+    },
+    {
       title: "Pokedex",
       desc: "Species archive and stats",
       icon: <BookOpen className="text-blue-400" />,
@@ -278,7 +285,7 @@ const DashboardPage: React.FC = () => {
         </div>
 
         {/* ROW 3: NAVIGATION ITEMS */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
           {navItems.map((item, index) => (
             <motion.div
               key={item.title}
