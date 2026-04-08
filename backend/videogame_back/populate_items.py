@@ -110,7 +110,9 @@ def populate_items():
   print("Purging existing Object data...")
   Object.objects.all().delete()
 
-  print("Starting process to populate 13 items with Rarity, VFX, and Sprites...")
+  print(
+    "Starting process to populate 13 items with Rarity, VFX, and Sprites..."
+  )
   count = 0
   for item_data in COMPETITIVE_ITEMS:
     slug = item_data.pop("slug")
@@ -127,10 +129,14 @@ def populate_items():
 
     Object.objects.create(sprite=sprite_url, **item_data)
     count += 1
-    print(f"[{count}] Added {item_data['name']} ({item_data['rarity']}) - Sprite: {sprite_url}")
+    print(
+      f"[{count}] Added {item_data['name']} ({item_data['rarity']}) - Sprite: {sprite_url}"
+    )
 
 
 # EJECUCION DIRECTA
 if __name__ == "__main__":
   populate_items()
-  print("\nDONE! Potions and items with Rarity and Sprites successfully registered.")
+  print(
+    "\nDONE! Potions and items with Rarity and Sprites successfully registered."
+  )

@@ -22,9 +22,7 @@ class InventoryViewSet(viewsets.ModelViewSet):
     instance = self.get_object()
     serializer = self.get_serializer(instance)
     data = serializer.data
-    data["items"] = [
-      item for item in data["items"] if item["quantity"] > 0
-    ]
+    data["items"] = [item for item in data["items"] if item["quantity"] > 0]
     return Response(data)
 
   def list(self, request, *args, **kwargs):

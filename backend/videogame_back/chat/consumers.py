@@ -54,7 +54,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
     try:
       payload = json.loads(text_data)
     except json.JSONDecodeError:
-      await self.send(text_data=json.dumps({"type": "error", "message": "Invalid JSON format"}))
+      await self.send(
+        text_data=json.dumps(
+          {"type": "error", "message": "Invalid JSON format"}
+        )
+      )
       return
 
     message = payload.get("message", "")
@@ -62,10 +66,14 @@ class ChatConsumer(AsyncWebsocketConsumer):
       return
 
     if not await self._check_rate_limit():
-      await self.send(text_data=json.dumps({
-        "type": "rate_limited",
-        "message": "Too many messages. Please wait a moment.",
-      }))
+      await self.send(
+        text_data=json.dumps(
+          {
+            "type": "rate_limited",
+            "message": "Too many messages. Please wait a moment.",
+          }
+        )
+      )
       return
 
     clean_message = process_message(message)
@@ -83,19 +91,23 @@ class ChatConsumer(AsyncWebsocketConsumer):
     )
 
   async def chat_message(self, event):
-    await self.send(text_data=json.dumps(
-      {
-        "type": "chat_message",
-        "id": event.get("id"),
-        "message": event.get("message"),
-        "sender_id": event.get("sender_id"),
-        "sender_username": event.get("sender_username"),
-      }
-    ))
+    await self.send(
+      text_data=json.dumps(
+        {
+          "type": "chat_message",
+          "id": event.get("id"),
+          "message": event.get("message"),
+          "sender_id": event.get("sender_id"),
+          "sender_username": event.get("sender_username"),
+        }
+      )
+    )
 
   async def _send_chat_history(self):
     history = await self._get_chat_history()
-    await self.send(text_data=json.dumps({"type": "chat_history", "messages": history}))
+    await self.send(
+      text_data=json.dumps({"type": "chat_history", "messages": history})
+    )
 
   async def _check_rate_limit(self) -> bool:
     if not self.user or self.user.is_anonymous:
@@ -112,7 +124,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
   async def _is_player_in_battle(self) -> bool:
     if not self.battle or not self.user:
       return False
-    return self.battle.player1_id == self.user.id or self.battle.player2_id == self.user.id
+    return (
+      self.battle.player1_id == self.user.id
+      or self.battle.player2_id == self.user.id
+    )
 
   @database_sync_to_async
   def _get_battle(self, battle_id):
