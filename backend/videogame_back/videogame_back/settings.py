@@ -57,6 +57,8 @@ INSTALLED_APPS = [
   "creatures",
   "inventory",
   "user_profile",
+  "audit",
+  "core",
 ]
 
 MIDDLEWARE = [
@@ -68,6 +70,7 @@ MIDDLEWARE = [
   "django.contrib.auth.middleware.AuthenticationMiddleware",
   "django.contrib.messages.middleware.MessageMiddleware",
   "django.middleware.clickjacking.XFrameOptionsMiddleware",
+  "core.middleware.AuditMiddleware"
 ]
 
 ROOT_URLCONF = "videogame_back.urls"
