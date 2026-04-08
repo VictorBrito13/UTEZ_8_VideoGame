@@ -21,6 +21,7 @@ interface InventoryItem {
     effect_value: number;
     rarity: string;
     vfx_type: string;
+    sprite?: string;
   };
 }
 
@@ -67,11 +68,11 @@ export const InventoryPage = () => {
   const getRarityColor = (rarity: string) => {
     switch (rarity) {
       case "LEGENDARY":
-        return "text-amber-400 border-amber-500/50 bg-amber-500/10";
+        return "text-amber-400 border-amber-500/50 bg-amber-500/10 shadow-[0_0_20px_rgba(251,191,36,0.1)]";
       case "RARE":
-        return "text-purple-400 border-purple-500/50 bg-purple-500/10";
+        return "text-purple-400 border-purple-500/50 bg-purple-500/10 shadow-[0_0_20px_rgba(168,85,247,0.1)]";
       case "UNCOMMON":
-        return "text-blue-400 border-blue-500/50 bg-blue-500/10";
+        return "text-blue-400 border-blue-500/50 bg-blue-500/10 shadow-[0_0_20px_rgba(59,130,246,0.1)]";
       default:
         return "text-gray-400 border-gray-500/50 bg-gray-500/10";
     }
@@ -125,10 +126,34 @@ export const InventoryPage = () => {
                 >
                   <div className="flex justify-between items-start mb-4">
                     <div
-                      className={`p-2 rounded-lg bg-neutral-800 border ${getRarityColor(item.object.rarity)} transition-transform group-hover:scale-110`}
+                      className={`relative w-14 h-14 flex items-center justify-center rounded-xl bg-neutral-800 border ${getRarityColor(item.object.rarity)} transition-all group-hover:scale-110 group-hover:rotate-3`}
                     >
-                      <Package size={24} />
+                      <AnimatePresence>
+                        {item.object.sprite ? (
+                          <motion.img
+                            initial={{ scale: 0, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            whileHover={{
+                              y: [0, -4, 0],
+                              transition: {
+                                duration: 2,
+                                repeat: Infinity,
+                                ease: "easeInOut",
+                              },
+                            }}
+                            src={item.object.sprite}
+                            alt={item.object.name}
+                            className="w-10 h-10 object-contain drop-shadow-[0_0_8px_rgba(255,255,255,0.2)]"
+                          />
+                        ) : (
+                          <Package size={24} className="opacity-50" />
+                        )}
+                      </AnimatePresence>
+                      
+                      {/* Inner Glow */}
+                      <div className={`absolute inset-0 rounded-xl bg-gradient-to-tr from-transparent to-white/5 opacity-0 group-hover:opacity-100 transition-opacity`}></div>
                     </div>
+                    
                     <div className="text-right">
                       <span className="text-2xl font-black italic text-neutral-700 group-hover:text-amber-500/20 transition-colors">
                         x{item.quantity}
@@ -144,7 +169,7 @@ export const InventoryPage = () => {
                   <h3 className="text-lg font-bold mb-2 group-hover:text-amber-400 transition-colors">
                     {item.object.name}
                   </h3>
-                  <p className="text-xs text-neutral-500 mb-6 leading-relaxed">
+                  <p className="text-xs text-neutral-500 mb-6 leading-relaxed h-8 line-clamp-2">
                     {item.object.description}
                   </p>
 
@@ -163,7 +188,7 @@ export const InventoryPage = () => {
 
                   {/* Decorative Elements */}
                   <div
-                    className={`absolute top-0 right-0 w-24 h-24 bg-gradient-to-br ${getRarityColor(item.object.rarity).split(" ")[2]} opacity-0 group-hover:opacity-5 blur-3xl rounded-full transition-opacity`}
+                    className={`absolute -top-10 -right-10 w-32 h-32 bg-gradient-to-br ${getRarityColor(item.object.rarity).split(" ")[2]} opacity-0 group-hover:opacity-10 blur-3xl rounded-full transition-all duration-500 group-hover:scale-150`}
                   ></div>
                 </motion.div>
               ))}
