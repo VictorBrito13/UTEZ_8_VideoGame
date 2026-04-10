@@ -28,7 +28,7 @@ Contiene las carpetas divididas por funcionalidades: `auth`, `combat`, `dashboar
 Dentro de cada feature verás:
 - `pages/`: Componentes de alto nivel que representan las rutas.
 - `components/`: Componentes específicos de esa funcionalidad.
-- `services/`: Servicios específicos de esa funcionalidad.
+- `services/`: Lógica de API específica de esa funcionalidad.
 - `hooks/`: Lógica de estado y efectos extraída (Custom Hooks).
 - `types.ts`: Definiciones de interfaces exclusivas de la característica.
 
