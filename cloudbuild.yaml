@@ -80,7 +80,8 @@ steps:
     entrypoint: bash
     args:
       - -c
-      - |
-        npm install -g firebase-tools@latest
+      # Single -c script so bash receives one argument; $$ → $ for shell (secret from secretEnv).
+      - >-
+        set -e && npm install -g firebase-tools@latest &&
         firebase deploy --only hosting --project "$PROJECT_ID" --non-interactive --token "$$FIREBASE_TOKEN"
     secretEnv: [FIREBASE_TOKEN]
