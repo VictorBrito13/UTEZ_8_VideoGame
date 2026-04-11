@@ -60,6 +60,9 @@ lerna-debug.log*
 # Frontend bundle output
 dist-ssr/
 
+# Firebase
+firebase-debug.log
+
 # Vite / tooling caches
 *.local
 .cache/
