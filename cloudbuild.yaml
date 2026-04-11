@@ -80,11 +80,13 @@ steps:
     entrypoint: bash
     args:
       - -c
-      # Single -c script; $$ → $ for shell (secret from secretEnv). Pin firebase-tools (avoid @latest regressions).
-      # Remove --debug after Hosting deploy is stable (verbose logs).
+      # Trim FIREBASE_TOKEN: Secret Manager values often have a trailing newline; that breaks the Bearer header (OAuth 400).
+      # Recreate secret with: echo -n 'TOKEN' | gcloud secrets versions add firebase-ci-token --data-file=-
+      # Single -c script; $$ → $ for shell (secret from secretEnv).
       - >-
         set -eo pipefail &&
         test -f frontend/videogame_front/dist/index.html &&
         npm install -g firebase-tools@13.29.3 &&
-        firebase deploy --only hosting --project "$PROJECT_ID" --non-interactive --token "$$FIREBASE_TOKEN" --debug
+        FB_TOKEN="$(printf '%s' "$$FIREBASE_TOKEN" | tr -d '\n\r')" &&
+        firebase deploy --only hosting --project "$PROJECT_ID" --non-interactive --token "$$FB_TOKEN"
     secretEnv: [FIREBASE_TOKEN]
