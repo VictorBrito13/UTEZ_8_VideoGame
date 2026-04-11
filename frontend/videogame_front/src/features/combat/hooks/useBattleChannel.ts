@@ -6,7 +6,7 @@ import {
   type SetStateAction,
 } from "react";
 import { BASE_URL } from "../../../common/utils/url";
-import type { BattleState, InventoryItem } from "../types";
+import type { BattleState, CreatureData, InventoryItem } from "../types";
 
 type AnimTarget = "p1" | "p2";
 
@@ -60,9 +60,7 @@ export function useBattleChannel({
       "wss://",
     );
 
-    const qs = token
-      ? `?token=${encodeURIComponent(token)}`
-      : "";
+    const qs = token ? `?token=${encodeURIComponent(token)}` : "";
     const ws = new WebSocket(`${wsUrl}/ws/battle/${battleId}${qs}`);
     wsRef.current = ws;
 
@@ -205,12 +203,12 @@ export function useBattleChannel({
               const creature_id = payload.creature_id as number;
               const vfx_type = payload.vfx_type as string;
               const uid = myIdRef.current;
-              
+
               setBattleState((prev) => {
                 if (!prev) return prev;
                 const isItemUserP1 = playerId === prev.player1.id;
                 const targetTag = isItemUserP1 ? "p1" : "p2";
-                
+
                 // Trigger animation
                 setUseItemVfx({ target: targetTag, type: vfx_type });
                 setTimeout(() => {
@@ -223,14 +221,20 @@ export function useBattleChannel({
                 const p = isItemUserP1 ? newState.player1 : newState.player2;
                 const creature = p.team.find((c) => c.id === creature_id);
                 if (creature) {
-                   if (new_hp !== undefined && new_hp !== null) creature.hp = new_hp;
-                   if (payload.buffs) creature.buffs = payload.buffs;
+                  if (new_hp !== undefined && new_hp !== null)
+                    creature.hp = new_hp;
+                  if (payload.buffs) {
+                    creature.buffs = payload.buffs as NonNullable<
+                      CreatureData["buffs"]
+                    >;
+                  }
                 }
                 return newState;
               });
 
               let logMsg = `${playerId === uid ? "Tú" : "Oponente"} usó ${item_name}!`;
-              if (heal_amount && heal_amount > 0) logMsg += ` (+${heal_amount} HP)`;
+              if (heal_amount && heal_amount > 0)
+                logMsg += ` (+${heal_amount} HP)`;
               addLogRef.current(logMsg);
 
               if (playerId === uid) {
@@ -246,8 +250,8 @@ export function useBattleChannel({
                 );
               }
             } else if (action === "skip_turn") {
-               const msg = payload.message as string;
-               addLogRef.current(msg);
+              const msg = payload.message as string;
+              addLogRef.current(msg);
             }
             break;
           }
