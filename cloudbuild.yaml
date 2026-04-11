@@ -82,5 +82,5 @@ steps:
       - -c
       - |
         npm install -g firebase-tools@latest
-        firebase deploy --only hosting --project "$PROJECT_ID" --non-interactive --token "$FIREBASE_TOKEN"
+        firebase deploy --only hosting --project "$PROJECT_ID" --non-interactive --token "$$FIREBASE_TOKEN"
     secretEnv: [FIREBASE_TOKEN]
