@@ -3,6 +3,7 @@ from rest_framework import status, viewsets
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from utils.log import logger
 
 from .models import Profile, Ranking, Team, TeamCreature, UserCreature
 from .serializers import (
@@ -19,6 +20,11 @@ def register(request):
   serializer = UserRegistrationSerializer(data=request.data)
   if serializer.is_valid():
     user = serializer.save()
+    logger.info(
+      "User registered id={} username={}",
+      user.id,
+      user.username,
+    )
     return Response(
       {
         "message": "User registered successfully",

@@ -1,14 +1,10 @@
 from __future__ import annotations
 
-import logging
 from decimal import Decimal
 
-from django.core.exceptions import ValidationError
 from django.db import models, transaction
 
 from .models import Battle
-
-logger = logging.getLogger(__name__)
 
 
 class CreatureType(models.Model):
@@ -53,7 +49,10 @@ class TypeEffectiveness(models.Model):
     unique_together = ["attacking_type", "defending_type"]
 
   def __str__(self):
-    return f"{self.attacking_type.name} vs {self.defending_type.name}: {self.multiplier}x"
+    return (
+      f"{self.attacking_type.name} vs {self.defending_type.name}: "
+      f"{self.multiplier}x"
+    )
 
 
 class DamageCalculation(models.Model):

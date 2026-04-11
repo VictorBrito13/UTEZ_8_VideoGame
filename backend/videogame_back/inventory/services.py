@@ -1,33 +1,40 @@
-from django.db import transaction
 from django.core.exceptions import ValidationError
+from django.db import transaction
+from django.db.utils import DatabaseError, IntegrityError, OperationalError
+from user_profile.models import UserCreature
+from utils.log import logger
 
 from .models import InventoryItem
-from user_profile.models import UserCreature
 
 
 @transaction.atomic
 def use_object(user, object_id, target_creature_id=None):
-
-  item = InventoryItem.objects.select_for_update().get(
-    inventory=user.inventory, object_id=object_id
-  )
-
-  if item.quantity <= 0:
-    raise ValidationError("No items available")
-
-  # aplicar efecto
-  if target_creature_id:
-    creature = UserCreature.objects.select_for_update().get(
-      id=target_creature_id, user=user
+  try:
+    item = InventoryItem.objects.select_for_update().get(
+      inventory=user.inventory, object_id=object_id
     )
 
-    apply_effect(item.object, creature)
+    if item.quantity <= 0:
+      raise ValidationError("No items available")
 
-  # consumir objeto
-  item.quantity -= 1
-  item.save()
+    if target_creature_id:
+      creature = UserCreature.objects.select_for_update().get(
+        id=target_creature_id, user=user
+      )
 
-  return {"object": item.object.name, "remaining": item.quantity}
+      apply_effect(item.object, creature)
+
+    item.quantity -= 1
+    item.save()
+
+    return {"object": item.object.name, "remaining": item.quantity}
+  except (OperationalError, IntegrityError, DatabaseError) as exc:
+    logger.opt(exception=exc).error(
+      "use_object database error user_id={} object_id={}",
+      getattr(user, "pk", None),
+      object_id,
+    )
+    raise
 
 
 def apply_effect(obj, creature):

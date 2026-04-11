@@ -26,6 +26,12 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
+# When True, log one access line per request (method, path, status, duration).
+ACCESS_LOG_ENABLED = (
+  os.environ.get("DJANGO_ACCESS_LOG", "").lower() in ("1", "true", "yes")
+  or DEBUG
+)
+
 # Local dev + Cloud Run service URL.
 # Extend with DJANGO_ALLOWED_HOSTS=comma,separated
 _extra_allowed = [
@@ -36,7 +42,7 @@ _extra_allowed = [
 ALLOWED_HOSTS = [
   "localhost",
   "127.0.0.1",
-  "backend-api-73278147951.northamerica-south1.run.app",
+  "workondapp.web.app",
   *_extra_allowed,
 ]
 
@@ -75,6 +81,7 @@ MIDDLEWARE = [
   "django.contrib.messages.middleware.MessageMiddleware",
   "django.middleware.clickjacking.XFrameOptionsMiddleware",
   "core.middleware.AuditMiddleware",
+  "utils.log.request_logging.RequestLoggingMiddleware",
 ]
 
 ROOT_URLCONF = "videogame_back.urls"
@@ -196,6 +203,7 @@ REST_FRAMEWORK = {
     "rest_framework_simplejwt.authentication.JWTAuthentication",
   ),
   "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
+  "EXCEPTION_HANDLER": "utils.log.api_exceptions.api_exception_handler",
 }
 
 # Simple JWT configurations
@@ -213,7 +221,7 @@ SIMPLE_JWT = {
 }
 
 # CORS Config for local frontend
-CORS_ALLOWED_ORIGINS = ["http://localhost:5173"]
+CORS_ALLOWED_ORIGINS = ["http://localhost:5173", "https://workondapp.web.app"]
 
 # Logging: Loguru file sinks + stdlib bridge (see utils.log)
 LOGGING = {
