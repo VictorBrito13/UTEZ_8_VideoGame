@@ -1,6 +1,5 @@
 {
   "hosting": {
-    "site": "workondapp",
     "public": "frontend/videogame_front/dist",
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
     "rewrites": [
