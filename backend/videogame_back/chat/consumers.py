@@ -1,15 +1,12 @@
 import json
-import logging
-from channels.generic.websocket import AsyncWebsocketConsumer
+
 from channels.db import database_sync_to_async
-from django.contrib.auth.models import User
+from channels.generic.websocket import AsyncWebsocketConsumer
+from combat.models import Battle
 from django.core.cache import cache
 
 from .models import ChatMessage
-from combat.models import Battle
 from .utils import process_message
-
-logger = logging.getLogger(__name__)
 
 
 class ChatConsumer(AsyncWebsocketConsumer):

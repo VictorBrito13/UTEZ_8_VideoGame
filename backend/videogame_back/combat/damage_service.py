@@ -1,15 +1,12 @@
 from __future__ import annotations
 
-import logging
 from decimal import Decimal
 from typing import Dict, Tuple
 
 from django.contrib.auth.models import User
-from django.core.exceptions import ValidationError
+from utils.log import logger
 
-from .damage_models import CreatureType, TypeEffectiveness, DamageCalculation
-
-logger = logging.getLogger(__name__)
+from .damage_models import CreatureType, DamageCalculation, TypeEffectiveness
 
 
 class DamageService:
@@ -123,7 +120,10 @@ class DamageService:
         "base_damage": base_damage,
         "type_multiplier": str(damage_calc.type_multiplier),
         "final_damage": damage_calc.final_damage,
-        "formula": f"{base_damage} +/- {base_damage}*{damage_calc.type_multiplier} = {damage_calc.final_damage}",
+        "formula": (
+          f"{base_damage} +/- {base_damage}*{damage_calc.type_multiplier} "
+          f"= {damage_calc.final_damage}"
+        ),
         "attacking_type": attacking_type_name,
         "defending_type": defending_type_name,
       }

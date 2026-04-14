@@ -1,22 +1,17 @@
 from __future__ import annotations
 
-import asyncio
 import json
-import logging
 from datetime import datetime, timezone
 from typing import Any
 
 from asgiref.sync import sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
 from django.contrib.auth.models import User
-from django.core.exceptions import ValidationError
+from django.core.cache import cache
+from inventory.reward_service import award_battle_rewards
+from utils.log import logger
 
 from .models import Battle
-from inventory.reward_service import award_battle_rewards
-
-# Configure logging for battle consumer
-logger = logging.getLogger(__name__)
-from django.core.cache import cache
 
 
 def _now_utc() -> datetime:
@@ -57,7 +52,7 @@ class BattleConsumer(AsyncWebsocketConsumer):
       try:
         self._battle_id = int(self.scope["url_route"]["kwargs"]["battle_id"])
       except (KeyError, ValueError, TypeError) as e:
-        logger.error(f"Invalid battle_id in URL: {e}")
+        logger.warning(f"Invalid battle_id in URL: {e}")
         await self.close(code=4400)
         return
 
@@ -86,9 +81,8 @@ class BattleConsumer(AsyncWebsocketConsumer):
       await self._send_battle_state()
 
     except Exception as e:
-      logger.error(
-        f"Unexpected error in connect for user {getattr(self._user, 'id', 'unknown')}: {e}"
-      )
+      uid = getattr(self._user, "id", "unknown")
+      logger.error(f"Unexpected error in connect for user {uid}: {e}")
       await self.close(code=4500)
 
   async def disconnect(self, code: int) -> None:
@@ -96,7 +90,10 @@ class BattleConsumer(AsyncWebsocketConsumer):
     try:
       if self._battle_id and self._user and self._battle:
         logger.info(
-          f"User {self._user.id} disconnected from battle {self._battle_id} with code {code}"
+          "User {} disconnected from battle {} with code {}",
+          self._user.id,
+          self._battle_id,
+          code,
         )
 
         # Check if this is an abandonment scenario
@@ -108,7 +105,7 @@ class BattleConsumer(AsyncWebsocketConsumer):
         )
 
       else:
-        logger.info(f"Disconnected without proper battle context")
+        logger.warning("Disconnected without proper battle context")
 
     except Exception as e:
       logger.error(f"Error in disconnect for battle {self._battle_id}: {e}")
@@ -141,7 +138,9 @@ class BattleConsumer(AsyncWebsocketConsumer):
         await self._end_battle_draw()
       else:
         logger.info(
-          f"Player {self._user.id} abandoned, other player {other_player.id} wins"
+          "Player {} abandoned, other player {} wins",
+          self._user.id,
+          other_player.id,
         )
         await self._award_victory_by_abandonment(other_player)
 
@@ -153,9 +152,6 @@ class BattleConsumer(AsyncWebsocketConsumer):
   async def _is_player_connected(self, player: User) -> bool:
     """Check if a player is still connected to the battle"""
     try:
-      # Get current connections in the battle group
-      group_name = f"battle_{self._battle_id}"
-
       # This is a simplified check - in production you might want
       # to track active connections more robustly
       return True  # For now, assume other player is connected
@@ -210,7 +206,9 @@ class BattleConsumer(AsyncWebsocketConsumer):
       await self._award_all_rewards(winner, loser)
 
       logger.info(
-        f"Battle {self._battle_id} ended by abandonment - Winner: {winner.username}"
+        "Battle {} ended by abandonment - Winner: {}",
+        self._battle_id,
+        winner.username,
       )
 
     except Exception as e:
@@ -269,7 +267,10 @@ class BattleConsumer(AsyncWebsocketConsumer):
         )
     except Exception as e:
       logger.error(
-        f"Error handling message type {msg_type} in battle {self._battle_id}: {e}"
+        "Error handling message type {} in battle {}: {}",
+        msg_type,
+        self._battle_id,
+        e,
       )
       await self.send_json(
         {"type": "error", "message": "Failed to process message"}
@@ -437,7 +438,9 @@ class BattleConsumer(AsyncWebsocketConsumer):
           await self.send_json(
             {
               "type": "error",
-              "message": "Swap failed: Creature does not belong to you or is fainted",
+              "message": (
+                "Swap failed: Creature does not belong to you or is fainted"
+              ),
             }
           )
           return
@@ -453,7 +456,10 @@ class BattleConsumer(AsyncWebsocketConsumer):
         },
       )
       logger.info(
-        f"Battle action {payload.get('action')} by user {self._user.id} in battle {self._battle_id}"
+        "Battle action {} by user {} in battle {}",
+        payload.get("action"),
+        self._user.id,
+        self._battle_id,
       )
 
     except Exception as e:
@@ -598,7 +604,11 @@ class BattleConsumer(AsyncWebsocketConsumer):
       loser_ranking.save()
 
       logger.info(
-        f"ELO Updated - {winner.username}: {winner_ranking.elo}, {loser.username}: {loser_ranking.elo}"
+        "ELO Updated - {}: {}, {}: {}",
+        winner.username,
+        winner_ranking.elo,
+        loser.username,
+        loser_ranking.elo,
       )
 
     except Exception as e:
@@ -793,7 +803,7 @@ class BattleConsumer(AsyncWebsocketConsumer):
         if d_type in chart[a_type]:
           multiplier *= chart[a_type][d_type]
 
-    # If no move types are provided, we just use the first typing of the attacker as STAB/Main typing
+    # If no move types: use the first attacker typing as STAB/main typing.
     if not atk_types:
       return 1.0
 
@@ -949,7 +959,7 @@ class BattleConsumer(AsyncWebsocketConsumer):
     self, user: User, item_id: int, target_id: int | None = None
   ) -> dict:
     from inventory.models import InventoryItem
-    from user_profile.models import UserCreature, Team
+    from user_profile.models import UserCreature
 
     try:
       # Verify item availability
@@ -1199,7 +1209,9 @@ class BattleConsumer(AsyncWebsocketConsumer):
       # Award final items/XP
       await self._award_all_rewards(winner, loser)
       logger.info(
-        f"Battle {self._battle_id} ended by KO - Winner: {result['winner_username']}"
+        "Battle {} ended by KO - Winner: {}",
+        self._battle_id,
+        result["winner_username"],
       )
     else:
       logger.error(f"Failed to finalize battle: {result.get('error')}")
@@ -1250,7 +1262,7 @@ class BattleConsumer(AsyncWebsocketConsumer):
 
   @sync_to_async
   def _get_team_data(self, user):
-    from user_profile.models import Team, Profile
+    from user_profile.models import Profile, Team
 
     try:
       # Pre-fetch everything for the team to avoid lazy-loading issues in async
