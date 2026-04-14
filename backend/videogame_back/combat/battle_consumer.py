@@ -80,9 +80,9 @@ class BattleConsumer(AsyncWebsocketConsumer):
       # Send current battle state to the connected player
       await self._send_battle_state()
 
-    except Exception as e:
+    except Exception:
       uid = getattr(self._user, "id", "unknown")
-      logger.error(f"Unexpected error in connect for user {uid}: {e}")
+      logger.exception("Unexpected error in battle WS connect for user {}", uid)
       await self.close(code=4500)
 
   async def disconnect(self, code: int) -> None:
@@ -107,8 +107,11 @@ class BattleConsumer(AsyncWebsocketConsumer):
       else:
         logger.warning("Disconnected without proper battle context")
 
-    except Exception as e:
-      logger.error(f"Error in disconnect for battle {self._battle_id}: {e}")
+    except Exception:
+      logger.exception(
+        "Error in battle WS disconnect for battle_id={}",
+        self._battle_id,
+      )
 
   async def _handle_potential_abandonment(self, disconnect_code: int) -> None:
     """Handle potential battle abandonment"""
@@ -144,9 +147,10 @@ class BattleConsumer(AsyncWebsocketConsumer):
         )
         await self._award_victory_by_abandonment(other_player)
 
-    except Exception as e:
-      logger.error(
-        f"Error handling abandonment in battle {self._battle_id}: {e}"
+    except Exception:
+      logger.exception(
+        "Error handling abandonment in battle_id={}",
+        self._battle_id,
       )
 
   async def _is_player_connected(self, player: User) -> bool:
@@ -248,10 +252,21 @@ class BattleConsumer(AsyncWebsocketConsumer):
     try:
       payload = json.loads(text_data)
     except json.JSONDecodeError:
+      logger.warning(
+        "Battle WS invalid JSON battle_id={} user_id={}",
+        self._battle_id,
+        getattr(self._user, "id", None),
+      )
       await self.send_json({"type": "error", "message": "Invalid JSON format"})
       return
 
     msg_type = payload.get("type")
+    logger.debug(
+      "Battle WS recv type={} battle_id={} user_id={}",
+      msg_type,
+      self._battle_id,
+      getattr(self._user, "id", None),
+    )
 
     try:
       # Route message to appropriate handler
@@ -262,15 +277,20 @@ class BattleConsumer(AsyncWebsocketConsumer):
       elif msg_type == "battle.end_turn":
         await self._handle_end_turn()
       else:
+        logger.warning(
+          "Battle WS unknown message type={} battle_id={} user_id={}",
+          msg_type,
+          self._battle_id,
+          getattr(self._user, "id", None),
+        )
         await self.send_json(
           {"type": "error", "message": "Unknown message type"}
         )
-    except Exception as e:
-      logger.error(
-        "Error handling message type {} in battle {}: {}",
+    except Exception:
+      logger.exception(
+        "Error handling battle WS message type={} battle_id={}",
         msg_type,
         self._battle_id,
-        e,
       )
       await self.send_json(
         {"type": "error", "message": "Failed to process message"}
@@ -462,8 +482,11 @@ class BattleConsumer(AsyncWebsocketConsumer):
         self._battle_id,
       )
 
-    except Exception as e:
-      logger.error(f"Error processing battle action in {self._battle_id}: {e}")
+    except Exception:
+      logger.exception(
+        "Error processing battle action battle_id={}",
+        self._battle_id,
+      )
       await self.send_json(
         {"type": "error", "message": "Failed to process action"}
       )
