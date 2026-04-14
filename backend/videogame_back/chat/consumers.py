@@ -4,6 +4,7 @@ from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
 from combat.models import Battle
 from django.core.cache import cache
+from utils.log import logger
 
 from .models import ChatMessage
 from .utils import process_message
@@ -17,12 +18,17 @@ class ChatConsumer(AsyncWebsocketConsumer):
     self.user = self.scope.get("user")
 
     if not self.user or self.user.is_anonymous:
+      logger.warning(
+        "Chat WS connect rejected: unauthenticated client={}",
+        self.scope.get("client"),
+      )
       await self.close(code=4401)
       return
 
     try:
       self.battle_id = int(self.scope["url_route"]["kwargs"]["battle_id"])
     except (KeyError, ValueError, TypeError):
+      logger.warning("Chat WS connect rejected: invalid battle_id in URL")
       await self.close(code=4400)
       return
 
@@ -30,15 +36,32 @@ class ChatConsumer(AsyncWebsocketConsumer):
     self.battle = await self._get_battle(self.battle_id)
 
     if not self.battle or not await self._is_player_in_battle():
+      logger.warning(
+        "Chat WS rejected battle_id={} user_id={} reason=not_player",
+        self.battle_id,
+        self.user.id,
+      )
       await self.close(code=4403)
       return
 
     await self.channel_layer.group_add(self.room_group_name, self.channel_name)
     await self.accept()
     await self._send_chat_history()
+    logger.info(
+      "Chat WS connected battle_id={} user_id={} username={}",
+      self.battle_id,
+      self.user.id,
+      self.user.username,
+    )
 
   async def disconnect(self, close_code):
     if self.room_group_name:
+      logger.info(
+        "Chat WS disconnected battle_id={} user_id={} close_code={}",
+        self.battle_id,
+        getattr(self.user, "id", None),
+        close_code,
+      )
       await self.channel_layer.group_discard(
         self.room_group_name,
         self.channel_name,
@@ -51,6 +74,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
     try:
       payload = json.loads(text_data)
     except json.JSONDecodeError:
+      logger.warning(
+        "Chat WS invalid JSON battle_id={} user_id={}",
+        self.battle_id,
+        getattr(self.user, "id", None),
+      )
       await self.send(
         text_data=json.dumps(
           {"type": "error", "message": "Invalid JSON format"}
@@ -63,6 +91,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
       return
 
     if not await self._check_rate_limit():
+      logger.warning(
+        "Chat WS rate limited battle_id={} user_id={}",
+        self.battle_id,
+        self.user.id,
+      )
       await self.send(
         text_data=json.dumps(
           {
@@ -74,7 +107,28 @@ class ChatConsumer(AsyncWebsocketConsumer):
       return
 
     clean_message = process_message(message)
-    message_id = await self._save_message(clean_message)
+    try:
+      message_id = await self._save_message(clean_message)
+    except Exception as exc:
+      logger.opt(exception=exc).error(
+        "Chat WS failed to persist message battle_id={} user_id={}",
+        self.battle_id,
+        self.user.id,
+      )
+      await self.send(
+        text_data=json.dumps(
+          {"type": "error", "message": "Could not save message"}
+        )
+      )
+      return
+
+    logger.info(
+      "Chat WS message broadcast battle_id={} user_id={} message_id={} len={}",
+      self.battle_id,
+      self.user.id,
+      message_id,
+      len(clean_message),
+    )
 
     await self.channel_layer.group_send(
       self.room_group_name,

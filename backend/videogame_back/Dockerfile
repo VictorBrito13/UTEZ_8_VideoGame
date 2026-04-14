@@ -27,4 +27,5 @@ COPY videogame_back ./videogame_back/
 # Uncomment when static files are collected for production:
 # RUN python videogame_back/manage.py collectstatic --noinput
 
-CMD ["sh", "-c", "exec gunicorn videogame_back.wsgi:application --bind 0.0.0.0:${PORT} --workers 2 --threads 4"]
+# ASGI (HTTP + Django Channels WebSockets); WSGI/gunicorn cannot serve /ws/*.
+CMD ["sh", "-c", "exec daphne -b 0.0.0.0 -p ${PORT} videogame_back.asgi:application"]
