@@ -43,6 +43,7 @@ ALLOWED_HOSTS = [
   "localhost",
   "127.0.0.1",
   "workondapp.web.app",
+  "backend-api-73278147951.northamerica-south1.run.app",
   *_extra_allowed,
 ]
 
