@@ -16,15 +16,15 @@ configure_logging(BASE_DIR)
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = (
-  "django-insecure-5qcj!s4oqf-s0b*3_zj+y6suppj4v(pld8c6xt1ukbi7t%npr="
+SECRET_KEY = os.environ.get(
+  "DJANGO_SECRET_KEY", "fallback-insecure-but-env-is-primary"
 )
 
 # Configure default primary key field type
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get("DJANGO_DEBUG", "True").lower() == "true"
 
 # When True, log one access line per request (method, path, status, duration).
 ACCESS_LOG_ENABLED = (
@@ -245,3 +245,14 @@ PASSWORD_HASHERS = [
   "django.contrib.auth.hashers.PBKDF2PasswordHasher",
   "django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher",
 ]
+
+# Security headers for production compliance (RNF-01, R1.1, R5.1)
+if not DEBUG:
+  SECURE_SSL_REDIRECT = True
+  SESSION_COOKIE_SECURE = True
+  CSRF_COOKIE_SECURE = True
+  SECURE_HSTS_SECONDS = 31536000  # 1 year
+  SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+  SECURE_HSTS_PRELOAD = True
+  SECURE_BROWSER_XSS_FILTER = True
+  SECURE_CONTENT_TYPE_NOSNIFF = True

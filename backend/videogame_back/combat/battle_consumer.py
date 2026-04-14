@@ -355,126 +355,23 @@ class BattleConsumer(AsyncWebsocketConsumer):
       action = payload.get("action")
 
       if action == "attack":
-        attacker = self._user
-        defender = await self._get_next_player()
+        await self._handle_action_attack(payload)
+      elif action == "use_item":
+        await self._handle_action_use_item(payload)
+      elif action == "swap":
+        await self._handle_action_swap(payload)
+      else:
+        # For other items/actions, just broadcast for now
+        await self.channel_layer.group_send(
+          f"battle_{self._battle_id}",
+          {
+            "type": "battle_action",
+            "action": action,
+            "player_id": self._user.id,
+            "data": payload.get("data", {}),
+          },
+        )
 
-        result = await self._apply_damage(attacker, defender)
-
-        if result and result.get("success"):
-          await self.channel_layer.group_send(
-            f"battle_{self._battle_id}",
-            {
-              "type": "battle_action",
-              "action": "attack",
-              "player_id": self._user.id,
-              "data": {
-                "damage": result["damage"],
-                "defender_active_id": result["defender_active_id"],
-                "defender_hp": result["defender_hp"],
-                "is_fainted": result["is_fainted"],
-                "defender_user_id": result["defender_user_id"],
-                "forced_switch": result["forced_switch"],
-                "new_defender_active_id": result["new_defender_active_id"],
-              },
-            },
-          )
-
-          if result.get("all_fainted"):
-            await self._award_victory_normal(attacker, defender)
-            return
-
-          # Automatically end turn
-          await self._handle_end_turn()
-          return
-        else:
-          await self.send_json(
-            {
-              "type": "error",
-              "message": "Attack failed: " + result.get("error", "Unknown"),
-            }
-          )
-          return
-
-      if action == "use_item":
-        item_id = payload.get("data", {}).get("item_id")
-        target_id = payload.get("data", {}).get("target_id", None)
-        if not item_id:
-          await self.send_json(
-            {"type": "error", "message": "Missing item_id for use_item"}
-          )
-          return
-
-        result = await self._apply_item_effect(self._user, item_id, target_id)
-        if result and result.get("success"):
-          await self.channel_layer.group_send(
-            f"battle_{self._battle_id}",
-            {
-              "type": "battle_action",
-              "action": "use_item",
-              "player_id": self._user.id,
-              "data": {
-                "item_id": item_id,
-                "item_name": result["item_name"],
-                "heal_amount": result.get("heal_amount", 0),
-                "new_hp": result.get("new_hp"),
-                "creature_id": result.get("creature_id"),
-                "vfx_type": result.get("vfx_type"),
-                "buffs": result.get("buffs"),
-              },
-            },
-          )
-          return
-        else:
-          await self.send_json(
-            {
-              "type": "error",
-              "message": "Item failed: " + result.get("error", "Unknown"),
-            }
-          )
-          return
-
-      if action == "swap":
-        creature_id = payload.get("data", {}).get("creature_id")
-        if not creature_id:
-          await self.send_json(
-            {"type": "error", "message": "Missing creature_id for swap"}
-          )
-          return
-
-        # This is crucial: update server cache of who is active
-        success = await self._cache_active_creature(self._user, creature_id)
-        if success:
-          await self.channel_layer.group_send(
-            f"battle_{self._battle_id}",
-            {
-              "type": "battle_action",
-              "action": "swap",
-              "player_id": self._user.id,
-              "data": {"creature_id": creature_id},
-            },
-          )
-          return
-        else:
-          await self.send_json(
-            {
-              "type": "error",
-              "message": (
-                "Swap failed: Creature does not belong to you or is fainted"
-              ),
-            }
-          )
-          return
-
-      # For other items/actions, just broadcast for now
-      await self.channel_layer.group_send(
-        f"battle_{self._battle_id}",
-        {
-          "type": "battle_action",
-          "action": payload.get("action"),
-          "player_id": self._user.id,
-          "data": payload.get("data", {}),
-        },
-      )
       logger.info(
         "Battle action {} by user {} in battle {}",
         payload.get("action"),
@@ -489,6 +386,111 @@ class BattleConsumer(AsyncWebsocketConsumer):
       )
       await self.send_json(
         {"type": "error", "message": "Failed to process action"}
+      )
+
+  async def _handle_action_attack(self, payload: dict) -> None:
+    attacker = self._user
+    defender = await self._get_next_player()
+    result = await self._apply_damage(attacker, defender)
+
+    if not result or not result.get("success"):
+      await self.send_json(
+        {
+          "type": "error",
+          "message": "Attack failed: " + result.get("error", "Unknown"),
+        }
+      )
+      return
+
+    await self.channel_layer.group_send(
+      f"battle_{self._battle_id}",
+      {
+        "type": "battle_action",
+        "action": "attack",
+        "player_id": self._user.id,
+        "data": {
+          "damage": result["damage"],
+          "defender_active_id": result["defender_active_id"],
+          "defender_hp": result["defender_hp"],
+          "is_fainted": result["is_fainted"],
+          "defender_user_id": result["defender_user_id"],
+          "forced_switch": result["forced_switch"],
+          "new_defender_active_id": result["new_defender_active_id"],
+        },
+      },
+    )
+
+    if result.get("all_fainted"):
+      await self._award_victory_normal(attacker, defender)
+    else:
+      # Automatically end turn
+      await self._handle_end_turn()
+
+  async def _handle_action_use_item(self, payload: dict) -> None:
+    item_id = payload.get("data", {}).get("item_id")
+    target_id = payload.get("data", {}).get("target_id", None)
+    if not item_id:
+      await self.send_json(
+        {"type": "error", "message": "Missing item_id for use_item"}
+      )
+      return
+
+    result = await self._apply_item_effect(self._user, item_id, target_id)
+    if not result or not result.get("success"):
+      await self.send_json(
+        {
+          "type": "error",
+          "message": "Item failed: " + (result.get("error") if result else "Unknown"),
+        }
+      )
+      return
+
+    await self.channel_layer.group_send(
+      f"battle_{self._battle_id}",
+      {
+        "type": "battle_action",
+        "action": "use_item",
+        "player_id": self._user.id,
+        "data": {
+          "item_id": item_id,
+          "item_name": result["item_name"],
+          "heal_amount": result.get("heal_amount", 0),
+          "new_hp": result.get("new_hp"),
+          "creature_id": result.get("creature_id"),
+          "vfx_type": result.get("vfx_type"),
+          "buffs": result.get("buffs"),
+        },
+      },
+    )
+
+  async def _handle_action_swap(self, payload: dict) -> None:
+    creature_id = payload.get("data", {}).get("creature_id")
+    if not creature_id:
+      await self.send_json(
+        {"type": "error", "message": "Missing creature_id for swap"}
+      )
+      return
+
+    # This is crucial: update server cache of who is active
+    success = await self._cache_active_creature(self._user, creature_id)
+    if success:
+      await self.channel_layer.group_send(
+        f"battle_{self._battle_id}",
+        {
+          "type": "battle_action",
+          "action": "swap",
+          "player_id": self._user.id,
+          "data": {"creature_id": creature_id},
+        },
+      )
+    else:
+      await self.send_json(
+        {
+          "type": "error",
+          "message": (
+            "Swap failed: Creature does not belong to you or is fainted"
+          ),
+        }
       )
 
   async def _handle_end_turn(self) -> None:
@@ -843,10 +845,7 @@ class BattleConsumer(AsyncWebsocketConsumer):
       def_id = cache.get(f"battle_{self._battle_id}_p_{defender.id}_active")
 
       if not atk_id or not def_id:
-        return {
-          "success": False,
-          "error": "Active creatures not set properly in cache",
-        }
+        return {"success": False, "error": "Active creatures not set properly in cache"}
 
       atk_tc = UserCreature.objects.filter(id=atk_id, user=attacker).first()
       def_tc = UserCreature.objects.filter(id=def_id, user=defender).first()
@@ -855,112 +854,92 @@ class BattleConsumer(AsyncWebsocketConsumer):
         return {"success": False, "error": "Active creatures not found in DB"}
 
       if atk_tc.current_hp <= 0 or def_tc.current_hp <= 0:
-        return {
-          "success": False,
-          "error": "Cannot attack with or target a fainted creature",
-        }
+        return {"success": False, "error": "Cannot attack with or target a fainted creature"}
 
-      level = atk_tc.level
-
-      # Apply Buffs
-      atk_buff = cache.get(
-        f"battle_{self._battle_id}_p_{attacker.id}_b_{atk_id}_buff_atk", 1.0
-      )
-      def_buff = cache.get(
-        f"battle_{self._battle_id}_p_{defender.id}_b_{def_id}_buff_def", 1.0
-      )
-      has_choice_band = cache.get(
-        f"battle_{self._battle_id}_p_{attacker.id}_b_{atk_id}_choice_band"
-      )
-
-      atk_stat = atk_tc.creature.attack * atk_buff
-      if has_choice_band:
-        atk_stat *= 1.5
-
-      def_stat = def_tc.creature.defense * def_buff
-      power = 50  # Default baseline power for basic attacks
-
-      # Extract types
-      atk_types = [atk_tc.creature.type_1.name]
-      if atk_tc.creature.type_2:
-        atk_types.append(atk_tc.creature.type_2.name)
-
-      def_types = [def_tc.creature.type_1.name]
-      if def_tc.creature.type_2:
-        def_types.append(def_tc.creature.type_2.name)
-
-      # Use the primary type of the Pokemon for its basic attack
-      move_type = [atk_types[0]]
-
-      # Fetch type multiplier
-      multiplier = self._calculate_type_multiplier_sync(move_type, def_types)
-
-      # Pokemon Damage Formula
-      import random
-
-      random_factor = random.uniform(0.85, 1.0)
-
-      base_damage = (
-        ((2 * level / 5 + 2) * power * (atk_stat / max(1, def_stat))) / 50
-      ) + 2
-      damage = int(
-        base_damage * multiplier * random_factor * 1.5
-      )  # x1.5 STAB bonus for using own type
-
-      # Ensure at least 1 damage is dealt
-      damage = max(1, damage)
-
+      damage = self._calculate_basic_damage(atk_tc, def_tc, attacker, defender)
       new_hp = def_tc.current_hp - damage
 
-      # Item Effect: Focus Band
-      has_focus_band = cache.get(
-        f"battle_{self._battle_id}_p_{defender.id}_b_{def_id}_focus_band"
-      )
-      if new_hp <= 0 and has_focus_band:
-        new_hp = 1
-        cache.delete(
-          f"battle_{self._battle_id}_p_{defender.id}_b_{def_id}_focus_band"
-        )
-
-      def_tc.current_hp = max(0, new_hp)
-
-      # Item Effect: Oran Berry
-      has_oran_berry = cache.get(
-        f"battle_{self._battle_id}_p_{defender.id}_b_{def_id}_oran_berry"
-      )
-      if (
-        def_tc.current_hp > 0
-        and def_tc.current_hp < (def_tc.creature.hp / 2)
-        and has_oran_berry
-      ):
-        def_tc.current_hp = min(def_tc.creature.hp, def_tc.current_hp + 10)
-        cache.delete(
-          f"battle_{self._battle_id}_p_{defender.id}_b_{def_id}_oran_berry"
-        )
-
+      # Item effects (Focus Band, Oran Berry)
+      new_hp = self._apply_defensive_item_effects(def_tc, new_hp, defender)
+      def_tc.current_hp = new_hp
       def_tc.save()
 
-      # Fresh query so bench HP reflects DB (avoids stale prefetch edge cases)
+      # Check for victory or forced switch
       all_fainted = not defender_team.team_creatures.filter(
         user_creature__current_hp__gt=0
       ).exists()
 
-      forced_switch = False
-      new_defender_active_id = def_tc.id
-      if def_tc.current_hp <= 0 and not all_fainted:
-        for tc in defender_team.team_creatures.select_related(
-          "user_creature"
-        ).order_by("id"):
-          uc = tc.user_creature
-          if uc.current_hp > 0:
-            cache.set(
-              f"battle_{self._battle_id}_p_{defender.id}_active",
-              uc.id,
-              timeout=3600,
-            )
-            new_defender_active_id = uc.id
-            forced_switch = True
-            break
+      forced_switch, new_defender_active_id = self._handle_post_damage_switch(
+        def_tc, defender, defender_team, all_fainted
+      )
+
+      return {
+        "success": True,
+        "damage": damage,
+        "defender_active_id": def_tc.id,
+        "defender_hp": def_tc.current_hp,
+        "is_fainted": def_tc.current_hp <= 0,
+        "all_fainted": all_fainted,
+        "defender_user_id": defender.id,
+        "forced_switch": forced_switch,
+        "new_defender_active_id": new_defender_active_id,
+      }
+
+    except Exception as e:
+      logger.error(f"Error applying damage: {e}")
+      return {"success": False, "error": str(e)}
+
+  def _calculate_basic_damage(self, atk_tc, def_tc, attacker, defender) -> int:
+    import random
+    atk_id, def_id = atk_tc.id, def_tc.id
+    atk_buff = cache.get(f"battle_{self._battle_id}_p_{attacker.id}_b_{atk_id}_buff_atk", 1.0)
+    def_buff = cache.get(f"battle_{self._battle_id}_p_{defender.id}_b_{def_id}_buff_def", 1.0)
+    has_choice_band = cache.get(f"battle_{self._battle_id}_p_{attacker.id}_b_{atk_id}_choice_band")
+
+    atk_stat = atk_tc.creature.attack * atk_buff
+    if has_choice_band:
+      atk_stat *= 1.5
+    def_stat = max(1, def_tc.creature.defense * def_buff)
+
+    atk_types = [atk_tc.creature.type_1.name]
+    if atk_tc.creature.type_2:
+      atk_types.append(atk_tc.creature.type_2.name)
+
+    def_types = [def_tc.creature.type_1.name]
+    if def_tc.creature.type_2:
+      def_types.append(def_tc.creature.type_2.name)
+
+    multiplier = self._calculate_type_multiplier_sync([atk_types[0]], def_types)
+    base_damage = (((2 * atk_tc.level / 5 + 2) * 50 * (atk_stat / def_stat)) / 50) + 2
+    damage = int(base_damage * multiplier * random.uniform(0.85, 1.0) * 1.5)
+    return max(1, damage)
+
+  def _apply_defensive_item_effects(self, def_tc, new_hp, defender) -> int:
+    def_id = def_tc.id
+    # Focus Band
+    if new_hp <= 0 and cache.get(f"battle_{self._battle_id}_p_{defender.id}_b_{def_id}_focus_band"):
+      new_hp = 1
+      cache.delete(f"battle_{self._battle_id}_p_{defender.id}_b_{def_id}_focus_band")
+
+    current_hp = max(0, new_hp)
+    # Oran Berry
+    if (0 < current_hp < (def_tc.creature.hp / 2) and
+        cache.get(f"battle_{self._battle_id}_p_{defender.id}_b_{def_id}_oran_berry")):
+      current_hp = min(def_tc.creature.hp, current_hp + 10)
+      cache.delete(f"battle_{self._battle_id}_p_{defender.id}_b_{def_id}_oran_berry")
+
+    return current_hp
+
+  def _handle_post_damage_switch(self, def_tc, defender, defender_team, all_fainted):
+    if def_tc.current_hp > 0 or all_fainted:
+      return False, def_tc.id
+
+    for tc in defender_team.team_creatures.select_related("user_creature").order_by("id"):
+      if tc.user_creature.current_hp > 0:
+        cache.set(f"battle_{self._battle_id}_p_{defender.id}_active", tc.user_creature.id, timeout=3600)
+        return True, tc.user_creature.id
+    return False, def_tc.id
+
 
       return {
         "success": True,

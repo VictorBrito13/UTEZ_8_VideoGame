@@ -22,20 +22,34 @@ def _get_user(user_id: int):
 
 
 class JWTQueryParamMiddleware:
-  """Runs after ``AuthMiddleware`` so a valid JWT overrides the session user."""
+  """
+  Middleware to authenticate WebSockets using a JWT in 'Authorization' header.
+  Falling back to 'token' query param for backward compatibility if needed,
+  but HEADER is the target for R1.2 and RNF-01 compliance.
+  """
 
   def __init__(self, inner):
     self.inner = inner
 
   async def __call__(self, scope, receive, send):
     if scope["type"] == "websocket":
-      query_string = scope.get("query_string", b"").decode()
-      params = parse_qs(query_string)
-      token_list = params.get("token", [])
-      if token_list:
-        raw = token_list[0]
+      headers = dict(scope.get("headers", []))
+      auth_header = headers.get(b"authorization", b"").decode()
+
+      raw_token = None
+      if auth_header.startswith("Bearer "):
+        raw_token = auth_header.split(" ")[1]
+      else:
+        # Fallback to query param (less secure, but keep it for now)
+        query_string = scope.get("query_string", b"").decode()
+        params = parse_qs(query_string)
+        token_list = params.get("token", [])
+        if token_list:
+          raw_token = token_list[0]
+
+      if raw_token:
         try:
-          validated = AccessToken(raw)
+          validated = AccessToken(raw_token)
           uid = int(validated["user_id"])
           scope["user"] = await _get_user(uid)
         except (InvalidToken, TokenError, KeyError, TypeError, ValueError):

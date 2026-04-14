@@ -49,16 +49,13 @@ def api_exception_handler(exc, context):
     logger.opt(exception=exc).error("DB DatabaseError {}", msg_base)
   elif isinstance(exc, APIException):
     status = exc.status_code
+    log_msg = "APIException {} status={}"
     if status >= 500:
-      logger.opt(exception=exc).error(
-        "APIException {} status={}",
-        msg_base,
-        status,
-      )
+      logger.opt(exception=exc).error(log_msg, msg_base, status)
     elif status in (401, 403):
-      logger.warning("APIException {} status={}", msg_base, status)
+      logger.warning(log_msg, msg_base, status)
     else:
-      logger.info("APIException {} status={}", msg_base, status)
+      logger.info(log_msg, msg_base, status)
   elif response is None:
     logger.opt(exception=exc).error("Unhandled exception {}", msg_base)
 

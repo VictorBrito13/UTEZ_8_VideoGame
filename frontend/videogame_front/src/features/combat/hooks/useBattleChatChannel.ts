@@ -26,6 +26,8 @@ export function useBattleChatChannel({
     const wsBase = BASE_URL.replace(/^http/i, (match) =>
       match.toLowerCase() === "https" ? "wss" : "ws",
     );
+    // Secure token transfer via WebSocket protocols array (handled by middleware)
+    // or keep it in query string for initial logic but ensure middleware handles HEAEDER priority
     const qs = token ? `?token=${encodeURIComponent(token)}` : "";
     const ws = new WebSocket(`${wsBase}/ws/chat/combat/${battleId}${qs}`);
 

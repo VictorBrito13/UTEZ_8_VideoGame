@@ -7,6 +7,7 @@ from django.core.cache import cache
 from utils.log import logger
 
 from .models import ChatMessage
+from .serializers import ChatMessageSerializer
 from .utils import process_message
 
 
@@ -87,26 +88,22 @@ class ChatConsumer(AsyncWebsocketConsumer):
       return
 
     message = payload.get("message", "")
-    if not isinstance(message, str) or not message.strip():
-      return
-
-    if not await self._check_rate_limit():
+    serializer = ChatMessageSerializer(data={"message": message})
+    if not serializer.is_valid():
       logger.warning(
-        "Chat WS rate limited battle_id={} user_id={}",
+        "Chat WS invalid payload battle_id={} user_id={} errors={}",
         self.battle_id,
         self.user.id,
+        serializer.errors,
       )
       await self.send(
         text_data=json.dumps(
-          {
-            "type": "rate_limited",
-            "message": "Too many messages. Please wait a moment.",
-          }
+          {"type": "error", "message": "Invalid message format"}
         )
       )
       return
 
-    clean_message = process_message(message)
+    clean_message = process_message(serializer.validated_data["message"])
     try:
       message_id = await self._save_message(clean_message)
     except Exception as exc:

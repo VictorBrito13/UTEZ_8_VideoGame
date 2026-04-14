@@ -178,6 +178,7 @@ class MatchmakingConsumer(AsyncWebsocketConsumer):
 
         await asyncio.sleep(1)
     except asyncio.CancelledError:
+      logger.info(f"Matchmaking search cancelled for user {self.user_id}")
       raise
 
   async def _handle_cancel(self) -> None:

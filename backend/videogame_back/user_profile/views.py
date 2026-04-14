@@ -89,7 +89,7 @@ class TeamViewSet(viewsets.ReadOnlyModelViewSet):
       )
 
     # Get or create user team
-    team, created = Team.objects.get_or_create(user=request.user)
+    team, _ = Team.objects.get_or_create(user=request.user)
 
     # Clear existing team members
     TeamCreature.objects.filter(team=team).delete()
@@ -121,7 +121,7 @@ class ProfileViewSet(viewsets.ModelViewSet):
 
   @action(detail=False, methods=["GET"])
   def me(self, request):
-    profile, created = Profile.objects.get_or_create(user=request.user)
+    profile, _ = Profile.objects.get_or_create(user=request.user)
     # Ensure Ranking exists as well
     Ranking.objects.get_or_create(user=request.user)
     serializer = self.get_serializer(profile)

@@ -24,7 +24,7 @@ def give_starter():
     try:
       species = Creature.objects.get(name=s_name)
       # Create a user creature instance
-      uc, created = UserCreature.objects.get_or_create(
+      _, created = UserCreature.objects.get_or_create(
         user=user,
         creature=species,
         defaults={
