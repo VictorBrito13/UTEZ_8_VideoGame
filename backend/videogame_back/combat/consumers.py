@@ -27,6 +27,17 @@ def _get_or_create_ranking_elo(user_id: int) -> int:
 
 
 @sync_to_async
+def _has_full_team(user_id: int) -> bool:
+  from user_profile.models import Team
+
+  try:
+    team = Team.objects.get(user_id=user_id)
+    return team.is_full()
+  except Team.DoesNotExist:
+    return False
+
+
+@sync_to_async
 def _get_username_sync(user_id: int) -> str:
   from django.contrib.auth.models import User
 
@@ -104,6 +115,16 @@ class MatchmakingConsumer(AsyncWebsocketConsumer):
   async def _handle_join(self) -> None:
     if self._in_queue:
       await self.send_json({"type": "matchmaking.queued"})
+      return
+
+    has_team = await _has_full_team(self.user_id)
+    if not has_team:
+      await self.send_json(
+        {
+          "type": "error",
+          "message": "Debes tener exactamente 3 criaturas en tu equipo para buscar partida.",
+        }
+      )
       return
 
     allowed = check_rate_limit(
