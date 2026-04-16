@@ -65,7 +65,7 @@ export const BattlePage = () => {
         const invData = Array.isArray(invRes.data)
           ? invRes.data[0]
           : invRes.data;
-        setInventory(invData.items || []);
+        setInventory(invData?.items || []);
       } catch (err) {
         console.error("Error fetching battle data", err);
       }
@@ -548,8 +548,8 @@ export const BattlePage = () => {
             className="flex-1 min-h-0 overflow-y-auto bg-neutral-900/70 rounded-xl p-2 mt-2 space-y-1.5 border border-white/10"
           >
             {chatMessages.length > 0 ? (
-              chatMessages.map((message) => (
-                <div key={message.id} className="text-xs leading-snug">
+              chatMessages.map((message, index) => (
+                <div key={message.id || `chat-${index}`} className="text-xs leading-snug">
                   <span className="font-bold text-white">
                     {message.senderId === myId ? "Tú" : message.senderName}:
                   </span>{" "}
@@ -598,9 +598,9 @@ export const BattlePage = () => {
           </div>
           <div className="flex-1 overflow-y-auto pt-2">
             <div className="grid grid-cols-4 gap-2">
-              {inventory.map((item) => (
+              {inventory.map((item, index) => (
                 <button
-                  key={item.id}
+                  key={item.id || `tactical-${index}`}
                   onClick={() => handleUseItem(item.id)}
                   disabled={!myTurn || selectingReviveTarget !== null}
                   className="group flex flex-col items-center justify-center p-2 bg-neutral-800/80 rounded-lg border border-white/5 hover:border-cyan-500 transition-all disabled:opacity-30 relative"
@@ -622,9 +622,9 @@ export const BattlePage = () => {
 
         {/* Bench (Horizontal) */}
         <div className="flex gap-2 shrink-0 w-full lg:w-auto overflow-x-auto pb-1 max-w-full">
-          {me.team.map((c) => (
+          {me.team.map((c, index) => (
             <button
-              key={c.id}
+              key={c.id || `bench-${index}`}
               onClick={() => {
                 if (selectingReviveTarget) {
                    if (c.hp === 0) handleUseItem(selectingReviveTarget, c.id);

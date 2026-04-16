@@ -59,13 +59,14 @@ export function useBattleChatChannel({
 
         if (type === "chat_history") {
           const messages = Array.isArray(data.messages) ? data.messages : [];
-          messages.forEach((historyItem) => {
+          messages.forEach((historyItem, index) => {
             const senderId = Number(historyItem.sender_id ?? 0);
             const senderName = String(
               historyItem.sender_username ?? historyItem["sender__username"] ?? "Unknown",
             );
             const message = String(historyItem.message ?? "");
-            const id = Number(historyItem.id ?? Date.now());
+            // Use index to ensure uniqueness if ID is missing or duplicate in history
+            const id = historyItem.id ? Number(historyItem.id) : Date.now() + index;
 
             if (message) {
               onMessage({ id, senderId, senderName, text: message });
