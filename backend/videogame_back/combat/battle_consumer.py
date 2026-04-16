@@ -355,132 +355,18 @@ class BattleConsumer(AsyncWebsocketConsumer):
       action = payload.get("action")
 
       if action == "attack":
-        attacker = self._user
-        defender = await self._get_next_player()
-
-        result = await self._apply_damage(attacker, defender)
-
-        if result and result.get("success"):
-          await self.channel_layer.group_send(
-            f"battle_{self._battle_id}",
-            {
-              "type": "battle_action",
-              "action": "attack",
-              "player_id": self._user.id,
-              "data": {
-                "damage": result["damage"],
-                "defender_active_id": result["defender_active_id"],
-                "defender_hp": result["defender_hp"],
-                "is_fainted": result["is_fainted"],
-                "defender_user_id": result["defender_user_id"],
-                "forced_switch": result["forced_switch"],
-                "new_defender_active_id": result["new_defender_active_id"],
-              },
-            },
-          )
-
-          if result.get("all_fainted"):
-            await self._award_victory_normal(attacker, defender)
-            return
-
-          # Automatically end turn
-          await self._handle_end_turn()
-          return
-        else:
-          await self.send_json(
-            {
-              "type": "error",
-              "message": "Attack failed: " + result.get("error", "Unknown"),
-            }
-          )
-          return
+        await self._handle_attack_action()
+        return
 
       if action == "use_item":
-        item_id = payload.get("data", {}).get("item_id")
-        target_id = payload.get("data", {}).get("target_id", None)
-        if not item_id:
-          await self.send_json(
-            {"type": "error", "message": "Missing item_id for use_item"}
-          )
-          return
-
-        result = await self._apply_item_effect(self._user, item_id, target_id)
-        if result and result.get("success"):
-          await self.channel_layer.group_send(
-            f"battle_{self._battle_id}",
-            {
-              "type": "battle_action",
-              "action": "use_item",
-              "player_id": self._user.id,
-              "data": {
-                "item_id": item_id,
-                "item_name": result["item_name"],
-                "heal_amount": result.get("heal_amount", 0),
-                "new_hp": result.get("new_hp"),
-                "creature_id": result.get("creature_id"),
-                "vfx_type": result.get("vfx_type"),
-                "buffs": result.get("buffs"),
-              },
-            },
-          )
-          return
-        else:
-          await self.send_json(
-            {
-              "type": "error",
-              "message": "Item failed: " + result.get("error", "Unknown"),
-            }
-          )
-          return
+        await self._handle_use_item_action(payload)
+        return
 
       if action == "swap":
-        creature_id = payload.get("data", {}).get("creature_id")
-        if not creature_id:
-          await self.send_json(
-            {"type": "error", "message": "Missing creature_id for swap"}
-          )
-          return
+        await self._handle_swap_action(payload)
+        return
 
-        # This is crucial: update server cache of who is active
-        success = await self._cache_active_creature(self._user, creature_id)
-        if success:
-          await self.channel_layer.group_send(
-            f"battle_{self._battle_id}",
-            {
-              "type": "battle_action",
-              "action": "swap",
-              "player_id": self._user.id,
-              "data": {"creature_id": creature_id},
-            },
-          )
-          return
-        else:
-          await self.send_json(
-            {
-              "type": "error",
-              "message": (
-                "Swap failed: Creature does not belong to you or is fainted"
-              ),
-            }
-          )
-          return
-
-      # For other items/actions, just broadcast for now
-      await self.channel_layer.group_send(
-        f"battle_{self._battle_id}",
-        {
-          "type": "battle_action",
-          "action": payload.get("action"),
-          "player_id": self._user.id,
-          "data": payload.get("data", {}),
-        },
-      )
-      logger.info(
-        "Battle action {} by user {} in battle {}",
-        payload.get("action"),
-        self._user.id,
-        self._battle_id,
-      )
+      await self._broadcast_action(payload)
 
     except Exception:
       logger.exception(
@@ -490,6 +376,129 @@ class BattleConsumer(AsyncWebsocketConsumer):
       await self.send_json(
         {"type": "error", "message": "Failed to process action"}
       )
+
+  async def _handle_attack_action(self) -> None:
+    attacker = self._user
+    defender = await self._get_next_player()
+
+    result = await self._apply_damage(attacker, defender)
+    if result and result.get("success"):
+      await self.channel_layer.group_send(
+        f"battle_{self._battle_id}",
+        {
+          "type": "battle_action",
+          "action": "attack",
+          "player_id": self._user.id,
+          "data": {
+            "damage": result["damage"],
+            "defender_active_id": result["defender_active_id"],
+            "defender_hp": result["defender_hp"],
+            "is_fainted": result["is_fainted"],
+            "defender_user_id": result["defender_user_id"],
+            "forced_switch": result["forced_switch"],
+            "new_defender_active_id": result["new_defender_active_id"],
+          },
+        },
+      )
+
+      if result.get("all_fainted"):
+        await self._award_victory_normal(attacker, defender)
+        return
+
+      # Automatically end turn
+      await self._handle_end_turn()
+      return
+
+    await self.send_json(
+      {
+        "type": "error",
+        "message": "Attack failed: " + result.get("error", "Unknown"),
+      }
+    )
+
+  async def _handle_use_item_action(self, payload: dict) -> None:
+    item_id = payload.get("data", {}).get("item_id")
+    target_id = payload.get("data", {}).get("target_id", None)
+    if not item_id:
+      await self.send_json(
+        {"type": "error", "message": "Missing item_id for use_item"}
+      )
+      return
+
+    result = await self._apply_item_effect(self._user, item_id, target_id)
+    if result and result.get("success"):
+      await self.channel_layer.group_send(
+        f"battle_{self._battle_id}",
+        {
+          "type": "battle_action",
+          "action": "use_item",
+          "player_id": self._user.id,
+          "data": {
+            "item_id": item_id,
+            "item_name": result["item_name"],
+            "heal_amount": result.get("heal_amount", 0),
+            "new_hp": result.get("new_hp"),
+            "creature_id": result.get("creature_id"),
+            "vfx_type": result.get("vfx_type"),
+            "buffs": result.get("buffs"),
+          },
+        },
+      )
+      return
+
+    await self.send_json(
+      {
+        "type": "error",
+        "message": "Item failed: " + result.get("error", "Unknown"),
+      }
+    )
+
+  async def _handle_swap_action(self, payload: dict) -> None:
+    creature_id = payload.get("data", {}).get("creature_id")
+    if not creature_id:
+      await self.send_json(
+        {"type": "error", "message": "Missing creature_id for swap"}
+      )
+      return
+
+    # This is crucial: update server cache of who is active
+    success = await self._cache_active_creature(self._user, creature_id)
+    if success:
+      await self.channel_layer.group_send(
+        f"battle_{self._battle_id}",
+        {
+          "type": "battle_action",
+          "action": "swap",
+          "player_id": self._user.id,
+          "data": {"creature_id": creature_id},
+        },
+      )
+      return
+
+    await self.send_json(
+      {
+        "type": "error",
+        "message": "Swap failed: Creature does not belong to you or is fainted",
+      }
+    )
+
+  async def _broadcast_action(self, payload: dict) -> None:
+    # For other items/actions, just broadcast for now
+    await self.channel_layer.group_send(
+      f"battle_{self._battle_id}",
+      {
+        "type": "battle_action",
+        "action": payload.get("action"),
+        "player_id": self._user.id,
+        "data": payload.get("data", {}),
+      },
+    )
+    logger.info(
+      "Battle action {} by user {} in battle {}",
+      payload.get("action"),
+      self._user.id,
+      self._battle_id,
+    )
 
   async def _handle_end_turn(self) -> None:
     """Handle turn end request"""
@@ -834,25 +843,19 @@ class BattleConsumer(AsyncWebsocketConsumer):
 
   @sync_to_async
   def _apply_damage(self, attacker: User, defender: User) -> dict:
-    from user_profile.models import Team, UserCreature
+    from user_profile.models import Team
 
     try:
       defender_team = Team.objects.get(user=defender)
 
-      atk_id = cache.get(f"battle_{self._battle_id}_p_{attacker.id}_active")
-      def_id = cache.get(f"battle_{self._battle_id}_p_{defender.id}_active")
+      active_result = self._get_active_creatures_sync(attacker, defender)
+      if active_result.get("error"):
+        return {"success": False, "error": active_result["error"]}
 
-      if not atk_id or not def_id:
-        return {
-          "success": False,
-          "error": "Active creatures not set properly in cache",
-        }
-
-      atk_tc = UserCreature.objects.filter(id=atk_id, user=attacker).first()
-      def_tc = UserCreature.objects.filter(id=def_id, user=defender).first()
-
-      if not atk_tc or not def_tc:
-        return {"success": False, "error": "Active creatures not found in DB"}
+      atk_id = active_result["atk_id"]
+      def_id = active_result["def_id"]
+      atk_tc = active_result["atk_tc"]
+      def_tc = active_result["def_tc"]
 
       if atk_tc.current_hp <= 0 or def_tc.current_hp <= 0:
         return {
@@ -913,30 +916,12 @@ class BattleConsumer(AsyncWebsocketConsumer):
       new_hp = def_tc.current_hp - damage
 
       # Item Effect: Focus Band
-      has_focus_band = cache.get(
-        f"battle_{self._battle_id}_p_{defender.id}_b_{def_id}_focus_band"
-      )
-      if new_hp <= 0 and has_focus_band:
-        new_hp = 1
-        cache.delete(
-          f"battle_{self._battle_id}_p_{defender.id}_b_{def_id}_focus_band"
-        )
+      new_hp = self._apply_focus_band_sync(defender, def_id, new_hp)
 
       def_tc.current_hp = max(0, new_hp)
 
       # Item Effect: Oran Berry
-      has_oran_berry = cache.get(
-        f"battle_{self._battle_id}_p_{defender.id}_b_{def_id}_oran_berry"
-      )
-      if (
-        def_tc.current_hp > 0
-        and def_tc.current_hp < (def_tc.creature.hp / 2)
-        and has_oran_berry
-      ):
-        def_tc.current_hp = min(def_tc.creature.hp, def_tc.current_hp + 10)
-        cache.delete(
-          f"battle_{self._battle_id}_p_{defender.id}_b_{def_id}_oran_berry"
-        )
+      self._apply_oran_berry_sync(defender, def_id, def_tc)
 
       def_tc.save()
 
@@ -945,22 +930,12 @@ class BattleConsumer(AsyncWebsocketConsumer):
         user_creature__current_hp__gt=0
       ).exists()
 
-      forced_switch = False
-      new_defender_active_id = def_tc.id
-      if def_tc.current_hp <= 0 and not all_fainted:
-        for tc in defender_team.team_creatures.select_related(
-          "user_creature"
-        ).order_by("id"):
-          uc = tc.user_creature
-          if uc.current_hp > 0:
-            cache.set(
-              f"battle_{self._battle_id}_p_{defender.id}_active",
-              uc.id,
-              timeout=3600,
-            )
-            new_defender_active_id = uc.id
-            forced_switch = True
-            break
+      forced_switch, new_defender_active_id = self._resolve_forced_switch_sync(
+        defender_team,
+        defender,
+        def_tc,
+        all_fainted,
+      )
 
       return {
         "success": True,
@@ -977,12 +952,95 @@ class BattleConsumer(AsyncWebsocketConsumer):
       logger.error(f"Error applying damage: {e}")
       return {"success": False, "error": str(e)}
 
+  def _get_active_creatures_sync(self, attacker: User, defender: User) -> dict:
+    from user_profile.models import UserCreature
+
+    atk_id = cache.get(f"battle_{self._battle_id}_p_{attacker.id}_active")
+    def_id = cache.get(f"battle_{self._battle_id}_p_{defender.id}_active")
+
+    if not atk_id or not def_id:
+      return {"error": "Active creatures not set properly in cache"}
+
+    atk_tc = UserCreature.objects.filter(id=atk_id, user=attacker).first()
+    def_tc = UserCreature.objects.filter(id=def_id, user=defender).first()
+    if not atk_tc or not def_tc:
+      return {"error": "Active creatures not found in DB"}
+
+    return {
+      "atk_id": atk_id,
+      "def_id": def_id,
+      "atk_tc": atk_tc,
+      "def_tc": def_tc,
+    }
+
+  def _apply_focus_band_sync(
+    self,
+    defender: User,
+    def_id: int,
+    new_hp: int,
+  ) -> int:
+    has_focus_band = cache.get(
+      f"battle_{self._battle_id}_p_{defender.id}_b_{def_id}_focus_band"
+    )
+    if new_hp <= 0 and has_focus_band:
+      cache.delete(
+        f"battle_{self._battle_id}_p_{defender.id}_b_{def_id}_focus_band"
+      )
+      return 1
+    return new_hp
+
+  def _apply_oran_berry_sync(
+    self,
+    defender: User,
+    def_id: int,
+    def_tc,
+  ) -> None:
+    has_oran_berry = cache.get(
+      f"battle_{self._battle_id}_p_{defender.id}_b_{def_id}_oran_berry"
+    )
+    if (
+      def_tc.current_hp > 0
+      and def_tc.current_hp < (def_tc.creature.hp / 2)
+      and has_oran_berry
+    ):
+      def_tc.current_hp = min(def_tc.creature.hp, def_tc.current_hp + 10)
+      cache.delete(
+        f"battle_{self._battle_id}_p_{defender.id}_b_{def_id}_oran_berry"
+      )
+
+  def _resolve_forced_switch_sync(
+    self,
+    defender_team,
+    defender: User,
+    def_tc,
+    all_fainted: bool,
+  ) -> tuple[bool, int]:
+    forced_switch = False
+    new_defender_active_id = def_tc.id
+    if def_tc.current_hp > 0 or all_fainted:
+      return forced_switch, new_defender_active_id
+
+    for tc in defender_team.team_creatures.select_related(
+      "user_creature"
+    ).order_by("id"):
+      uc = tc.user_creature
+      if uc.current_hp > 0:
+        cache.set(
+          f"battle_{self._battle_id}_p_{defender.id}_active",
+          uc.id,
+          timeout=3600,
+        )
+        new_defender_active_id = uc.id
+        forced_switch = True
+        break
+
+    return forced_switch, new_defender_active_id
+
   @sync_to_async
   def _apply_item_effect(
     self, user: User, item_id: int, target_id: int | None = None
   ) -> dict:
     from inventory.models import InventoryItem
-    from user_profile.models import UserCreature
 
     try:
       # Verify item availability
@@ -996,34 +1054,18 @@ class BattleConsumer(AsyncWebsocketConsumer):
 
       obj = inv_item.object
 
-      # Determine target creature
-      if target_id:
-        creature = UserCreature.objects.filter(id=target_id, user=user).first()
-      else:
-        active_id = cache.get(f"battle_{self._battle_id}_p_{user.id}_active")
-        if not active_id:
-          return {
-            "success": False,
-            "error": "No active creature to use item on",
-          }
-        creature = UserCreature.objects.filter(id=active_id, user=user).first()
+      creature_result = self._resolve_item_target_sync(user, target_id)
+      if creature_result.get("error"):
+        return {"success": False, "error": creature_result["error"]}
+      creature = creature_result["creature"]
 
-      if not creature:
-        return {"success": False, "error": "Target creature not found"}
+      target_validation = self._validate_item_target_sync(
+        obj.effect_type,
+        creature,
+      )
+      if target_validation:
+        return {"success": False, "error": target_validation}
 
-      if obj.effect_type != "REVIVE" and creature.current_hp <= 0:
-        return {
-          "success": False,
-          "error": "Cannot use this item on fainted creatures",
-        }
-
-      if obj.effect_type == "REVIVE" and creature.current_hp > 0:
-        return {
-          "success": False,
-          "error": "Cannot use revive on a conscious creature",
-        }
-
-      applied = False
       res = {
         "success": True,
         "item_name": obj.name,
@@ -1031,128 +1073,179 @@ class BattleConsumer(AsyncWebsocketConsumer):
         "vfx_type": obj.vfx_type,
       }
 
-      if obj.effect_type == "HEAL":
-        old_hp = creature.current_hp
-        creature.current_hp = min(
-          creature.creature.hp, creature.current_hp + int(obj.effect_value)
-        )
-        creature.save()
-        res["heal_amount"] = creature.current_hp - old_hp
-        res["new_hp"] = creature.current_hp
-        applied = True
-
-      elif obj.effect_type == "REVIVE":
-        creature.current_hp = max(
-          1, int(creature.creature.hp * obj.effect_value)
-        )
-        creature.save()
-        res["heal_amount"] = creature.current_hp
-        res["new_hp"] = creature.current_hp
-        applied = True
-
-      elif obj.effect_type == "AUTO_HEAL":
-        cache.set(
-          f"battle_{self._battle_id}_p_{user.id}_b_{creature.id}_oran_berry",
-          True,
-          timeout=7200,
-        )
-        applied = True
-
-      elif obj.effect_type == "EQUIP_ATK":
-        cache.set(
-          f"battle_{self._battle_id}_p_{user.id}_b_{creature.id}_choice_band",
-          True,
-          timeout=7200,
-        )
-        applied = True
-
-      elif obj.effect_type == "EQUIP_SURVIVE":
-        cache.set(
-          f"battle_{self._battle_id}_p_{user.id}_b_{creature.id}_focus_band",
-          True,
-          timeout=7200,
-        )
-        applied = True
-
-      elif obj.effect_type == "BUFF_ATK":
-        current_buff = cache.get(
-          f"battle_{self._battle_id}_p_{user.id}_b_{creature.id}_buff_atk", 1.0
-        )
-        cache.set(
-          f"battle_{self._battle_id}_p_{user.id}_b_{creature.id}_buff_atk",
-          current_buff + obj.effect_value,
-          timeout=7200,
-        )
-        applied = True
-
-      elif obj.effect_type == "BUFF_DEF":
-        current_buff = cache.get(
-          f"battle_{self._battle_id}_p_{user.id}_b_{creature.id}_buff_def", 1.0
-        )
-        cache.set(
-          f"battle_{self._battle_id}_p_{user.id}_b_{creature.id}_buff_def",
-          current_buff + obj.effect_value,
-          timeout=7200,
-        )
-        applied = True
-
-      elif obj.effect_type == "BUFF_SPEED":
-        # X-Speed now freezes the opponent
-        other_player = (
-          self._battle.player2
-          if user == self._battle.player1
-          else self._battle.player1
-        )
-        cache.set(
-          f"battle_{self._battle_id}_p_{other_player.id}_skip_turn",
-          True,
-          timeout=3600,
-        )
-        applied = True
-
-      if applied:
-        inv_item.quantity -= 1
-        if inv_item.quantity <= 0:
-          inv_item.delete()
-        else:
-          inv_item.save()
-
-        # Add current buff state to response
-        res["buffs"] = {
-          "atk": cache.get(
-            f"battle_{self._battle_id}_p_{user.id}_b_{creature.id}_buff_atk",
-            1.0,
-          ),
-          "def": cache.get(
-            f"battle_{self._battle_id}_p_{user.id}_b_{creature.id}_buff_def",
-            1.0,
-          ),
-          "has_choice": bool(
-            cache.get(
-              f"battle_{self._battle_id}_p_{user.id}_b_{creature.id}_choice_band"
-            )
-          ),
-          "has_focus": bool(
-            cache.get(
-              f"battle_{self._battle_id}_p_{user.id}_b_{creature.id}_focus_band"
-            )
-          ),
-          "has_oran": bool(
-            cache.get(
-              f"battle_{self._battle_id}_p_{user.id}_b_{creature.id}_oran_berry"
-            )
-          ),
-        }
-        return res
-      else:
+      if not self._apply_item_effect_by_type_sync(user, creature, obj, res):
         return {
           "success": False,
           "error": "Item effect not implemented for battle yet",
         }
 
+      self._consume_inventory_item_sync(inv_item)
+      res["buffs"] = self._get_creature_buffs_snapshot_sync(user, creature.id)
+      return res
+
     except Exception as e:
       logger.error(f"Error applying item effect: {e}")
       return {"success": False, "error": str(e)}
+
+  def _resolve_item_target_sync(
+    self,
+    user: User,
+    target_id: int | None,
+  ) -> dict:
+    from user_profile.models import UserCreature
+
+    if target_id:
+      creature = UserCreature.objects.filter(id=target_id, user=user).first()
+      if not creature:
+        return {"error": "Target creature not found"}
+      return {"creature": creature}
+
+    active_id = cache.get(f"battle_{self._battle_id}_p_{user.id}_active")
+    if not active_id:
+      return {"error": "No active creature to use item on"}
+
+    creature = UserCreature.objects.filter(id=active_id, user=user).first()
+    if not creature:
+      return {"error": "Target creature not found"}
+
+    return {"creature": creature}
+
+  def _validate_item_target_sync(self, effect_type: str, creature) -> str | None:
+    if effect_type != "REVIVE" and creature.current_hp <= 0:
+      return "Cannot use this item on fainted creatures"
+
+    if effect_type == "REVIVE" and creature.current_hp > 0:
+      return "Cannot use revive on a conscious creature"
+
+    return None
+
+  def _apply_item_effect_by_type_sync(
+    self,
+    user: User,
+    creature,
+    obj,
+    res: dict,
+  ) -> bool:
+    if obj.effect_type == "HEAL":
+      old_hp = creature.current_hp
+      creature.current_hp = min(
+        creature.creature.hp,
+        creature.current_hp + int(obj.effect_value),
+      )
+      creature.save()
+      res["heal_amount"] = creature.current_hp - old_hp
+      res["new_hp"] = creature.current_hp
+      return True
+
+    if obj.effect_type == "REVIVE":
+      creature.current_hp = max(1, int(creature.creature.hp * obj.effect_value))
+      creature.save()
+      res["heal_amount"] = creature.current_hp
+      res["new_hp"] = creature.current_hp
+      return True
+
+    if obj.effect_type == "AUTO_HEAL":
+      cache.set(
+        f"battle_{self._battle_id}_p_{user.id}_b_{creature.id}_oran_berry",
+        True,
+        timeout=7200,
+      )
+      return True
+
+    if obj.effect_type == "EQUIP_ATK":
+      cache.set(
+        f"battle_{self._battle_id}_p_{user.id}_b_{creature.id}_choice_band",
+        True,
+        timeout=7200,
+      )
+      return True
+
+    if obj.effect_type == "EQUIP_SURVIVE":
+      cache.set(
+        f"battle_{self._battle_id}_p_{user.id}_b_{creature.id}_focus_band",
+        True,
+        timeout=7200,
+      )
+      return True
+
+    if obj.effect_type == "BUFF_ATK":
+      current_buff = cache.get(
+        f"battle_{self._battle_id}_p_{user.id}_b_{creature.id}_buff_atk",
+        1.0,
+      )
+      cache.set(
+        f"battle_{self._battle_id}_p_{user.id}_b_{creature.id}_buff_atk",
+        current_buff + obj.effect_value,
+        timeout=7200,
+      )
+      return True
+
+    if obj.effect_type == "BUFF_DEF":
+      current_buff = cache.get(
+        f"battle_{self._battle_id}_p_{user.id}_b_{creature.id}_buff_def",
+        1.0,
+      )
+      cache.set(
+        f"battle_{self._battle_id}_p_{user.id}_b_{creature.id}_buff_def",
+        current_buff + obj.effect_value,
+        timeout=7200,
+      )
+      return True
+
+    if obj.effect_type == "BUFF_SPEED":
+      # X-Speed now freezes the opponent
+      other_player = (
+        self._battle.player2
+        if user == self._battle.player1
+        else self._battle.player1
+      )
+      cache.set(
+        f"battle_{self._battle_id}_p_{other_player.id}_skip_turn",
+        True,
+        timeout=3600,
+      )
+      return True
+
+    return False
+
+  def _consume_inventory_item_sync(self, inv_item) -> None:
+    inv_item.quantity -= 1
+    if inv_item.quantity <= 0:
+      inv_item.delete()
+      return
+
+    inv_item.save()
+
+  def _get_creature_buffs_snapshot_sync(
+    self,
+    user: User,
+    creature_id: int,
+  ) -> dict:
+    return {
+      "atk": cache.get(
+        f"battle_{self._battle_id}_p_{user.id}_b_{creature_id}_buff_atk",
+        1.0,
+      ),
+      "def": cache.get(
+        f"battle_{self._battle_id}_p_{user.id}_b_{creature_id}_buff_def",
+        1.0,
+      ),
+      "has_choice": bool(
+        cache.get(
+          f"battle_{self._battle_id}_p_{user.id}_b_{creature_id}_choice_band"
+        )
+      ),
+      "has_focus": bool(
+        cache.get(
+          f"battle_{self._battle_id}_p_{user.id}_b_{creature_id}_focus_band"
+        )
+      ),
+      "has_oran": bool(
+        cache.get(
+          f"battle_{self._battle_id}_p_{user.id}_b_{creature_id}_oran_berry"
+        )
+      ),
+    }
 
   @sync_to_async
   def _finalize_battle_sync(self, winner: User, loser: User) -> dict:

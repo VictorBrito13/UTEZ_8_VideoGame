@@ -11,6 +11,9 @@ from rest_framework.exceptions import APIException
 from rest_framework.views import exception_handler as drf_exception_handler
 
 
+API_EXCEPTION_STATUS_LOG = "APIException {} status={}"
+
+
 def _safe_request_info(request):
   if request is None:
     return {"method": "", "path": "", "user_id": None}
@@ -51,14 +54,14 @@ def api_exception_handler(exc, context):
     status = exc.status_code
     if status >= 500:
       logger.opt(exception=exc).error(
-        "APIException {} status={}",
+        API_EXCEPTION_STATUS_LOG,
         msg_base,
         status,
       )
     elif status in (401, 403):
-      logger.warning("APIException {} status={}", msg_base, status)
+      logger.warning(API_EXCEPTION_STATUS_LOG, msg_base, status)
     else:
-      logger.info("APIException {} status={}", msg_base, status)
+      logger.info(API_EXCEPTION_STATUS_LOG, msg_base, status)
   elif response is None:
     logger.opt(exception=exc).error("Unhandled exception {}", msg_base)
 
