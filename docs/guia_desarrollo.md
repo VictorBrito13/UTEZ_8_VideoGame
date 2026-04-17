@@ -1,4 +1,3 @@
-
 Seguridad en el desarrollo de aplicaciones
 
 Guia de desarrollo del proyecto
@@ -57,7 +56,6 @@ Lógica
 Componentes
 Estilos
 Comunicación en tiempo real (si aplica)
-(Nota para examen: Las APIs de Estadísticas e Inventario están en sus respectivos módulos /creatures/ y /inventory/ siguiendo esta estructura modular).
 
 Módulos principales:
 Autenticación
@@ -86,7 +84,6 @@ Reglas de URIs:
 Usar siempre sustantivos en minúscula para describir los recursos (ej. /api/usuarios).
 No usar / al final de la URI.
 No utilizar caracteres especiales ni acentos.
-(Nota para examen: Los nuevos endpoints siguen este estándar: /api/creatures/, /api/user-creatures/ y /api/inventory/).
 4. Modelo de Datos y Lógica
 4.1. Ejemplos de entidades principales:
 Usuario / Cuenta
@@ -140,7 +137,6 @@ Estas prácticas aseguran la integridad y confidencialidad de la información al
 La validación de datos debe ser, como mínimo, a través de mecanismos de lista negra (datos conocidos como maliciosos), y como mejor práctica se validará a través de lista blanca.
 Regla de Oro: Toda validación de datos debe ser siempre realizada en el servidor y nunca exclusivamente del lado del cliente (React).
 Se utilizarán los Serializers de Django REST Framework para garantizar que las entradas cumplan con la longitud, tipo y formato esperados antes de interactuar con la base de datos.
-(Nota para examen: Usamos serializers anidados en el Inventario para enviar datos completos y validados al frontend en una sola petición).
 
 5.9 Manejo de errores y excepciones
 El sistema se desarrollará de forma tal que aplique el principio de "fallar seguro".
@@ -173,6 +169,3 @@ Elaborado por:
 Equipo de Desarrollo de la empresa DevCore Nexus
 Referencia:
 Lineamientos GINFO – Guía GobDigital – Principios de Codificación Segura.
-
-
-

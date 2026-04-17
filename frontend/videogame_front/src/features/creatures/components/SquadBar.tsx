@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import apiClient from "../../../api/apiClient";
 import { motion, AnimatePresence } from "framer-motion";
 import { Save, Loader2, Sparkles, X, Swords } from "lucide-react";
+import { encryptCreatureIds } from "../../../common/utils/teamPayloadCipher";
 
 interface SquadMember {
   id: number;
@@ -75,7 +76,9 @@ export const SquadBar = ({
     setSaving(true);
     try {
       const ids = activeTeam.map((m) => m.id);
-      await apiClient.post("/api/team/set_team/", { creature_ids: ids });
+      await apiClient.post("/api/team/set_team/", {
+        creature_ids_encrypted: encryptCreatureIds(ids),
+      });
       onSaveSuccess();
     } catch {
       // Save failure: UI already reflects local state.
