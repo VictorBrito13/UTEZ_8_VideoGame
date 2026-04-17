@@ -32,6 +32,8 @@ def leaderboard(request):
       "elo": r.elo,
       "wins": r.wins,
       "losses": r.losses,
+      "fotoBase64": r.user.profile.foto_base64 if hasattr(r.user, 'profile') else None,
+      "trainerSprite": r.user.profile.trainer_sprite if hasattr(r.user, 'profile') else None,
     }
     for r in rankings
   ]

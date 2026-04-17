@@ -4,6 +4,8 @@ export type LeaderboardEntry = {
   elo: number;
   wins: number;
   losses: number;
+  fotoBase64?: string | null;
+  trainerSprite?: string | null;
 };
 
 export type LeaderboardResponse = {

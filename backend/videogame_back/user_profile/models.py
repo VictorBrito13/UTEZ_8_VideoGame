@@ -18,8 +18,6 @@ class Profile(models.Model):
 
   # Personal Photo (Binary/Base64)
   foto_binaria = models.BinaryField(null=True, blank=True)
-  # Photo Media
-  foto = models.ImageField(upload_to='profiles/', null=True, blank=True)
 
   bio = models.TextField(max_length=500, blank=True)
   created_at = models.DateTimeField(auto_now_add=True)
@@ -99,3 +97,19 @@ class Ranking(models.Model):
 
   def __str__(self):
     return f"{self.user.username} (ELO: {self.elo})"
+  
+  def clean(self):
+    # Security: Validations to prevent data corruption
+    if self.wins < 0:
+      raise ValueError("Wins cannot be negative")
+    if self.losses < 0:
+      raise ValueError("Losses cannot be negative")
+    if self.elo < 0:
+      raise ValueError("ELO cannot be negative")
+    # Security: Validate reasonable ELO range (0-4000)
+    if self.elo > 4000:
+      raise ValueError("ELO exceeds maximum allowed value")
+      
+  def save(self, *args, **kwargs):
+    self.full_clean()
+    super().save(*args, **kwargs)
