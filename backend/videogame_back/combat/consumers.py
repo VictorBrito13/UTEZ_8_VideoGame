@@ -160,7 +160,9 @@ class MatchmakingConsumer(AsyncWebsocketConsumer):
 
     try:
       while self._in_queue and not self._cancel_event.is_set():
-        pair = try_match_for_user(backend, self.user_id, self.config)
+        pair = await sync_to_async(try_match_for_user)(
+          backend, self.user_id, self.config
+        )
         if pair is not None:
           self._in_queue = False
           battle_id = await _create_battle(
