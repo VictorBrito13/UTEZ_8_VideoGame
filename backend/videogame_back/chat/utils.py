@@ -11,25 +11,25 @@ def sanitize_message(message: str) -> str:
   return bleach.clean(message, tags=[], attributes={}, strip=True)
 
 
+BAD_WORDS = [
+  "puto",
+  "puta",
+  "pendejo",
+  "pendeja",
+  "mierda",
+  "culero",
+  "culera",
+  "fuck",
+  "shit",
+  "asshole",
+  "bitch",
+  "bastard",
+]
+
 def filter_bad_words(message: str) -> str:
   """
   Replaces offensive words with Asterisks.
   """
-  # Example list of bad words (you can expand this list)
-  BAD_WORDS = [
-    "puto",
-    "puta",
-    "pendejo",
-    "pendeja",
-    "mierda",
-    "culero",
-    "culera",
-    "fuck",
-    "shit",
-    "asshole",
-    "bitch",
-    "bastard",
-  ]
 
   words = message.split()
   clean_words = []

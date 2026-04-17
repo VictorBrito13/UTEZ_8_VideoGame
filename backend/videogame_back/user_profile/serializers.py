@@ -1,4 +1,6 @@
 import base64
+import re
+from chat.utils import BAD_WORDS
 
 from django.contrib.auth.models import User
 from rest_framework import serializers
@@ -18,6 +20,19 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
   class Meta:
     model = User
     fields = ["username", "email", "password", "trainer_sprite"]
+
+  def validate_username(self, value: str) -> str:
+    if not re.match(r"^[a-zA-Z0-9_-]+$", value):
+      raise serializers.ValidationError(
+        "Username can only contain alphanumeric characters, underscores, and hyphens."
+      )
+    lower_val = value.lower()
+    for word in BAD_WORDS:
+      if word in lower_val:
+        raise serializers.ValidationError(
+          "Username contains inappropriate language."
+        )
+    return value
 
   def validate_email(self, value: str) -> str:
     normalized = (value or "").strip().lower()
