@@ -6,6 +6,7 @@ from typing import Any
 
 from asgiref.sync import sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
+from core.payload_crypto import decrypt_json
 from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.db import transaction
@@ -371,6 +372,22 @@ class BattleConsumer(AsyncWebsocketConsumer):
   async def _handle_battle_action(self, payload: dict) -> None:
     """Handle battle actions (attack, use item, etc.)"""
     try:
+      enc = payload.get("data_encrypted")
+      if enc:
+        try:
+          data = decrypt_json(enc)
+        except ValueError:
+          await self.send_json(
+            {"type": "error", "message": "Invalid encrypted battle data"}
+          )
+          return
+        if not isinstance(data, dict):
+          await self.send_json(
+            {"type": "error", "message": "Invalid encrypted battle data"}
+          )
+          return
+        payload["data"] = data
+
       if not await self._validate_action(payload):
         return
 
@@ -1268,7 +1285,7 @@ class BattleConsumer(AsyncWebsocketConsumer):
           integrity_check["reason"]
         )
         return {"success": False, "error": f"Battle integrity validation failed: {integrity_check['reason']}"}
-      
+
       # 1. Update status and winner
       self._battle.status = Battle.BattleStatus.FINISHED
       self._battle.winner = winner
@@ -1291,15 +1308,15 @@ class BattleConsumer(AsyncWebsocketConsumer):
 
       winner_ranking, _ = Ranking.objects.get_or_create(user=winner)
       loser_ranking, _ = Ranking.objects.get_or_create(user=loser)
-      
+
       K, expected_winner = (
         32,
         1 / (1 + 10 ** ((loser_ranking.elo - winner_ranking.elo) / 400)),
       )
-      
+
       winner_elo_change = int(K * (1 - expected_winner))
       loser_elo_change = int(K * (0 - (1 - expected_winner)))
-      
+
       # Security: Validate reasonable ELO changes
       if abs(winner_elo_change) > 50 or abs(loser_elo_change) > 50:
         logger.warning(
@@ -1308,14 +1325,14 @@ class BattleConsumer(AsyncWebsocketConsumer):
           winner_elo_change,
           loser_elo_change
         )
-      
+
       winner_ranking.elo += winner_elo_change
       loser_ranking.elo += loser_elo_change
       winner_ranking.wins += 1
       loser_ranking.losses += 1
       winner_ranking.save()
       loser_ranking.save()
-      
+
       # Security: Audit log for ranking changes
       logger.info(
         "Ranking updated battle_id={} winner_id={} winner_elo_change={} loser_id={} loser_elo_change={}",
@@ -1406,17 +1423,16 @@ class BattleConsumer(AsyncWebsocketConsumer):
     Double-checks that loser team is completely defeated.
     """
     try:
-      from user_profile.models import Team
-      
+
       # Get loser team with current creature data
       loser_team = await self._get_team_async(loser)
       if not loser_team:
         return False
-      
+
       # Verify all loser creatures have HP = 0
       all_fainted = True
       fainted_creatures = []
-      
+
       for tc in loser_team.team_creatures.all():
         await self._refresh_user_creature_async(tc.user_creature)
         if tc.user_creature.current_hp > 0:
@@ -1426,7 +1442,7 @@ class BattleConsumer(AsyncWebsocketConsumer):
             "name": tc.user_creature.creature.name,
             "hp": tc.user_creature.current_hp
           })
-      
+
       if not all_fainted:
         logger.warning(
           "Victory validation failed - loser has alive creatures battle_id={} creatures={}",
@@ -1434,35 +1450,35 @@ class BattleConsumer(AsyncWebsocketConsumer):
           fainted_creatures
         )
         return False
-      
+
       # Verify winner has at least one alive creature
       winner_team = await self._get_team_async(winner)
       if not winner_team:
         return False
-      
+
       winner_has_alive = False
       for tc in winner_team.team_creatures.all():
         await self._refresh_user_creature_async(tc.user_creature)
         if tc.user_creature.current_hp > 0:
           winner_has_alive = True
           break
-      
+
       if not winner_has_alive:
         logger.warning(
           "Victory validation failed - winner has no alive creatures battle_id={}",
           self._battle_id
         )
         return False
-      
+
       logger.info(
         "Victory conditions verified battle_id={} winner={} loser={}",
         self._battle_id,
         winner.id,
         loser.id
       )
-      
+
       return True
-      
+
     except Exception as e:
       logger.error(f"Error in victory conditions verification: {e}")
       return False
@@ -1499,7 +1515,7 @@ class BattleConsumer(AsyncWebsocketConsumer):
           self._battle.status
         )
         return False
-      
+
       # 2. Verify participants match battle
       if self._battle.player1 not in [winner, abandoner] or self._battle.player2 not in [winner, abandoner]:
         logger.warning(
@@ -1511,11 +1527,11 @@ class BattleConsumer(AsyncWebsocketConsumer):
           self._battle.player2.id
         )
         return False
-      
+
       # 3. Verify both teams exist and have creatures
       winner_team = await self._get_team_async(winner)
       abandoner_team = await self._get_team_async(abandoner)
-      
+
       if not winner_team or not abandoner_team:
         logger.warning(
           "Abandonment validation failed - missing teams battle_id={} winner_team={} abandoner_team={}",
@@ -1524,7 +1540,7 @@ class BattleConsumer(AsyncWebsocketConsumer):
           bool(abandoner_team)
         )
         return False
-      
+
       if winner_team.team_creatures.count() == 0 or abandoner_team.team_creatures.count() == 0:
         logger.warning(
           "Abandonment validation failed - empty teams battle_id={} winner_creatures={} abandoner_creatures={}",
@@ -1533,7 +1549,7 @@ class BattleConsumer(AsyncWebsocketConsumer):
           abandoner_team.team_creatures.count()
         )
         return False
-      
+
       # 4. Verify abandoner is actually the disconnecting user
       if abandoner != self._user:
         logger.warning(
@@ -1543,16 +1559,16 @@ class BattleConsumer(AsyncWebsocketConsumer):
           abandoner.id
         )
         return False
-      
+
       logger.info(
         "Abandonment scenario validated battle_id={} winner={} abandoner={}",
         self._battle_id,
         winner.id,
         abandoner.id
       )
-      
+
       return True
-      
+
     except Exception as e:
       logger.error(f"Error in abandonment scenario validation: {e}")
       return False
@@ -1572,7 +1588,7 @@ class BattleConsumer(AsyncWebsocketConsumer):
         "message": "Invalid victory conditions detected"
       })
       return
-    
+
     # Use the definitive sync helper for all DB actions
     result = await self._finalize_battle_sync(winner, loser)
 

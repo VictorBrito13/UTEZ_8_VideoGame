@@ -15,8 +15,9 @@ const MatchmakingSearchPage = () => {
 
   useEffect(() => {
     if (state.phase === "matched" && state.match) {
+      const battleId = state.match.battleId;
       const timer = setTimeout(() => {
-        navigate(`/battle/${state.match.battleId}`);
+        navigate(`/battle/${battleId}`);
       }, 3000);
       return () => clearTimeout(timer);
     }

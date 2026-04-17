@@ -5,6 +5,8 @@ from chat.utils import BAD_WORDS
 from django.contrib.auth.models import User
 from rest_framework import serializers
 
+from core.payload_crypto import decrypt_json
+
 from .models import Profile, Ranking, Team, TeamCreature, UserCreature
 
 VALID_TRAINER_SPRITES = [
@@ -29,11 +31,18 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
   password = serializers.CharField(write_only=True)
   trainer_sprite = serializers.CharField(write_only=True, required=False)
-  email = serializers.EmailField(required=True)
+  email = serializers.EmailField(required=False, allow_blank=True)
+  email_encrypted = serializers.CharField(write_only=True, required=False)
 
   class Meta:
     model = User
-    fields = ["username", "email", "password", "trainer_sprite"]
+    fields = [
+      "username",
+      "email",
+      "email_encrypted",
+      "password",
+      "trainer_sprite",
+    ]
 
   def validate_username(self, value: str) -> str:
     if not re.match(r"^[a-zA-Z0-9_-]+$", value):
@@ -58,12 +67,33 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
       )
     return normalized
 
+  def validate(self, attrs):
+    initial = getattr(self, "initial_data", None) or {}
+    if initial.get("email_encrypted"):
+      try:
+        plain = decrypt_json(initial["email_encrypted"])
+      except ValueError as exc:
+        raise serializers.ValidationError(
+          {"email_encrypted": "Invalid encrypted email payload."}
+        ) from exc
+      if not isinstance(plain, str):
+        raise serializers.ValidationError(
+          {"email_encrypted": "Invalid encrypted email payload."}
+        )
+      attrs["email"] = self.validate_email(plain.strip().lower())
+    elif not (attrs.get("email") or "").strip():
+      raise serializers.ValidationError(
+        {"email": "Email is required."},
+      )
+    return attrs
+
   def validate_trainer_sprite(self, value: str) -> str:
     if value and value not in VALID_TRAINER_SPRITES:
       raise serializers.ValidationError("Avatar seleccionado inválido o no autorizado.")
     return value
 
   def create(self, validated_data):
+    validated_data.pop("email_encrypted", None)
     trainer_sprite = validated_data.pop("trainer_sprite", None)
     user = User.objects.create_user(
       username=validated_data["username"],
@@ -86,6 +116,7 @@ class ProfileSerializer(serializers.ModelSerializer):
   """
 
   foto_base64 = serializers.CharField(required=False, allow_null=True)
+  bio_encrypted = serializers.CharField(write_only=True, required=False)
   username = serializers.ReadOnlyField(source="user.username")
   elo = serializers.IntegerField(source="user.ranking.elo", read_only=True)
   wins = serializers.IntegerField(source="user.ranking.wins", read_only=True)
@@ -102,6 +133,7 @@ class ProfileSerializer(serializers.ModelSerializer):
       "trainer_sprite",
       "foto_base64",
       "bio",
+      "bio_encrypted",
       "created_at",
     ]
 
@@ -145,7 +177,24 @@ class ProfileSerializer(serializers.ModelSerializer):
         
     return value
 
+  def validate(self, attrs):
+    initial = getattr(self, "initial_data", None) or {}
+    if initial.get("bio_encrypted"):
+      try:
+        plain = decrypt_json(initial["bio_encrypted"])
+      except ValueError as exc:
+        raise serializers.ValidationError(
+          {"bio_encrypted": "Invalid encrypted bio payload."}
+        ) from exc
+      if not isinstance(plain, str):
+        raise serializers.ValidationError(
+          {"bio_encrypted": "Invalid encrypted bio payload."}
+        )
+      attrs["bio"] = plain
+    return attrs
+
   def update(self, instance, validated_data):
+    validated_data.pop("bio_encrypted", None)
     foto_data = validated_data.pop("foto_base64", None)
 
     if foto_data:

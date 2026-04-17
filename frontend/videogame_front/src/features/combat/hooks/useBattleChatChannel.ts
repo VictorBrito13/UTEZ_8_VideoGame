@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { encryptJson } from "../../../common/utils/payloadCrypto";
 import { BASE_URL } from "../../../common/utils/url";
 import type { ChatMessage } from "../types";
 
@@ -119,7 +120,7 @@ export function useBattleChatChannel({
     };
   }, [battleId, onMessage, onSystemMessage]);
 
-  const sendMessage = (message: string) => {
+  const sendMessage = async (message: string) => {
     const trimmed = message.trim();
     if (!trimmed || !wsRef.current) {
       return false;
@@ -130,8 +131,9 @@ export function useBattleChatChannel({
       return false;
     }
 
+    const message_encrypted = await encryptJson(trimmed);
     wsRef.current.send(
-      JSON.stringify({ type: "chat.message", message: trimmed }),
+      JSON.stringify({ type: "chat.message", message_encrypted }),
     );
     return true;
   };

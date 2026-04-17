@@ -1,3 +1,5 @@
+import base64
+
 from django.contrib.auth.models import User
 from django.test import TestCase
 from django.urls import reverse
@@ -5,9 +7,31 @@ from creatures.models import Creature, Type
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from core.team_payload_cipher import TEAM_CIPHER_KEY
-from user_profile.models import TeamCreature
-import base64
+from core.payload_crypto import encrypt_json
+from user_profile.models import Profile, TeamCreature
+
+
+class RegisterEmailEncryptedTests(TestCase):
+  def setUp(self):
+    self.client = APIClient()
+    self.url = reverse("register")
+
+  def test_register_accepts_encrypted_email(self):
+    email = "encrypted_mail@example.com"
+    enc = encrypt_json(email)
+    response = self.client.post(
+      self.url,
+      {
+        "username": "enc_mail_user",
+        "password": "secret123",
+        "email_encrypted": enc,
+        "trainer_sprite": "trainer_red.png",
+      },
+      format="json",
+    )
+    self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+    user = User.objects.get(username="enc_mail_user")
+    self.assertEqual(user.email.lower(), email.lower())
 
 
 class RegisterEmailUniquenessTests(TestCase):
@@ -53,10 +77,7 @@ class RegisterEmailUniquenessTests(TestCase):
 
 
 def _encrypt_creature_ids_for_test(ids: list[int]) -> str:
-  raw = str(ids).replace(" ", "").encode("utf-8")
-  key = TEAM_CIPHER_KEY.encode("utf-8")
-  encrypted = bytes(value ^ key[idx % len(key)] for idx, value in enumerate(raw))
-  return base64.b64encode(encrypted).decode("ascii")
+  return encrypt_json(ids)
 
 
 class TeamSetEncryptedPayloadTests(TestCase):
@@ -233,3 +254,15 @@ class ProfileAndRegistrationValidationTests(TestCase):
 
     self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
     self.assertIn("foto_base64", response.data)
+
+  def test_update_profile_accepts_encrypted_bio(self):
+    bio_text = "Trainer bio from encrypted payload."
+    enc = encrypt_json(bio_text)
+    response = self.client.patch(
+      self.update_profile_url,
+      {"bio_encrypted": enc},
+      format="json",
+    )
+    self.assertEqual(response.status_code, status.HTTP_200_OK)
+    profile = Profile.objects.get(user=self.user)
+    self.assertEqual(profile.bio, bio_text)

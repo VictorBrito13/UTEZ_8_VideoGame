@@ -7,46 +7,47 @@ import { Heading } from "../../../common/ui/Heading";
 import { Text } from "../../../common/ui/Text";
 import { motion } from "framer-motion";
 
+/** Must match `VALID_TRAINER_SPRITES` on the backend (user_profile.serializers). */
 const HERO_AVATARS = [
   {
     id: 1,
     name: "RED_HERO",
-    url: "https://play.pokemonshowdown.com/sprites/trainers/red.png",
+    url: "https://cdn.jsdelivr.net/npm/pokeapi-sprites/sprites/trainers/1.png",
   },
   {
     id: 2,
     name: "BLUE_RIVAL",
-    url: "https://play.pokemonshowdown.com/sprites/trainers/blue.png",
+    url: "https://cdn.jsdelivr.net/npm/pokeapi-sprites/sprites/trainers/2.png",
   },
   {
     id: 3,
     name: "DAWN",
-    url: "https://play.pokemonshowdown.com/sprites/trainers/dawn.png",
+    url: "https://cdn.jsdelivr.net/npm/pokeapi-sprites/sprites/trainers/3.png",
   },
   {
     id: 4,
     name: "ETHAN_SOUL",
-    url: "https://play.pokemonshowdown.com/sprites/trainers/ethan.png",
+    url: "https://cdn.jsdelivr.net/npm/pokeapi-sprites/sprites/trainers/5.png",
   },
   {
     id: 5,
     name: "LYRA_HEART",
-    url: "https://play.pokemonshowdown.com/sprites/trainers/lyra.png",
+    url: "https://cdn.jsdelivr.net/npm/pokeapi-sprites/sprites/trainers/7.png",
   },
   {
     id: 6,
     name: "BRENDAN_RUBY",
-    url: "https://play.pokemonshowdown.com/sprites/trainers/brendan.png",
+    url: "https://cdn.jsdelivr.net/npm/pokeapi-sprites/sprites/trainers/10.png",
   },
   {
     id: 7,
     name: "MAY_SAPPHIRE",
-    url: "https://play.pokemonshowdown.com/sprites/trainers/may.png",
+    url: "https://cdn.jsdelivr.net/npm/pokeapi-sprites/sprites/trainers/12.png",
   },
   {
     id: 8,
     name: "SILVER",
-    url: "https://play.pokemonshowdown.com/sprites/trainers/silver.png",
+    url: "https://cdn.jsdelivr.net/npm/pokeapi-sprites/sprites/trainers/13.png",
   },
 ];
 
