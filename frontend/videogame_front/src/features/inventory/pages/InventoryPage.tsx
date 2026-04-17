@@ -98,23 +98,25 @@ export const InventoryPage = () => {
           </div>
 
           <AnimatePresence>
-            {useStatus && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                className={`mb-6 p-4 rounded-xl border flex items-center gap-3 ${
-                  useStatus.type === "success"
-                    ? "bg-emerald-500/10 border-emerald-500/50 text-emerald-400"
-                    : useStatus.type === "info"
-                      ? "bg-cyan-500/10 border-cyan-500/40 text-cyan-200"
-                      : "bg-red-500/10 border-red-500/50 text-red-400"
-                }`}
-              >
+            {useStatus && (() => {
+              let statusClasses = "bg-red-500/10 border-red-500/50 text-red-400";
+              if (useStatus.type === "success") {
+                statusClasses = "bg-emerald-500/10 border-emerald-500/50 text-emerald-400";
+              } else if (useStatus.type === "info") {
+                statusClasses = "bg-cyan-500/10 border-cyan-500/40 text-cyan-200";
+              }
+              return (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  className={`mb-6 p-4 rounded-xl border flex items-center gap-3 ${statusClasses}`}
+                >
                 <AlertCircle size={18} />
-                <p className="font-bold">{useStatus.msg}</p>
-              </motion.div>
-            )}
+                  <p className="font-bold">{useStatus.msg}</p>
+                </motion.div>
+              );
+            })()}
           </AnimatePresence>
 
           {loadError && !loading && (

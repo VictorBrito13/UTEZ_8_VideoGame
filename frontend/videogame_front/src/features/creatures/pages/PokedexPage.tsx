@@ -192,11 +192,13 @@ export const PokedexPage = () => {
             </div>
           </div>
 
-          {loading ? (
+          {loading && (
             <div className="flex justify-center items-center h-64">
               <div className="w-16 h-16 border-4 border-white/5 border-t-white rounded-full animate-spin"></div>
             </div>
-          ) : loadError ? null : (
+          )}
+
+          {!loading && !loadError && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
               {filteredCreatures.map((creature, index) => {
                 const isSelected = draftTeam.some((m) => m.id === creature.id);

@@ -6,12 +6,62 @@ import { Swords, Search, XCircle } from "lucide-react";
 import { BackButton } from "../../../common/ui/BackButton";
 import { BASE_URL } from "../../../common/utils/url";
 
+function processMatchmakingMessage(
+  event: MessageEvent,
+  ws: WebSocket,
+  searchingRef: { current: boolean },
+  setStatus: React.Dispatch<React.SetStateAction<"idle" | "searching" | "found">>,
+  setMessage: React.Dispatch<React.SetStateAction<string>>,
+  setOpponent: React.Dispatch<React.SetStateAction<any>>,
+  navigate: (path: string) => void,
+) {
+  try {
+    const data = JSON.parse(event.data);
+    switch (data.type) {
+      case "matchmaking.queued":
+        setMessage(`In queue. Your ELO: ${data.elo}. Broadening search...`);
+        break;
+      case "matchmaking.cancelled":
+        searchingRef.current = false;
+        setStatus("idle");
+        setMessage("Search cancelled.");
+        navigate("/");
+        break;
+      case "matchmaking.found":
+        searchingRef.current = false;
+        setStatus("found");
+        setOpponent(data.opponent);
+        setMessage("Opponent found! Connecting to battle arena...");
+        setTimeout(() => {
+          navigate(`/battle/${data.battleId}`);
+          ws.close();
+        }, 3000);
+        break;
+      case "error":
+      case "rate_limited": {
+        searchingRef.current = false;
+        const errText =
+          typeof data.message === "string" && data.message.length > 0
+            ? data.message
+            : "An error occurred";
+        toast.error(errText);
+        setStatus("idle");
+        setMessage("");
+        ws.close();
+        navigate("/");
+        break;
+      }
+    }
+  } catch {
+    // Ignore invalid JSON
+  }
+}
+
 export const MatchmakingPage = () => {
   const [status, setStatus] = useState<"idle" | "searching" | "found">("idle");
   const [message, setMessage] = useState("");
   const [opponent, setOpponent] = useState<any>(null);
   const wsRef = useRef<WebSocket | null>(null);
-  /** Avoid stale React state in ws.onclose (first render had status "idle"). */
   const searchingRef = useRef(false);
   const navigate = useNavigate();
 
@@ -20,72 +70,17 @@ export const MatchmakingPage = () => {
     searchingRef.current = true;
     setMessage("Searching for opponent...");
 
-    // Connect to WebSocket
     const token = localStorage.getItem("access_token") || "";
-    const wsUrl = BASE_URL.replace("http://", "ws://").replace(
-      "https://",
-      "wss://",
-    );
+    const wsUrl = BASE_URL.replace("http://", "ws://").replace("https://", "wss://");
     const ws = new WebSocket(`${wsUrl}/ws/matchmaking?token=${token}`);
     wsRef.current = ws;
 
     ws.onopen = () => {
-      // Send join message
       ws.send(JSON.stringify({ type: "matchmaking.join" }));
     };
 
-    ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data) as {
-          type?: string;
-          message?: string;
-          elo?: number;
-          opponent?: unknown;
-          battleId?: number;
-        };
-
-        switch (data.type) {
-          case "matchmaking.queued":
-            setMessage(`In queue. Your ELO: ${data.elo}. Broadening search...`);
-            break;
-          case "matchmaking.cancelled":
-            searchingRef.current = false;
-            setStatus("idle");
-            setMessage("Search cancelled.");
-            navigate("/");
-            break;
-          case "matchmaking.found":
-            searchingRef.current = false;
-            setStatus("found");
-            setOpponent(data.opponent);
-            setMessage("Opponent found! Connecting to battle arena...");
-
-            // Navigate to battle arena after a short delay
-            setTimeout(() => {
-              navigate(`/battle/${data.battleId}`);
-              ws.close();
-            }, 3000);
-            break;
-          case "error":
-          case "rate_limited": {
-            // Clear before ws.close(): otherwise onclose still sees searchingRef
-            // and navigates away without surfacing the message.
-            searchingRef.current = false;
-            const errText =
-              typeof data.message === "string" && data.message.length > 0
-                ? data.message
-                : "An error occurred";
-            toast.error(errText);
-            setStatus("idle");
-            setMessage("");
-            ws.close();
-            navigate("/");
-            break;
-          }
-        }
-      } catch {
-        // Invalid JSON from server is ignored.
-      }
+    ws.onmessage = (evt) => {
+      processMatchmakingMessage(evt, ws, searchingRef, setStatus, setMessage, setOpponent, navigate);
     };
 
     ws.onerror = () => {
@@ -109,7 +104,7 @@ export const MatchmakingPage = () => {
 
   const handleCancelSearch = () => {
     searchingRef.current = false;
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({ type: "matchmaking.cancel" }));
       wsRef.current.close();
     }
@@ -125,7 +120,7 @@ export const MatchmakingPage = () => {
 
     // Cleanup on unmount
     return () => {
-      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
         wsRef.current.send(JSON.stringify({ type: "matchmaking.cancel" }));
         wsRef.current.close();
       }

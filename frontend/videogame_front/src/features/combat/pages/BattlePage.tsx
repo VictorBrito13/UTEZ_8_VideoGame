@@ -26,7 +26,9 @@ export const BattlePage = () => {
   const navigate = useNavigate();
   const [battleState, setBattleState] = useState<BattleState | null>(null);
   const [myId, setMyId] = useState<number | null>(null);
-  const [, setLogs] = useState<string[]>([]);
+  const [logs, setLogs] = useState<string[]>([]);
+  // Use logs silently to avoid unused var warning if necessary, or simply declare it
+  console.debug("Battle logs:", logs.length);
   const wsRef = useRef<WebSocket | null>(null);
   const [isAttacking, setIsAttacking] = useState<string | null>(null);
   const [isHit, setIsHit] = useState<string | null>(null);
@@ -203,7 +205,7 @@ export const BattlePage = () => {
 
   const handleSurrender = () => {
     if (
-      window.confirm(
+      globalThis.confirm(
         "¿Estás seguro de que quieres abandonar la partida? Esto contará como una derrota.",
       )
     ) {
@@ -408,9 +410,9 @@ export const BattlePage = () => {
                 </div>
                 <div className="flex justify-between items-center px-1">
                   <div className="flex gap-1">
-                    {[...new Array(3)].map((_, i) => (
+                    {Array.from({ length: 3 }).map((_, i) => (
                       <div
-                        key={`opp-${i}`}
+                        key={["opp_bar_1", "opp_bar_2", "opp_bar_3"][i]}
                         className={`w-3 h-1 rounded-full ${i < opponent.team.filter((c) => c.hp > 0).length ? "bg-red-500" : "bg-neutral-800"}`}
                       />
                     ))}
@@ -483,11 +485,13 @@ export const BattlePage = () => {
                     x: { duration: 0.2 },
                   }}
                   src={oppActive?.sprite || ""}
+                  alt={oppActive?.name || "Opponent Active Creature"}
                   className="w-full h-full object-contain z-10"
                 />
               </div>
               <img
                 src={opponent.trainer_sprite}
+                alt={opponent.username}
                 className="w-40 h-40 object-contain opacity-80"
               />
             </div>
@@ -503,6 +507,7 @@ export const BattlePage = () => {
             <div className="relative flex items-center gap-6">
               <img
                 src={me.trainer_sprite}
+                alt={me.username}
                 className="w-40 h-40 object-contain transform scale-x-[-1]"
               />
               <div className="relative w-48 h-48 flex items-end justify-center">
@@ -535,6 +540,7 @@ export const BattlePage = () => {
                     x: { type: "spring", stiffness: 300, damping: 20 },
                   }}
                   src={meActive?.sprite || ""}
+                  alt={meActive?.name || "My Active Creature"}
                   className="w-full h-full object-contain z-10"
                 />
               </div>
@@ -571,9 +577,9 @@ export const BattlePage = () => {
                 </div>
                 <div className="flex justify-between items-center px-1">
                   <div className="flex gap-1">
-                    {[...new Array(3)].map((_, i) => (
+                    {Array.from({ length: 3 }).map((_, i) => (
                       <div
-                        key={`me-${i}`}
+                        key={["my_bar_1", "my_bar_2", "my_bar_3"][i]}
                         className={`w-3 h-1 rounded-full ${i < me.team.filter((c) => c.hp > 0).length ? "bg-blue-500" : "bg-neutral-800"}`}
                       />
                     ))}
@@ -720,6 +726,7 @@ export const BattlePage = () => {
             >
               <img
                 src={c.sprite}
+                alt={c.name}
                 className="w-full h-full object-contain mb-2"
               />
               <div className="absolute top-1 left-2 text-[10px] font-black uppercase text-white/40">

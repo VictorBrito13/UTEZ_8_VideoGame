@@ -31,7 +31,7 @@ export function useMatchmaking() {
 
   const cancelSearch = useCallback(() => {
     const ws = wsRef.current;
-    if (ws && ws.readyState === WebSocket.OPEN) {
+    if (ws?.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({ type: "matchmaking.cancel" }));
     }
   }, []);

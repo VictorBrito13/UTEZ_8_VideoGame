@@ -3,7 +3,7 @@ const TEAM_CIPHER_KEY = "UTEZ_TEAM_IDS_DEMO_KEY_2026";
 function toBase64(bytes: Uint8Array): string {
   let binary = "";
   for (const value of bytes) {
-    binary += String.fromCharCode(value);
+    binary += String.fromCodePoint(value);
   }
   return globalThis.btoa(binary);
 }

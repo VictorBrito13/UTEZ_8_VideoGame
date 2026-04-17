@@ -64,12 +64,12 @@ export function useBattleChatChannel({
           const messages = Array.isArray(data.messages) ? data.messages : [];
           messages.forEach((historyItem, index) => {
             const senderId = Number(historyItem.sender_id ?? 0);
-            const senderName =
-              typeof historyItem.sender_username === "string"
-                ? historyItem.sender_username
-                : typeof historyItem["sender__username"] === "string"
-                  ? historyItem["sender__username"]
-                  : "Unknown";
+            let senderName = "Unknown";
+            if (typeof historyItem.sender_username === "string") {
+              senderName = historyItem.sender_username;
+            } else if (typeof historyItem["sender__username"] === "string") {
+              senderName = historyItem["sender__username"];
+            }
             const message =
               typeof historyItem.message === "string"
                 ? historyItem.message

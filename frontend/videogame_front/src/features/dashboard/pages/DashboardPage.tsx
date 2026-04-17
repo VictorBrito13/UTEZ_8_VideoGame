@@ -59,6 +59,110 @@ const TRAINER_AVATARS = [
   },
 ];
 
+const navItems = [
+  {
+    title: "Leaderboard",
+    desc: "Global ELO rankings",
+    icon: <Trophy className="text-amber-400" />,
+    path: "/leaderboard",
+    color: "from-amber-500/20 to-yellow-500/20",
+  },
+  {
+    title: "Pokedex",
+    desc: "Species archive and stats",
+    icon: <BookOpen className="text-blue-400" />,
+    path: "/pokedex",
+    color: "from-blue-500/20 to-indigo-500/20",
+  },
+  {
+    title: "Inventory",
+    desc: "Heal and buff items",
+    icon: <Package className="text-amber-400" />,
+    path: "/inventory",
+    color: "from-amber-500/20 to-orange-500/20",
+  },
+];
+
+function TrainerAvatarGrid({ profile, loadingAvatar, handleSelectAvatar }: Readonly<{ profile: any, loadingAvatar: boolean, handleSelectAvatar: (url: string) => void }>) {
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
+      {TRAINER_AVATARS.map((avatar) => {
+        const isSelected = profile?.trainer_sprite === avatar.url;
+        return (
+          <motion.div
+            key={avatar.id}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            role="button"
+            tabIndex={0}
+            onClick={() => handleSelectAvatar(avatar.url)}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleSelectAvatar(avatar.url); }}
+            className={`relative aspect-square rounded-[2.5rem] border-2 transition-all cursor-pointer flex flex-col items-center justify-center overflow-hidden bg-neutral-950 ${
+              isSelected
+                ? "border-cyan-500 bg-cyan-500/10 shadow-[0_0_30px_rgba(34,211,238,0.2)]"
+                : "border-white/5 hover:border-white/20"
+            }`}
+          >
+            <img
+              src={avatar.url}
+              alt={avatar.name}
+              className={`w-28 h-28 object-contain render-pixelated mb-2 ${isSelected ? "drop-shadow-[0_0_12px_rgba(34,211,238,0.6)]" : "opacity-30 hover:opacity-100 transition-opacity"}`}
+            />
+            <span className="text-[10px] font-black uppercase text-white/50 tracking-[0.2em]">
+              {avatar.name}
+            </span>
+
+            {loadingAvatar && isSelected && (
+              <div className="absolute flex items-center justify-center inset-0 bg-black/80 backdrop-blur-sm z-10">
+                <div className="w-6 h-6 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />
+              </div>
+            )}
+          </motion.div>
+        );
+      })}
+    </div>
+  );
+}
+
+function DashboardNavigation() {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+      {navItems.map((item, index) => (
+        <motion.div
+          key={item.title}
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: index * 0.1 }}
+          whileHover={{ y: -5 }}
+        >
+          <Link to={item.path} className="group block h-full">
+            <div
+              className={`h-full p-8 bg-neutral-950 border border-white/5 rounded-[2.5rem] backdrop-blur-xl relative overflow-hidden transition-all group-hover:border-white/20 shadow-xl`}
+            >
+              <div
+                className={`absolute inset-0 bg-gradient-to-br ${item.color} opacity-0 group-hover:opacity-100 transition-opacity`}
+              ></div>
+              <div className="relative z-10 flex items-center gap-6">
+                <div className="bg-neutral-900 w-16 h-16 rounded-2xl flex items-center justify-center border border-white/5 group-hover:scale-110 transition-transform shrink-0 shadow-lg">
+                  {item.icon}
+                </div>
+                <div>
+                  <h3 className="text-3xl font-black mb-1 tracking-tighter uppercase italic">
+                    {item.title}
+                  </h3>
+                  <p className="text-sm text-neutral-500 font-bold uppercase tracking-widest text-[9px]">
+                    {item.desc}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </Link>
+        </motion.div>
+      ))}
+    </div>
+  );
+}
+
 const DashboardPage: React.FC = () => {
   const token = localStorage.getItem("access_token");
   const navigate = useNavigate();
@@ -132,29 +236,7 @@ const DashboardPage: React.FC = () => {
     reader.readAsDataURL(file);
   };
 
-  const navItems = [
-    {
-      title: "Leaderboard",
-      desc: "Global ELO rankings",
-      icon: <Trophy className="text-amber-400" />,
-      path: "/leaderboard",
-      color: "from-amber-500/20 to-yellow-500/20",
-    },
-    {
-      title: "Pokedex",
-      desc: "Species archive and stats",
-      icon: <BookOpen className="text-blue-400" />,
-      path: "/pokedex",
-      color: "from-blue-500/20 to-indigo-500/20",
-    },
-    {
-      title: "Inventory",
-      desc: "Heal and buff items",
-      icon: <Package className="text-amber-400" />,
-      path: "/inventory",
-      color: "from-amber-500/20 to-orange-500/20",
-    },
-  ];
+
 
   return (
     <Container variant="page" className="flex-col min-h-screen pt-24 pb-12">
@@ -179,26 +261,29 @@ const DashboardPage: React.FC = () => {
 
           <div className="flex items-center gap-6 relative z-10 w-full md:w-auto">
             {/* Profile Photo */}
-            <div 
-              className="relative group cursor-pointer shrink-0"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <div className="w-20 h-20 bg-neutral-900 border-2 border-white/10 rounded-full flex items-center justify-center overflow-hidden relative shadow-lg group-hover:border-white/30 transition-all">
-                {profile?.foto_base64 ? (
-                  <img
-                    src={profile.foto_base64}
-                    alt="Profile"
-                    className="w-full h-full object-cover group-hover:opacity-50 transition-opacity"
-                  />
-                ) : (
-                  <UserIcon size={32} className="text-neutral-700 group-hover:opacity-50 transition-opacity" />
-                )}
-              </div>
+            <div className="relative shrink-0">
+              <button 
+                type="button"
+                className="relative group cursor-pointer bg-transparent border-none p-0 appearance-none text-left block"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <div className="w-20 h-20 bg-neutral-900 border-2 border-white/10 rounded-full flex items-center justify-center overflow-hidden relative shadow-lg group-hover:border-white/30 transition-all">
+                  {profile?.foto_base64 ? (
+                    <img
+                      src={profile.foto_base64}
+                      alt="Profile"
+                      className="w-full h-full object-cover group-hover:opacity-50 transition-opacity"
+                    />
+                  ) : (
+                    <UserIcon size={32} className="text-neutral-700 group-hover:opacity-50 transition-opacity" />
+                  )}
+                </div>
 
-              {/* Camera Icon Overlay */}
-              <div className="absolute bottom-0 right-0 bg-neutral-800 border border-white/20 p-1.5 rounded-full shadow-lg group-hover:scale-110 group-hover:bg-cyan-500 transition-all z-20">
-                <Camera size={14} className="text-white" />
-              </div>
+                {/* Camera Icon Overlay */}
+                <div className="absolute bottom-0 right-0 bg-neutral-800 border border-white/20 p-1.5 rounded-full shadow-lg group-hover:scale-110 group-hover:bg-cyan-500 transition-all z-20">
+                  <Camera size={14} className="text-white" />
+                </div>
+              </button>
               
               <input
                 type="file"
@@ -305,79 +390,14 @@ const DashboardPage: React.FC = () => {
                 >
                   SELECT YOUR BIOMETRIC SYNCHRONIZATION
                 </Text>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
-                  {TRAINER_AVATARS.map((avatar) => {
-                    const isSelected = profile?.trainer_sprite === avatar.url;
-                    return (
-                      <motion.div
-                        key={avatar.id}
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        onClick={() => handleSelectAvatar(avatar.url)}
-                        className={`relative aspect-square rounded-[2.5rem] border-2 transition-all cursor-pointer flex flex-col items-center justify-center overflow-hidden bg-neutral-950 ${
-                          isSelected
-                            ? "border-cyan-500 bg-cyan-500/10 shadow-[0_0_30px_rgba(34,211,238,0.2)]"
-                            : "border-white/5 hover:border-white/20"
-                        }`}
-                      >
-                        <img
-                          src={avatar.url}
-                          alt={avatar.name}
-                          className={`w-28 h-28 object-contain render-pixelated mb-2 ${isSelected ? "drop-shadow-[0_0_12px_rgba(34,211,238,0.6)]" : "opacity-30 hover:opacity-100 transition-opacity"}`}
-                        />
-                        <span className="text-[10px] font-black uppercase text-white/50 tracking-[0.2em]">
-                          {avatar.name}
-                        </span>
-
-                        {loadingAvatar && isSelected && (
-                          <div className="absolute flex items-center justify-center inset-0 bg-black/80 backdrop-blur-sm z-10">
-                            <div className="w-6 h-6 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />
-                          </div>
-                        )}
-                      </motion.div>
-                    );
-                  })}
-                </div>
+                <TrainerAvatarGrid profile={profile} loadingAvatar={loadingAvatar} handleSelectAvatar={handleSelectAvatar} />
               </div>
             </div>
           </div>
         </div>
 
         {/* ROW 3: NAVIGATION ITEMS */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
-          {navItems.map((item, index) => (
-            <motion.div
-              key={item.title}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: index * 0.1 }}
-              whileHover={{ y: -5 }}
-            >
-              <Link to={item.path} className="group block h-full">
-                <div
-                  className={`h-full p-8 bg-neutral-950 border border-white/5 rounded-[2.5rem] backdrop-blur-xl relative overflow-hidden transition-all group-hover:border-white/20 shadow-xl`}
-                >
-                  <div
-                    className={`absolute inset-0 bg-gradient-to-br ${item.color} opacity-0 group-hover:opacity-100 transition-opacity`}
-                  ></div>
-                  <div className="relative z-10 flex items-center gap-6">
-                    <div className="bg-neutral-900 w-16 h-16 rounded-2xl flex items-center justify-center border border-white/5 group-hover:scale-110 transition-transform shrink-0 shadow-lg">
-                      {item.icon}
-                    </div>
-                    <div>
-                      <h3 className="text-3xl font-black mb-1 tracking-tighter uppercase italic">
-                        {item.title}
-                      </h3>
-                      <p className="text-sm text-neutral-500 font-bold uppercase tracking-widest text-[9px]">
-                        {item.desc}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </Link>
-            </motion.div>
-          ))}
-        </div>
+        <DashboardNavigation />
 
         <TeamWidget />
       </motion.div>

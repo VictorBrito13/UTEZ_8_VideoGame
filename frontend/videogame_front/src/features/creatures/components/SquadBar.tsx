@@ -87,6 +87,14 @@ export const SquadBar = ({
     }
   };
 
+  let buttonIcon = <Swords size={16} />;
+  if (saving) buttonIcon = <Loader2 size={16} className="animate-spin" />;
+  else if (activeTeam.length === 3) buttonIcon = <Save size={16} />;
+
+  let buttonText = `[ ${activeTeam.length}/3 ] Required`;
+  if (saving) buttonText = "Synchronizing...";
+  else if (activeTeam.length === 3) buttonText = "Confirm_Changes";
+
   return (
     <div className="w-full mb-16 py-12 bg-neutral-950/40 border-y border-white/5 rounded-[3rem]">
       <div className="max-w-6xl mx-auto px-6">
@@ -120,19 +128,8 @@ export const SquadBar = ({
                     : "bg-red-500/20 text-red-500 border border-red-500/30 cursor-not-allowed opacity-80"
                 }`}
               >
-                {saving ? (
-                  <Loader2 size={16} className="animate-spin" />
-                ) : activeTeam.length === 3 ? (
-                  <Save size={16} />
-                ) : (
-                  <Swords size={16} />
-                )}
-
-                {saving
-                  ? "Synchronizing..."
-                  : activeTeam.length === 3
-                    ? "Confirm_Changes"
-                    : `[ ${activeTeam.length}/3 ] Required`}
+                {buttonIcon}
+                {buttonText}
               </motion.button>
             )}
           </AnimatePresence>
@@ -199,9 +196,7 @@ export const SquadBar = ({
                       <motion.button
                         whileHover={{ scale: 1.1 }}
                         whileTap={{ scale: 0.95 }}
-                        onClick={() =>
-                          onRemoveMember && onRemoveMember(member.id)
-                        }
+                        onClick={() => onRemoveMember?.(member.id)}
                         className="p-6 bg-white text-red-600 rounded-full shadow-2xl"
                       >
                         <X size={32} strokeWidth={3} />

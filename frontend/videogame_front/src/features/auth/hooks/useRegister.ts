@@ -22,14 +22,13 @@ function formatRegistrationError(data: unknown): string {
 
     const payload = data as Record<string, unknown>;
     const wrapped = payload.error;
-    const source =
-      wrapped !== undefined && wrapped !== null ? wrapped : payload;
+    const source = wrapped ?? payload;
 
     if (typeof source === "string") {
       return source;
     }
     if (Array.isArray(source)) {
-      return source.map((x) => String(x)).join(". ");
+      return source.map(String).join(". ");
     }
     if (source && typeof source === "object" && !Array.isArray(source)) {
       const lines = Object.entries(source as Record<string, unknown>).map(
