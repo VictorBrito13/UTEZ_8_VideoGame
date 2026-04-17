@@ -55,10 +55,20 @@ const RegisterPage: React.FC = () => {
   const { formData, error, loading, handleChange, handleRegister, setAvatar } =
     useRegister();
 
+  const passwordValidation = {
+    length: formData.password.length >= 8,
+    upper: /[A-Z]/.test(formData.password),
+    lower: /[a-z]/.test(formData.password),
+    number: /[0-9]/.test(formData.password),
+    special: /[!@#$%^&*(),.?":{}|<>]/.test(formData.password),
+  };
+
+  const isPasswordValid = Object.values(passwordValidation).every(Boolean);
+
   const isFormValid =
     formData.username &&
     formData.email &&
-    formData.password &&
+    isPasswordValid &&
     formData.trainer_sprite;
 
   return (
@@ -196,6 +206,26 @@ const RegisterPage: React.FC = () => {
                   className="w-full pl-12 pr-4 py-4 bg-neutral-950 border border-white/5 rounded-2xl text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 transition-all placeholder-neutral-700 font-bold text-sm"
                   placeholder="PASSWORD"
                 />
+              </div>
+
+              {/* Password Requirements Checklist */}
+              <div className="md:col-span-2 p-4 bg-white/5 rounded-2xl border border-white/5 grid grid-cols-2 gap-2">
+                {[
+                  { key: "length", label: "8+ CHARACTERS" },
+                  { key: "upper", label: "UPPERCASE" },
+                  { key: "lower", label: "LOWERCASE" },
+                  { key: "number", label: "NUMBER" },
+                  { key: "special", label: "SYMBOL" },
+                ].map((req) => (
+                  <div key={req.key} className="flex items-center gap-2">
+                    <div className={`w-3 h-3 rounded-full flex items-center justify-center ${passwordValidation[req.key as keyof typeof passwordValidation] ? "bg-cyan-500" : "bg-neutral-800"}`}>
+                      {passwordValidation[req.key as keyof typeof passwordValidation] && <Check size={8} className="text-black" />}
+                    </div>
+                    <span className={`text-[8px] font-black tracking-widest ${passwordValidation[req.key as keyof typeof passwordValidation] ? "text-cyan-400" : "text-neutral-600"}`}>
+                      {req.label}
+                    </span>
+                  </div>
+                ))}
               </div>
             </div>
 
