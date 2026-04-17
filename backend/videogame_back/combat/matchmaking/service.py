@@ -7,9 +7,9 @@ from django.db import models
 from .backend import MatchmakingBackend, MatchmakingPair, MatchmakingTicket
 
 
-def _have_played_together_recently(user1_id: int, user2_id: int, hours: int = 2) -> bool:
+def _have_played_together_recently(user1_id: int, user2_id: int, minutes: int = 1) -> bool:
   """
-  Verifica si dos jugadores han competido en las últimas 'horas' especificadas.
+  Verifica si dos jugadores han competido en los últimos 'minutos' especificados.
   Previene manipulación con cuentas secundarias.
   """
   from django.contrib.auth.models import User
@@ -19,8 +19,8 @@ def _have_played_together_recently(user1_id: int, user2_id: int, hours: int = 2)
     user1 = User.objects.get(id=user1_id)
     user2 = User.objects.get(id=user2_id)
     
-    # Buscar batallas entre estos dos jugadores en las últimas horas
-    cutoff_time = datetime.now(tz=timezone.utc) - timedelta(hours=hours)
+    # Buscar batallas entre estos dos jugadores en los últimos minutos
+    cutoff_time = datetime.now(tz=timezone.utc) - timedelta(minutes=minutes)
     
     recent_battles = Battle.objects.filter(
       models.Q(player1=user1, player2=user2) | 
