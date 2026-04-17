@@ -2,7 +2,7 @@
 
 from datetime import timedelta
 
-from django.test import SimpleTestCase
+from django.test import TestCase
 
 from combat.matchmaking.backend import MatchmakingTicket
 from combat.matchmaking.in_memory_backend import InMemoryMatchmakingBackend
@@ -13,7 +13,7 @@ from combat.matchmaking.service import (
 )
 
 
-class MatchmakingQueueTests(SimpleTestCase):
+class MatchmakingQueueTests(TestCase):
   def test_two_players_match_and_both_removed_from_queue(self):
     backend = InMemoryMatchmakingBackend()
     cfg = MatchmakingConfig()
