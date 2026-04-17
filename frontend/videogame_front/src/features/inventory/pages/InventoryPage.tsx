@@ -61,6 +61,7 @@ export const InventoryPage = () => {
       });
       setTimeout(() => setUseStatus(null), 4000);
     } catch (error) {
+      console.error("Failed to use item:", error);
       setUseStatus({ msg: "Critical error using item.", type: "error" });
     }
   };

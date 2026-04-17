@@ -43,8 +43,8 @@ export function useBattleChatChannel({
 
         if (type === "chat_message") {
           const senderId = Number(data.sender_id ?? 0);
-          const senderName = String(data.sender_username ?? "Unknown");
-          const message = String(data.message ?? "");
+          const senderName = typeof data.sender_username === "string" ? data.sender_username : "Unknown";
+          const message = typeof data.message === "string" ? data.message : "";
 
           if (message) {
             onMessage({
@@ -61,10 +61,10 @@ export function useBattleChatChannel({
           const messages = Array.isArray(data.messages) ? data.messages : [];
           messages.forEach((historyItem, index) => {
             const senderId = Number(historyItem.sender_id ?? 0);
-            const senderName = String(
-              historyItem.sender_username ?? historyItem["sender__username"] ?? "Unknown",
-            );
-            const message = String(historyItem.message ?? "");
+            const senderName = typeof historyItem.sender_username === "string" 
+              ? historyItem.sender_username 
+              : (typeof historyItem["sender__username"] === "string" ? historyItem["sender__username"] : "Unknown");
+            const message = typeof historyItem.message === "string" ? historyItem.message : "";
             // Use index to ensure uniqueness if ID is missing or duplicate in history
             const id = historyItem.id ? Number(historyItem.id) : Date.now() + index;
 
@@ -76,7 +76,7 @@ export function useBattleChatChannel({
         }
 
         if (type === "error" || type === "rate_limited") {
-          onSystemMessage?.(String(data.message ?? "Chat error."));
+          onSystemMessage?.(typeof data.message === "string" ? data.message : "Chat error.");
         }
       } catch (err) {
         onSystemMessage?.("Chat parse error.");

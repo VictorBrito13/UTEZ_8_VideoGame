@@ -2,6 +2,25 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { authController } from "../controllers/authController";
 
+const parseAuthError = (err: any): string => {
+  const errorData = err.response?.data;
+  if (!errorData) return "Registration failed. Please check your connection.";
+  
+  if (typeof errorData !== "object") {
+    return errorData.error || errorData.message || "Registration failed";
+  }
+
+  const actualError = errorData.error || errorData;
+  if (typeof actualError !== "object") return String(actualError);
+
+  const firstKey = Object.keys(actualError)[0];
+  const firstError = actualError[firstKey];
+  const message = Array.isArray(firstError) ? firstError[0] : firstError;
+  
+  const finalMessage = typeof message === "object" ? JSON.stringify(message) : message;
+  return `${firstKey}: ${finalMessage}`;
+};
+
 export const useRegister = () => {
   const [formData, setFormData] = useState({
     username: "",
@@ -21,7 +40,7 @@ export const useRegister = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleRegister = async (e: React.FormEvent) => {
+  const handleRegister = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     setLoading(true);
     setError("");
@@ -30,30 +49,7 @@ export const useRegister = () => {
       await authController.register(formData);
       navigate("/login");
     } catch (err: any) {
-      const errorData = err.response?.data;
-      if (errorData) {
-        // If it's a validation error object (common in DRF)
-        if (typeof errorData === "object") {
-          // Drill down if the error is nested under an 'error' key
-          const actualError = errorData.error || errorData;
-          
-          if (typeof actualError === "object") {
-            const firstKey = Object.keys(actualError)[0];
-            const firstError = actualError[firstKey];
-            const message = Array.isArray(firstError) ? firstError[0] : firstError;
-            
-            // If the message is STILL an object, stringify it as a last resort
-            const finalMessage = typeof message === "object" ? JSON.stringify(message) : message;
-            setError(`${firstKey}: ${finalMessage}`);
-          } else {
-            setError(String(actualError));
-          }
-        } else {
-          setError(errorData.error || errorData.message || "Registration failed");
-        }
-      } else {
-        setError("Registration failed. Please check your connection.");
-      }
+      setError(parseAuthError(err));
     } finally {
       setLoading(false);
     }

@@ -98,15 +98,14 @@ export const BattlePage = () => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (battleState?.status === "playing") {
         e.preventDefault();
-        e.returnValue = "";
       }
     };
 
     const handlePopState = () => {
       if (battleState?.status === "playing") {
-        window.history.pushState(null, "", window.location.pathname);
+        globalThis.history.pushState(null, "", globalThis.location.pathname);
         if (
-          window.confirm(
+          globalThis.confirm(
             "¿Estás seguro de que quieres abandonar la batalla? Se contará como una derrota.",
           )
         ) {
@@ -116,15 +115,15 @@ export const BattlePage = () => {
     };
 
     if (battleState?.status === "playing") {
-      window.history.pushState(null, "", window.location.pathname);
+      globalThis.history.pushState(null, "", globalThis.location.pathname);
     }
 
-    window.addEventListener("beforeunload", handleBeforeUnload);
-    window.addEventListener("popstate", handlePopState);
+    globalThis.addEventListener("beforeunload", handleBeforeUnload);
+    globalThis.addEventListener("popstate", handlePopState);
 
     return () => {
-      window.removeEventListener("beforeunload", handleBeforeUnload);
-      window.removeEventListener("popstate", handlePopState);
+      globalThis.removeEventListener("beforeunload", handleBeforeUnload);
+      globalThis.removeEventListener("popstate", handlePopState);
     };
   }, [battleState?.status, navigate]);
 
@@ -254,6 +253,51 @@ export const BattlePage = () => {
     }
   };
 
+  const getOpponentAnimation = () => {
+    const targetTag = isPlayer1 ? "p2" : "p1";
+    if (isHit === targetTag) {
+      return {
+        x: [-10, 10, -10, 10, 0],
+        filter: "sepia(1) saturate(10)",
+        scale: [1, 1.05, 1],
+      };
+    }
+    if (isAttacking === targetTag) {
+      return { x: -80 };
+    }
+    const hasAtkBuff = (oppActive?.buffs?.atk || 1) > 1.4;
+    return {
+      y: [0, -5, 0],
+      filter: hasAtkBuff ? "drop-shadow(0 0 15px rgba(251,146,60,0.8))" : "none",
+      scale: hasAtkBuff ? [1, 1.05, 1] : 1,
+    };
+  };
+
+  const getMyAnimation = () => {
+    const targetTag = isPlayer1 ? "p1" : "p2";
+    if (isHit === targetTag) {
+      return {
+        x: [-10, 10, -10, 10, 0],
+        filter: "sepia(1) saturate(10)",
+        scale: [1, 1.05, 1],
+      };
+    }
+    if (isAttacking === targetTag) {
+      return { x: 80 };
+    }
+    const hasAtkBuff = (meActive?.buffs?.atk || 1) > 1.4;
+    return {
+      y: [0, -5, 0],
+      filter: hasAtkBuff ? "drop-shadow(0 0 15px rgba(251,146,60,0.8))" : "none",
+      scale: hasAtkBuff ? [1, 1.05, 1] : 1,
+    };
+  };
+
+  const getBenchButtonBorder = (c: any) => {
+    if (c.id === me.active_creature_id) return "border-amber-500 shadow-[0_0_20px_rgba(245,158,11,0.3)]";
+    if (selectingReviveTarget && c.hp === 0) return "border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.4)] animate-pulse";
+    return "border-white/10";
+  };
 
   return (
     <div className="h-screen bg-neutral-950 text-white font-sans relative flex flex-col overflow-hidden">
@@ -329,9 +373,9 @@ export const BattlePage = () => {
                 </div>
                 <div className="flex justify-between items-center px-1">
                   <div className="flex gap-1">
-                    {[...Array(3)].map((_, i) => (
+                    {[...new Array(3)].map((_, i) => (
                       <div
-                        key={i}
+                        key={`opp-${i}`}
                         className={`w-3 h-1 rounded-full ${i < opponent.team.filter((c) => c.hp > 0).length ? "bg-red-500" : "bg-neutral-800"}`}
                       />
                     ))}
@@ -388,21 +432,7 @@ export const BattlePage = () => {
                   )}
                 </AnimatePresence>
                 <motion.img
-                  animate={
-                    isHit === (isPlayer1 ? "p2" : "p1")
-                      ? {
-                          x: [-10, 10, -10, 10, 0],
-                          filter: "sepia(1) saturate(10)", // Simplified to avoid distortion error
-                          scale: [1, 1.05, 1],
-                        }
-                      : isAttacking === (isPlayer1 ? "p2" : "p1")
-                        ? { x: -80 }
-                        : { 
-                            y: [0, -5, 0], 
-                            filter: (oppActive?.buffs?.atk || 1) > 1.4 ? "drop-shadow(0 0 15px rgba(251,146,60,0.8))" : "none",
-                            scale: (oppActive?.buffs?.atk || 1) > 1.4 ? [1, 1.05, 1] : 1
-                          }
-                  }
+                  animate={getOpponentAnimation()}
                   transition={{
                     y: { repeat: Infinity, duration: 4 },
                     x: { duration: 0.2 },
@@ -454,21 +484,7 @@ export const BattlePage = () => {
                   )}
                 </AnimatePresence>
                 <motion.img
-                  animate={
-                    isHit === (isPlayer1 ? "p1" : "p2")
-                      ? {
-                          x: [-10, 10, -10, 10, 0],
-                          filter: "sepia(1) saturate(10)",
-                          scale: [1, 1.05, 1],
-                        }
-                      : isAttacking === (isPlayer1 ? "p1" : "p2")
-                        ? { x: 80 }
-                        : { 
-                            y: [0, -5, 0], 
-                            filter: (meActive?.buffs?.atk || 1) > 1.4 ? "drop-shadow(0 0 15px rgba(251,146,60,0.8))" : "none",
-                            scale: (meActive?.buffs?.atk || 1) > 1.4 ? [1, 1.05, 1] : 1
-                          }
-                  }
+                  animate={getMyAnimation()}
                   transition={{
                     y: { repeat: Infinity, duration: 3.5, delay: 0.5 },
                     x: { type: "spring", stiffness: 300, damping: 20 },
@@ -510,9 +526,9 @@ export const BattlePage = () => {
                 </div>
                 <div className="flex justify-between items-center px-1">
                   <div className="flex gap-1">
-                    {[...Array(3)].map((_, i) => (
+                    {[...new Array(3)].map((_, i) => (
                       <div
-                        key={i}
+                        key={`me-${i}`}
                         className={`w-3 h-1 rounded-full ${i < me.team.filter((c) => c.hp > 0).length ? "bg-blue-500" : "bg-neutral-800"}`}
                       />
                     ))}
@@ -633,7 +649,7 @@ export const BattlePage = () => {
                 }
               }}
               disabled={!myTurn || (!selectingReviveTarget && (c.hp === 0 || c.id === me.active_creature_id)) || (selectingReviveTarget !== null && c.hp > 0)}
-              className={`relative w-20 h-20 lg:w-24 lg:h-24 rounded-2xl bg-neutral-900/80 border-2 ${c.id === me.active_creature_id ? "border-amber-500 shadow-[0_0_20px_rgba(245,158,11,0.3)]" : (selectingReviveTarget && c.hp === 0 ? "border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.4)] animate-pulse" : "border-white/10")} hover:border-white transition-all overflow-hidden p-2 ${c.hp === 0 && !selectingReviveTarget ? "opacity-30 grayscale cursor-not-allowed" : "hover:scale-105"}`}
+              className={`relative w-20 h-20 lg:w-24 lg:h-24 rounded-2xl bg-neutral-900/80 border-2 ${getBenchButtonBorder(c)} hover:border-white transition-all overflow-hidden p-2 ${c.hp === 0 && !selectingReviveTarget ? "opacity-30 grayscale cursor-not-allowed" : "hover:scale-105"}`}
             >
               <img
                 src={c.sprite}

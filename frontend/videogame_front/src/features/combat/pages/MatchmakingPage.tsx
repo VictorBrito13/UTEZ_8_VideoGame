@@ -87,6 +87,7 @@ export const MatchmakingPage = () => {
     setStatus("idle");
     setMessage("Search cancelled.");
     setOpponent(null);
+    navigate("/");
   };
 
   useEffect(() => {
