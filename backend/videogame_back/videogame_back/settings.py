@@ -1,4 +1,5 @@
 import os
+import importlib.util
 from datetime import timedelta
 from pathlib import Path
 
@@ -16,9 +17,10 @@ configure_logging(BASE_DIR)
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = (
-  "django-insecure-5qcj!s4oqf-s0b*3_zj+y6suppj4v(pld8c6xt1ukbi7t%npr="
-)
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY")
+if not SECRET_KEY:
+  # Ephemeral local fallback to avoid hardcoded secrets in source code.
+  SECRET_KEY = os.urandom(32).hex()
 
 # Configure default primary key field type
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
@@ -205,6 +207,14 @@ REST_FRAMEWORK = {
   ),
   "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
   "EXCEPTION_HANDLER": "utils.log.api_exceptions.api_exception_handler",
+  "DEFAULT_THROTTLE_CLASSES": [
+      "rest_framework.throttling.AnonRateThrottle",
+      "rest_framework.throttling.UserRateThrottle",
+  ],
+  "DEFAULT_THROTTLE_RATES": {
+      "anon": "10/minute",
+      "user": "60/minute",
+  },
 }
 
 # Simple JWT configurations
@@ -239,9 +249,16 @@ LOGGING = {
   },
 }
 
-# Argon2 Password Hashing
+# Password hashing: prefer Argon2 when installed, fallback to PBKDF2.
 PASSWORD_HASHERS = [
-  "django.contrib.auth.hashers.Argon2PasswordHasher",
   "django.contrib.auth.hashers.PBKDF2PasswordHasher",
   "django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher",
 ]
+
+if importlib.util.find_spec("argon2") is not None:
+  PASSWORD_HASHERS.insert(
+    0, "django.contrib.auth.hashers.Argon2PasswordHasher"
+  )
+  
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'

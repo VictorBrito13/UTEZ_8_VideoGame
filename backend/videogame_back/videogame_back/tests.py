@@ -1,0 +1,154 @@
+import importlib
+import os
+from unittest.mock import AsyncMock, patch
+
+from asgiref.sync import async_to_sync
+from django.contrib.auth.models import AnonymousUser
+from django.test import SimpleTestCase
+
+import videogame_back.settings as settings_module
+from videogame_back.jwt_auth_middleware import (
+  JWTAuthMiddleware,
+  jwt_auth_middleware_stack,
+)
+
+
+class SettingsModuleTests(SimpleTestCase):
+  def test_secret_key_fallback_is_generated_when_env_is_missing(self):
+    with patch.dict(os.environ, {"DJANGO_SECRET_KEY": ""}, clear=False), patch(
+      "utils.log.configure_logging"
+    ), patch.object(
+      settings_module.os,
+      "urandom",
+      return_value=b"\x01" * 32,
+    ):
+      reloaded = importlib.reload(settings_module)
+
+    self.assertEqual(reloaded.SECRET_KEY, "01" * 32)
+
+
+class JWTAuthMiddlewareTests(SimpleTestCase):
+  def test_stack_builder_wraps_inner_app(self):
+    inner = AsyncMock()
+
+    middleware = jwt_auth_middleware_stack(inner)
+
+    self.assertIsInstance(middleware, JWTAuthMiddleware)
+
+  def test_valid_token_populates_scope_user(self):
+    inner = AsyncMock(return_value="ok")
+    middleware = JWTAuthMiddleware(inner)
+    scope = {"query_string": b"token=abc", "headers": []}
+    user = object()
+
+    with patch(
+      "videogame_back.jwt_auth_middleware.UntypedToken"
+    ) as mock_token, patch(
+      "videogame_back.jwt_auth_middleware.jwt_decode",
+      return_value={"user_id": 123},
+    ), patch(
+      "videogame_back.jwt_auth_middleware.get_user",
+      new=AsyncMock(return_value=user),
+    ):
+      result = async_to_sync(middleware.__call__)(scope, AsyncMock(), AsyncMock())
+
+    self.assertEqual(result, "ok")
+    self.assertIs(scope["user"], user)
+    mock_token.assert_called_once_with("abc")
+
+  def test_missing_or_invalid_token_falls_back_to_anonymous_user(self):
+    inner = AsyncMock(return_value="ok")
+    middleware = JWTAuthMiddleware(inner)
+    scope = {"query_string": b"", "headers": []}
+
+    result = async_to_sync(middleware.__call__)(scope, AsyncMock(), AsyncMock())
+
+    self.assertEqual(result, "ok")
+    self.assertIsInstance(scope["user"], AnonymousUser)
+
+  def test_valid_token_from_authorization_header(self):
+    """Test token extraction from Authorization: Bearer header"""
+    inner = AsyncMock(return_value="ok")
+    middleware = JWTAuthMiddleware(inner)
+    scope = {
+      "query_string": b"",
+      "headers": [(b"authorization", b"Bearer test_token_123")],
+    }
+    user = object()
+
+    with patch(
+      "videogame_back.jwt_auth_middleware.UntypedToken"
+    ) as mock_token, patch(
+      "videogame_back.jwt_auth_middleware.jwt_decode",
+      return_value={"user_id": 456},
+    ), patch(
+      "videogame_back.jwt_auth_middleware.get_user",
+      new=AsyncMock(return_value=user),
+    ):
+      result = async_to_sync(middleware.__call__)(scope, AsyncMock(), AsyncMock())
+
+    self.assertEqual(result, "ok")
+    self.assertIs(scope["user"], user)
+    mock_token.assert_called_once_with("test_token_123")
+
+  def test_authorization_header_without_bearer_sets_anonymous(self):
+    inner = AsyncMock(return_value="ok")
+    middleware = JWTAuthMiddleware(inner)
+    scope = {
+      "query_string": b"",
+      "headers": [(b"authorization", b"Token abc")],
+    }
+
+    result = async_to_sync(middleware.__call__)(scope, AsyncMock(), AsyncMock())
+
+    self.assertEqual(result, "ok")
+    self.assertIsInstance(scope["user"], AnonymousUser)
+
+  def test_invalid_bearer_token_falls_back_to_anonymous(self):
+    inner = AsyncMock(return_value="ok")
+    middleware = JWTAuthMiddleware(inner)
+    scope = {
+      "query_string": b"",
+      "headers": [(b"authorization", b"Bearer bad_token")],
+    }
+
+    with patch(
+      "videogame_back.jwt_auth_middleware.UntypedToken",
+      side_effect=Exception("invalid"),
+    ):
+      result = async_to_sync(middleware.__call__)(scope, AsyncMock(), AsyncMock())
+
+    self.assertEqual(result, "ok")
+    self.assertIsInstance(scope["user"], AnonymousUser)
+
+
+class GiveStarterTests(SimpleTestCase):
+  def test_give_starter_no_users_prints_message(self):
+    """Test give_starter gracefully handles when no users exist"""
+    from unittest.mock import MagicMock, patch
+    from give_starter import give_starter
+
+    with patch("give_starter.User.objects.first", return_value=None), patch(
+      "builtins.print"
+    ) as mock_print:
+      give_starter()
+      mock_print.assert_called_with("No users found. Please register first.")
+
+  def test_give_starter_handles_existing_user_creature(self):
+    from unittest.mock import MagicMock, patch
+    from give_starter import give_starter
+
+    user = MagicMock(username="ash")
+    species = MagicMock(hp=35)
+
+    with patch("give_starter.User.objects.first", return_value=user), patch(
+      "give_starter.Creature.objects.get",
+      return_value=species,
+    ), patch(
+      "give_starter.UserCreature.objects.get_or_create",
+      return_value=(MagicMock(), False),
+    ), patch("builtins.print") as mock_print:
+      give_starter()
+
+    printed_messages = [call.args[0] for call in mock_print.call_args_list]
+    self.assertTrue(any("already has" in msg for msg in printed_messages))

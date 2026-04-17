@@ -1,9 +1,9 @@
-from rest_framework import viewsets, status
-from rest_framework.decorators import action
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
-
+from core.payload_crypto import decrypt_json
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
+from rest_framework import status, viewsets
+from rest_framework.decorators import action
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 
 from .models import Inventory
 from .serializers import InventorySerializer
@@ -39,6 +39,22 @@ class InventoryViewSet(viewsets.ModelViewSet):
 
     object_id = request.data.get("object_id")
     creature_id = request.data.get("creature_id")
+    use_enc = request.data.get("use_payload_encrypted")
+    if use_enc:
+      try:
+        obj = decrypt_json(use_enc)
+      except ValueError:
+        return Response(
+          {"error": "Invalid use_payload_encrypted"},
+          status=status.HTTP_400_BAD_REQUEST,
+        )
+      if not isinstance(obj, dict):
+        return Response(
+          {"error": "Invalid use_payload_encrypted"},
+          status=status.HTTP_400_BAD_REQUEST,
+        )
+      object_id = obj.get("object_id")
+      creature_id = obj.get("creature_id")
 
     # Validación básica (evita errores innecesarios)
     if not object_id:

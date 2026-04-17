@@ -43,8 +43,8 @@ export const MyCollectionPage = () => {
 
       setDraftTeam(teamMembers);
       setOriginalTeamIds(teamMembers.map((m: any) => m.id));
-    } catch (error) {
-      console.error("Error fetching collection:", error);
+    } catch {
+      // Collection stays empty on failure; user can retry by refreshing.
     } finally {
       setLoading(false);
     }
@@ -82,8 +82,8 @@ export const MyCollectionPage = () => {
   };
 
   const isModified =
-    JSON.stringify([...originalTeamIds].sort()) !==
-    JSON.stringify([...draftTeam.map((m) => m.id)].sort());
+    JSON.stringify([...originalTeamIds].sort((a, b) => a - b)) !==
+    JSON.stringify([...draftTeam.map((m) => m.id)].sort((a, b) => a - b));
 
   return (
     <div className="min-h-screen bg-black text-white">

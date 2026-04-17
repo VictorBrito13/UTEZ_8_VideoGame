@@ -81,3 +81,5 @@ firebase-debug.log
 *.sw?
 .vscode/*
 !.vscode/extensions.json
+
+*.pdf

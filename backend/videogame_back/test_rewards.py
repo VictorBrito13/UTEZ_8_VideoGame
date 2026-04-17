@@ -1,5 +1,6 @@
 import os
 import django
+import pytest
 
 # Setup Django environment
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "videogame_back.settings")
@@ -10,6 +11,7 @@ from inventory.models import Object, InventoryItem, Inventory
 from inventory.reward_service import award_battle_rewards
 
 
+@pytest.mark.django_db
 def test_rewards():
   # 1. Ensure we have some objects in the DB
   if Object.objects.count() == 0:

@@ -1,0 +1,418 @@
+[
+  {
+    "status": "OPEN",
+    "type": "CODE_SMELL",
+    "message": "Refactor this function to reduce its Cognitive Complexity from 23 to the 15 allowed.",
+    "component": "sonnar_videogame:src/features/auth/hooks/useRegister.ts",
+    "line": 24,
+    "effort": "13min"
+  },
+  {
+    "status": "OPEN",
+    "type": "CODE_SMELL",
+    "message": "Refactor this function to reduce its Cognitive Complexity from 22 to the 15 allowed.",
+    "component": "sonnar_videogame:src/features/combat/hooks/useBattleChannel.ts",
+    "line": 71,
+    "effort": "12min"
+  },
+  {
+    "status": "OPEN",
+    "type": "CODE_SMELL",
+    "message": "Refactor this code to not nest functions more than 4 levels deep.",
+    "component": "sonnar_videogame:src/features/combat/hooks/useBattleChannel.ts",
+    "line": 214,
+    "effort": "20min"
+  },
+  {
+    "status": "OPEN",
+    "type": "CODE_SMELL",
+    "message": "Refactor this function to reduce its Cognitive Complexity from 38 to the 15 allowed.",
+    "component": "sonnar_videogame:src/features/combat/pages/BattlePage.tsx",
+    "line": 11,
+    "effort": "28min"
+  },
+  {
+    "status": "OPEN",
+    "type": "CODE_SMELL",
+    "message": "useState call is not destructured into value + setter pair",
+    "component": "sonnar_videogame:src/features/combat/pages/BattlePage.tsx",
+    "line": 16,
+    "effort": "5min"
+  },
+  {
+    "status": "OPEN",
+    "type": "CODE_SMELL",
+    "message": "Extract this nested ternary operation into an independent statement.",
+    "component": "sonnar_videogame:src/features/combat/pages/BattlePage.tsx",
+    "line": 398,
+    "effort": "5min"
+  },
+  {
+    "status": "OPEN",
+    "type": "CODE_SMELL",
+    "message": "Extract this nested ternary operation into an independent statement.",
+    "component": "sonnar_videogame:src/features/combat/pages/BattlePage.tsx",
+    "line": 464,
+    "effort": "5min"
+  },
+  {
+    "status": "OPEN",
+    "type": "CODE_SMELL",
+    "message": "Extract this nested ternary operation into an independent statement.",
+    "component": "sonnar_videogame:src/features/combat/pages/BattlePage.tsx",
+    "line": 636,
+    "effort": "5min"
+  },
+  {
+    "status": "OPEN",
+    "type": "CODE_SMELL",
+    "message": "Extract this nested ternary operation into an independent statement.",
+    "component": "sonnar_videogame:src/features/ranking/pages/LeaderboardPage.tsx",
+    "line": 86,
+    "effort": "5min"
+  },
+  {
+    "status": "OPEN",
+    "type": "CODE_SMELL",
+    "message": "Extract this nested ternary operation into an independent statement.",
+    "component": "sonnar_videogame:src/features/ranking/pages/LeaderboardPage.tsx",
+    "line": 88,
+    "effort": "5min"
+  },
+  {
+    "status": "OPEN",
+    "type": "CODE_SMELL",
+    "message": "'data.sender_username ?? \"Unknown\"' will use Object's default stringification format ('[object Object]') when stringified.",
+    "component": "sonnar_videogame:src/features/combat/hooks/useBattleChatChannel.ts",
+    "line": 46,
+    "effort": "5min"
+  },
+  {
+    "status": "OPEN",
+    "type": "CODE_SMELL",
+    "message": "'data.message ?? \"\"' will use Object's default stringification format ('[object Object]') when stringified.",
+    "component": "sonnar_videogame:src/features/combat/hooks/useBattleChatChannel.ts",
+    "line": 47,
+    "effort": "5min"
+  },
+  {
+    "status": "OPEN",
+    "type": "CODE_SMELL",
+    "message": "'data.message ?? \"Chat error.\"' will use Object's default stringification format ('[object Object]') when stringified.",
+    "component": "sonnar_videogame:src/features/combat/hooks/useBattleChatChannel.ts",
+    "line": 79,
+    "effort": "5min"
+  },
+  {
+    "status": "OPEN",
+    "type": "CODE_SMELL",
+    "message": "Refactor this function to not always return the same value.",
+    "component": "sonnar_videogame:src/features/combat/hooks/useBattleChannel.ts",
+    "line": 125,
+    "effort": "4min"
+  },
+  {
+    "status": "OPEN",
+    "type": "CODE_SMELL",
+    "message": "Refactor this code to not nest functions more than 4 levels deep.",
+    "component": "sonnar_videogame:src/features/combat/hooks/useBattleChannel.ts",
+    "line": 133,
+    "effort": "20min"
+  },
+  {
+    "status": "OPEN",
+    "type": "CODE_SMELL",
+    "message": "Refactor this code to not nest functions more than 4 levels deep.",
+    "component": "sonnar_videogame:src/features/combat/hooks/useBattleChannel.ts",
+    "line": 138,
+    "effort": "20min"
+  },
+  {
+    "status": "OPEN",
+    "type": "CODE_SMELL",
+    "message": "Prefer `structuredClone(…)` over `JSON.parse(JSON.stringify(…))` to create a deep clone.",
+    "component": "sonnar_videogame:src/features/combat/hooks/useBattleChannel.ts",
+    "line": 145,
+    "effort": "5min"
+  },
+  {
+    "status": "OPEN",
+    "type": "CODE_SMELL",
+    "message": "Prefer `structuredClone(…)` over `JSON.parse(JSON.stringify(…))` to create a deep clone.",
+    "component": "sonnar_videogame:src/features/combat/hooks/useBattleChannel.ts",
+    "line": 188,
+    "effort": "5min"
+  },
+  {
+    "status": "OPEN",
+    "type": "CODE_SMELL",
+    "message": "Prefer `structuredClone(…)` over `JSON.parse(JSON.stringify(…))` to create a deep clone.",
+    "component": "sonnar_videogame:src/features/combat/hooks/useBattleChannel.ts",
+    "line": 218,
+    "effort": "5min"
+  },
+  {
+    "status": "OPEN",
+    "type": "CODE_SMELL",
+    "message": "Refactor this code to not nest functions more than 4 levels deep.",
+    "component": "sonnar_videogame:src/features/combat/hooks/useBattleChannel.ts",
+    "line": 222,
+    "effort": "20min"
+  },
+  {
+    "status": "OPEN",
+    "type": "CODE_SMELL",
+    "message": "Refactor this code to not nest functions more than 4 levels deep.",
+    "component": "sonnar_videogame:src/features/combat/hooks/useBattleChannel.ts",
+    "line": 243,
+    "effort": "20min"
+  },
+  {
+    "status": "OPEN",
+    "type": "CODE_SMELL",
+    "message": "Refactor this code to not nest functions more than 4 levels deep.",
+    "component": "sonnar_videogame:src/features/combat/hooks/useBattleChannel.ts",
+    "line": 249,
+    "effort": "20min"
+  },
+  {
+    "status": "OPEN",
+    "type": "CODE_SMELL",
+    "message": "Prefer `globalThis` over `window`.",
+    "component": "sonnar_videogame:src/features/combat/pages/BattlePage.tsx",
+    "line": 109,
+    "effort": "2min"
+  },
+  {
+    "status": "OPEN",
+    "type": "CODE_SMELL",
+    "message": "Prefer `globalThis` over `window`.",
+    "component": "sonnar_videogame:src/features/combat/pages/BattlePage.tsx",
+    "line": 196,
+    "effort": "2min"
+  },
+  {
+    "status": "OPEN",
+    "type": "CODE_SMELL",
+    "message": "Do not use Array index in keys",
+    "component": "sonnar_videogame:src/features/combat/pages/BattlePage.tsx",
+    "line": 334,
+    "effort": "5min"
+  },
+  {
+    "status": "OPEN",
+    "type": "CODE_SMELL",
+    "message": "Extract this nested ternary operation into an independent statement.",
+    "component": "sonnar_videogame:src/features/combat/pages/BattlePage.tsx",
+    "line": 392,
+    "effort": "5min"
+  },
+  {
+    "status": "OPEN",
+    "type": "CODE_SMELL",
+    "message": "Extract this nested ternary operation into an independent statement.",
+    "component": "sonnar_videogame:src/features/combat/pages/BattlePage.tsx",
+    "line": 398,
+    "effort": "5min"
+  },
+  {
+    "status": "OPEN",
+    "type": "CODE_SMELL",
+    "message": "img elements must have an alt prop, either with meaningful text, or an empty string for decorative images.",
+    "component": "sonnar_videogame:src/features/combat/pages/BattlePage.tsx",
+    "line": 414,
+    "effort": "5min"
+  },
+  {
+    "status": "OPEN",
+    "type": "CODE_SMELL",
+    "message": "img elements must have an alt prop, either with meaningful text, or an empty string for decorative images.",
+    "component": "sonnar_videogame:src/features/combat/pages/BattlePage.tsx",
+    "line": 429,
+    "effort": "5min"
+  },
+  {
+    "status": "OPEN",
+    "type": "CODE_SMELL",
+    "message": "Extract this nested ternary operation into an independent statement.",
+    "component": "sonnar_videogame:src/features/combat/pages/BattlePage.tsx",
+    "line": 458,
+    "effort": "5min"
+  },
+  {
+    "status": "OPEN",
+    "type": "CODE_SMELL",
+    "message": "Extract this nested ternary operation into an independent statement.",
+    "component": "sonnar_videogame:src/features/combat/pages/BattlePage.tsx",
+    "line": 464,
+    "effort": "5min"
+  },
+  {
+    "status": "OPEN",
+    "type": "CODE_SMELL",
+    "message": "Do not use Array index in keys",
+    "component": "sonnar_videogame:src/features/combat/pages/BattlePage.tsx",
+    "line": 515,
+    "effort": "5min"
+  },
+  {
+    "status": "OPEN",
+    "type": "CODE_SMELL",
+    "message": "img elements must have an alt prop, either with meaningful text, or an empty string for decorative images.",
+    "component": "sonnar_videogame:src/features/combat/pages/BattlePage.tsx",
+    "line": 638,
+    "effort": "5min"
+  },
+  {
+    "status": "OPEN",
+    "type": "CODE_SMELL",
+    "message": "Prefer using an optional chain expression instead, as it's more concise and easier to read.",
+    "component": "sonnar_videogame:src/features/matchmaking/hooks/useMatchmaking.ts",
+    "line": 34,
+    "effort": "5min"
+  },
+  {
+    "status": "OPEN",
+    "type": "CODE_SMELL",
+    "message": "'returnValue' is deprecated.",
+    "component": "sonnar_videogame:src/features/combat/pages/BattlePage.tsx",
+    "line": 101,
+    "effort": "15min"
+  },
+  {
+    "status": "OPEN",
+    "type": "CODE_SMELL",
+    "message": "Prefer `globalThis` over `window`.",
+    "component": "sonnar_videogame:src/features/combat/pages/BattlePage.tsx",
+    "line": 107,
+    "effort": "2min"
+  },
+  {
+    "status": "OPEN",
+    "type": "CODE_SMELL",
+    "message": "Prefer `globalThis` over `window`.",
+    "component": "sonnar_videogame:src/features/combat/pages/BattlePage.tsx",
+    "line": 107,
+    "effort": "2min"
+  },
+  {
+    "status": "OPEN",
+    "type": "CODE_SMELL",
+    "message": "Prefer `globalThis` over `window`.",
+    "component": "sonnar_videogame:src/features/combat/pages/BattlePage.tsx",
+    "line": 119,
+    "effort": "2min"
+  },
+  {
+    "status": "OPEN",
+    "type": "CODE_SMELL",
+    "message": "Prefer `globalThis` over `window`.",
+    "component": "sonnar_videogame:src/features/combat/pages/BattlePage.tsx",
+    "line": 119,
+    "effort": "2min"
+  },
+  {
+    "status": "OPEN",
+    "type": "CODE_SMELL",
+    "message": "Prefer `globalThis` over `window`.",
+    "component": "sonnar_videogame:src/features/combat/pages/BattlePage.tsx",
+    "line": 123,
+    "effort": "2min"
+  },
+  {
+    "status": "OPEN",
+    "type": "CODE_SMELL",
+    "message": "Prefer `globalThis` over `window`.",
+    "component": "sonnar_videogame:src/features/combat/pages/BattlePage.tsx",
+    "line": 127,
+    "effort": "2min"
+  },
+  {
+    "status": "OPEN",
+    "type": "CODE_SMELL",
+    "message": "Use `new Array()` instead of `Array()`.",
+    "component": "sonnar_videogame:src/features/combat/pages/BattlePage.tsx",
+    "line": 332,
+    "effort": "5min"
+  },
+  {
+    "status": "OPEN",
+    "type": "CODE_SMELL",
+    "message": "Use `new Array()` instead of `Array()`.",
+    "component": "sonnar_videogame:src/features/combat/pages/BattlePage.tsx",
+    "line": 513,
+    "effort": "5min"
+  },
+  {
+    "status": "OPEN",
+    "type": "CODE_SMELL",
+    "message": "Prefer using an optional chain expression instead, as it's more concise and easier to read.",
+    "component": "sonnar_videogame:src/features/combat/pages/MatchmakingPage.tsx",
+    "line": 83,
+    "effort": "5min"
+  },
+  {
+    "status": "OPEN",
+    "type": "CODE_SMELL",
+    "message": "Prefer using an optional chain expression instead, as it's more concise and easier to read.",
+    "component": "sonnar_videogame:src/features/combat/pages/MatchmakingPage.tsx",
+    "line": 98,
+    "effort": "5min"
+  },
+  {
+    "status": "OPEN",
+    "type": "CODE_SMELL",
+    "message": "Extract this nested ternary operation into an independent statement.",
+    "component": "sonnar_videogame:src/features/creatures/components/SquadBar.tsx",
+    "line": 122,
+    "effort": "5min"
+  },
+  {
+    "status": "OPEN",
+    "type": "CODE_SMELL",
+    "message": "Extract this nested ternary operation into an independent statement.",
+    "component": "sonnar_videogame:src/features/creatures/components/SquadBar.tsx",
+    "line": 130,
+    "effort": "5min"
+  },
+  {
+    "status": "OPEN",
+    "type": "CODE_SMELL",
+    "message": "Prefer using an optional chain expression instead, as it's more concise and easier to read.",
+    "component": "sonnar_videogame:src/features/creatures/components/SquadBar.tsx",
+    "line": 200,
+    "effort": "5min"
+  },
+  {
+    "status": "OPEN",
+    "type": "CODE_SMELL",
+    "message": "'FormEvent' is deprecated.",
+    "component": "sonnar_videogame:src/features/auth/hooks/useLogin.ts",
+    "line": 16,
+    "effort": "15min"
+  },
+  {
+    "status": "OPEN",
+    "type": "CODE_SMELL",
+    "message": "'FormEvent' is deprecated.",
+    "component": "sonnar_videogame:src/features/auth/hooks/useRegister.ts",
+    "line": 24,
+    "effort": "15min"
+  },
+  {
+    "status": "OPEN",
+    "type": "CODE_SMELL",
+    "message": "Prefer `globalThis` over `window`.",
+    "component": "sonnar_videogame:src/api/apiClient.ts",
+    "line": 43,
+    "effort": "2min"
+  },
+  {
+    "status": "OPEN",
+    "type": "CODE_SMELL",
+    "message": "Prefer `throw error` over `return Promise.reject(error)`.",
+    "component": "sonnar_videogame:src/api/apiClient.ts",
+    "line": 46,
+    "effort": "5min"
+  }
+]

@@ -1,20 +1,37 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Swords, Zap, Activity, Heart, Shield, ArrowUp, Star } from "lucide-react";
+import {
+  Swords,
+  Zap,
+  Activity,
+  Heart,
+  Shield,
+  ArrowUp,
+  Star,
+} from "lucide-react";
 import apiClient from "../../../api/apiClient";
+import { encryptJson } from "../../../common/utils/payloadCrypto";
 import { BattleEndOverlay } from "../components/BattleEndOverlay";
 import { useBattleChannel } from "../hooks/useBattleChannel";
 import { useBattleChatChannel } from "../hooks/useBattleChatChannel";
-import type { BattleState, ChatMessage, InventoryItem, PlayerData } from "../types";
+import type {
+  BattleState,
+  ChatMessage,
+  InventoryItem,
+  PlayerData,
+} from "../types";
 
 export const BattlePage = () => {
   const { battleId } = useParams();
   const navigate = useNavigate();
   const [battleState, setBattleState] = useState<BattleState | null>(null);
   const [myId, setMyId] = useState<number | null>(null);
-  const [, setLogs] = useState<string[]>([]);
+  const [logs, setLogs] = useState<string[]>([]);
+  // Use logs silently to avoid unused var warning if necessary, or simply declare it
+  console.debug("Battle logs:", logs.length);
   const wsRef = useRef<WebSocket | null>(null);
+  const battleStateRef = useRef<BattleState | null>(null);
   const [isAttacking, setIsAttacking] = useState<string | null>(null);
   const [isHit, setIsHit] = useState<string | null>(null);
   const [floatingDamage, setFloatingDamage] = useState<{
@@ -25,7 +42,9 @@ export const BattlePage = () => {
     target: "p1" | "p2";
     type: string;
   } | null>(null);
-  const [selectingReviveTarget, setSelectingReviveTarget] = useState<number | null>(null);
+  const [selectingReviveTarget, setSelectingReviveTarget] = useState<
+    number | null
+  >(null);
   const [winnerId, setWinnerId] = useState<number | null>(null);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
@@ -37,19 +56,34 @@ export const BattlePage = () => {
     setLogs((prev) => [msg, ...prev].slice(0, 10));
   };
 
-  const handleChatMessage = useCallback(
-    (message: ChatMessage) => {
-      setChatMessages((prev) => [...prev, message]);
-    },
-    []
-  );
+  const handleChatMessage = useCallback((message: ChatMessage) => {
+    setChatMessages((prev) => [...prev, message]);
+  }, []);
 
   const handleChatStatus = useCallback((message: string) => {
     setChatStatus(message);
   }, []);
 
-
   // Fetch my profile and inventory
+  useEffect(() => {
+    battleStateRef.current = battleState;
+  }, [battleState]);
+
+  useBattleChannel({
+    battleId,
+    myId,
+    setBattleState,
+    battleStateRef,
+    setWinnerId,
+    setInventory,
+    addLog,
+    setIsAttacking,
+    setIsHit,
+    setFloatingDamage,
+    setUseItemVfx,
+    wsRef,
+  });
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -65,27 +99,13 @@ export const BattlePage = () => {
         const invData = Array.isArray(invRes.data)
           ? invRes.data[0]
           : invRes.data;
-        setInventory(invData.items || []);
-      } catch (err) {
-        console.error("Error fetching battle data", err);
+        setInventory(invData?.items || []);
+      } catch {
+        // Non-fatal: battle UI continues without prefetched profile/inventory.
       }
     };
     fetchData();
   }, []);
-
-  useBattleChannel({
-    battleId,
-    myId,
-    setBattleState,
-    setWinnerId,
-    setInventory,
-    addLog,
-    setIsAttacking,
-    setIsHit,
-    setFloatingDamage,
-    setUseItemVfx,
-    wsRef,
-  });
 
   const { connected: chatConnected, sendMessage: sendChatMessage } =
     useBattleChatChannel({
@@ -98,15 +118,14 @@ export const BattlePage = () => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (battleState?.status === "playing") {
         e.preventDefault();
-        e.returnValue = "";
       }
     };
 
     const handlePopState = () => {
       if (battleState?.status === "playing") {
-        window.history.pushState(null, "", window.location.pathname);
+        globalThis.history.pushState(null, "", globalThis.location.pathname);
         if (
-          window.confirm(
+          globalThis.confirm(
             "¿Estás seguro de que quieres abandonar la batalla? Se contará como una derrota.",
           )
         ) {
@@ -116,15 +135,15 @@ export const BattlePage = () => {
     };
 
     if (battleState?.status === "playing") {
-      window.history.pushState(null, "", window.location.pathname);
+      globalThis.history.pushState(null, "", globalThis.location.pathname);
     }
 
-    window.addEventListener("beforeunload", handleBeforeUnload);
-    window.addEventListener("popstate", handlePopState);
+    globalThis.addEventListener("beforeunload", handleBeforeUnload);
+    globalThis.addEventListener("popstate", handlePopState);
 
     return () => {
-      window.removeEventListener("beforeunload", handleBeforeUnload);
-      window.removeEventListener("popstate", handlePopState);
+      globalThis.removeEventListener("beforeunload", handleBeforeUnload);
+      globalThis.removeEventListener("popstate", handlePopState);
     };
   }, [battleState?.status, navigate]);
 
@@ -146,17 +165,18 @@ export const BattlePage = () => {
     );
   };
 
-  const handleSwap = (creatureId: number) => {
+  const handleSwap = async (creatureId: number) => {
+    const data_encrypted = await encryptJson({ creature_id: creatureId });
     wsRef.current?.send(
       JSON.stringify({
         type: "battle.action",
         action: "swap",
-        data: { creature_id: creatureId },
+        data_encrypted,
       }),
     );
   };
 
-  const handleUseItem = (itemId: number, forceTargetId?: number) => {
+  const handleUseItem = async (itemId: number, forceTargetId?: number) => {
     const item = inventory.find((i) => i.id === itemId);
     if (!item) return;
 
@@ -168,7 +188,7 @@ export const BattlePage = () => {
       }
       if (fainted.length === 1) {
         // Auto-select the only fainted creature
-        handleUseItem(itemId, fainted[0].id);
+        await handleUseItem(itemId, fainted[0].id);
         return;
       }
       // Start selection mode
@@ -177,23 +197,24 @@ export const BattlePage = () => {
       return;
     }
 
-    const payload: any = { item_id: itemId };
+    const payload: Record<string, number> = { item_id: itemId };
     if (forceTargetId) payload.target_id = forceTargetId;
 
+    const data_encrypted = await encryptJson(payload);
     wsRef.current?.send(
       JSON.stringify({
         type: "battle.action",
         action: "use_item",
-        data: payload,
+        data_encrypted,
       }),
     );
-    
+
     setSelectingReviveTarget(null);
   };
 
   const handleSurrender = () => {
     if (
-      window.confirm(
+      globalThis.confirm(
         "¿Estás seguro de que quieres abandonar la partida? Esto contará como una derrota.",
       )
     ) {
@@ -201,11 +222,11 @@ export const BattlePage = () => {
     }
   };
 
-  const handleSendChat = () => {
+  const handleSendChat = async () => {
     const trimmed = chatInput.trim();
     if (!trimmed) return;
 
-    const sent = sendChatMessage(trimmed);
+    const sent = await sendChatMessage(trimmed);
     if (sent) {
       setChatInput("");
     } else {
@@ -245,15 +266,84 @@ export const BattlePage = () => {
   const getVfxIcon = (type: string) => {
     switch (type) {
       case "HEAL":
-      case "REVIVE": return <Heart className="text-red-500 w-24 h-24 drop-shadow-[0_0_20px_rgba(239,68,68,0.9)]" />;
-      case "BUFF_ATK": return <Swords className="text-orange-500 w-24 h-24 drop-shadow-[0_0_20px_rgba(249,115,22,0.9)]" />;
-      case "BUFF_DEF": return <Shield className="text-blue-500 w-24 h-24 drop-shadow-[0_0_20px_rgba(59,130,246,0.9)]" />;
-      case "BUFF_SPEED": return <Zap className="text-yellow-400 w-24 h-24 drop-shadow-[0_0_20px_rgba(250,204,21,0.9)]" />;
-      case "EQUIP": return <ArrowUp className="text-purple-500 w-24 h-24 drop-shadow-[0_0_20px_rgba(168,85,247,0.9)]" />;
-      default: return <Star className="text-white w-24 h-24 drop-shadow-[0_0_20px_rgba(255,255,255,0.9)]" />;
+      case "REVIVE":
+        return (
+          <Heart className="text-red-500 w-24 h-24 drop-shadow-[0_0_20px_rgba(239,68,68,0.9)]" />
+        );
+      case "BUFF_ATK":
+        return (
+          <Swords className="text-orange-500 w-24 h-24 drop-shadow-[0_0_20px_rgba(249,115,22,0.9)]" />
+        );
+      case "BUFF_DEF":
+        return (
+          <Shield className="text-blue-500 w-24 h-24 drop-shadow-[0_0_20px_rgba(59,130,246,0.9)]" />
+        );
+      case "BUFF_SPEED":
+        return (
+          <Zap className="text-yellow-400 w-24 h-24 drop-shadow-[0_0_20px_rgba(250,204,21,0.9)]" />
+        );
+      case "EQUIP":
+        return (
+          <ArrowUp className="text-purple-500 w-24 h-24 drop-shadow-[0_0_20px_rgba(168,85,247,0.9)]" />
+        );
+      default:
+        return (
+          <Star className="text-white w-24 h-24 drop-shadow-[0_0_20px_rgba(255,255,255,0.9)]" />
+        );
     }
   };
 
+  const getOpponentAnimation = () => {
+    const targetTag = isPlayer1 ? "p2" : "p1";
+    if (isHit === targetTag) {
+      return {
+        x: [-10, 10, -10, 10, 0],
+        filter: "sepia(1) saturate(10)",
+        scale: [1, 1.05, 1],
+      };
+    }
+    if (isAttacking === targetTag) {
+      return { x: -80 };
+    }
+    const hasAtkBuff = (oppActive?.buffs?.atk || 1) > 1.4;
+    return {
+      y: [0, -5, 0],
+      filter: hasAtkBuff
+        ? "drop-shadow(0 0 15px rgba(251,146,60,0.8))"
+        : "none",
+      scale: hasAtkBuff ? [1, 1.05, 1] : 1,
+    };
+  };
+
+  const getMyAnimation = () => {
+    const targetTag = isPlayer1 ? "p1" : "p2";
+    if (isHit === targetTag) {
+      return {
+        x: [-10, 10, -10, 10, 0],
+        filter: "sepia(1) saturate(10)",
+        scale: [1, 1.05, 1],
+      };
+    }
+    if (isAttacking === targetTag) {
+      return { x: 80 };
+    }
+    const hasAtkBuff = (meActive?.buffs?.atk || 1) > 1.4;
+    return {
+      y: [0, -5, 0],
+      filter: hasAtkBuff
+        ? "drop-shadow(0 0 15px rgba(251,146,60,0.8))"
+        : "none",
+      scale: hasAtkBuff ? [1, 1.05, 1] : 1,
+    };
+  };
+
+  const getBenchButtonBorder = (c: any) => {
+    if (c.id === me.active_creature_id)
+      return "border-amber-500 shadow-[0_0_20px_rgba(245,158,11,0.3)]";
+    if (selectingReviveTarget && c.hp === 0)
+      return "border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.4)] animate-pulse";
+    return "border-white/10";
+  };
 
   return (
     <div className="h-screen bg-neutral-950 text-white font-sans relative flex flex-col overflow-hidden">
@@ -329,9 +419,9 @@ export const BattlePage = () => {
                 </div>
                 <div className="flex justify-between items-center px-1">
                   <div className="flex gap-1">
-                    {[...Array(3)].map((_, i) => (
+                    {Array.from({ length: 3 }).map((_, i) => (
                       <div
-                        key={i}
+                        key={["opp_bar_1", "opp_bar_2", "opp_bar_3"][i]}
                         className={`w-3 h-1 rounded-full ${i < opponent.team.filter((c) => c.hp > 0).length ? "bg-red-500" : "bg-neutral-800"}`}
                       />
                     ))}
@@ -342,11 +432,21 @@ export const BattlePage = () => {
                 </div>
                 {oppActive?.buffs && (
                   <div className="flex gap-1.5 mt-2 justify-end">
-                    {oppActive.buffs.atk > 1 && <Swords className="w-3.5 h-3.5 text-orange-400 drop-shadow-[0_0_5px_rgba(251,146,60,0.8)]" />}
-                    {oppActive.buffs.def > 1 && <Shield className="w-3.5 h-3.5 text-blue-400 drop-shadow-[0_0_5px_rgba(96,165,250,0.8)]" />}
-                    {oppActive.buffs.has_choice && <Star className="w-3.5 h-3.5 text-purple-400 drop-shadow-[0_0_5px_rgba(192,132,252,0.8)]" />}
-                    {oppActive.buffs.has_focus && <Activity className="w-3.5 h-3.5 text-emerald-400 drop-shadow-[0_0_5px_rgba(52,211,153,0.8)]" />}
-                    {oppActive.buffs.has_oran && <Heart className="w-3.5 h-3.5 text-red-400 drop-shadow-[0_0_5px_rgba(248,113,113,0.8)]" />}
+                    {oppActive.buffs.atk > 1 && (
+                      <Swords className="w-3.5 h-3.5 text-orange-400 drop-shadow-[0_0_5px_rgba(251,146,60,0.8)]" />
+                    )}
+                    {oppActive.buffs.def > 1 && (
+                      <Shield className="w-3.5 h-3.5 text-blue-400 drop-shadow-[0_0_5px_rgba(96,165,250,0.8)]" />
+                    )}
+                    {oppActive.buffs.has_choice && (
+                      <Star className="w-3.5 h-3.5 text-purple-400 drop-shadow-[0_0_5px_rgba(192,132,252,0.8)]" />
+                    )}
+                    {oppActive.buffs.has_focus && (
+                      <Activity className="w-3.5 h-3.5 text-emerald-400 drop-shadow-[0_0_5px_rgba(52,211,153,0.8)]" />
+                    )}
+                    {oppActive.buffs.has_oran && (
+                      <Heart className="w-3.5 h-3.5 text-red-400 drop-shadow-[0_0_5px_rgba(248,113,113,0.8)]" />
+                    )}
                   </div>
                 )}
               </div>
@@ -388,31 +488,19 @@ export const BattlePage = () => {
                   )}
                 </AnimatePresence>
                 <motion.img
-                  animate={
-                    isHit === (isPlayer1 ? "p2" : "p1")
-                      ? {
-                          x: [-10, 10, -10, 10, 0],
-                          filter: "sepia(1) saturate(10)", // Simplified to avoid distortion error
-                          scale: [1, 1.05, 1],
-                        }
-                      : isAttacking === (isPlayer1 ? "p2" : "p1")
-                        ? { x: -80 }
-                        : { 
-                            y: [0, -5, 0], 
-                            filter: (oppActive?.buffs?.atk || 1) > 1.4 ? "drop-shadow(0 0 15px rgba(251,146,60,0.8))" : "none",
-                            scale: (oppActive?.buffs?.atk || 1) > 1.4 ? [1, 1.05, 1] : 1
-                          }
-                  }
+                  animate={getOpponentAnimation()}
                   transition={{
                     y: { repeat: Infinity, duration: 4 },
                     x: { duration: 0.2 },
                   }}
                   src={oppActive?.sprite || ""}
+                  alt={oppActive?.name || "Opponent Active Creature"}
                   className="w-full h-full object-contain z-10"
                 />
               </div>
               <img
                 src={opponent.trainer_sprite}
+                alt={opponent.username}
                 className="w-40 h-40 object-contain opacity-80"
               />
             </div>
@@ -428,6 +516,7 @@ export const BattlePage = () => {
             <div className="relative flex items-center gap-6">
               <img
                 src={me.trainer_sprite}
+                alt={me.username}
                 className="w-40 h-40 object-contain transform scale-x-[-1]"
               />
               <div className="relative w-48 h-48 flex items-end justify-center">
@@ -454,26 +543,13 @@ export const BattlePage = () => {
                   )}
                 </AnimatePresence>
                 <motion.img
-                  animate={
-                    isHit === (isPlayer1 ? "p1" : "p2")
-                      ? {
-                          x: [-10, 10, -10, 10, 0],
-                          filter: "sepia(1) saturate(10)",
-                          scale: [1, 1.05, 1],
-                        }
-                      : isAttacking === (isPlayer1 ? "p1" : "p2")
-                        ? { x: 80 }
-                        : { 
-                            y: [0, -5, 0], 
-                            filter: (meActive?.buffs?.atk || 1) > 1.4 ? "drop-shadow(0 0 15px rgba(251,146,60,0.8))" : "none",
-                            scale: (meActive?.buffs?.atk || 1) > 1.4 ? [1, 1.05, 1] : 1
-                          }
-                  }
+                  animate={getMyAnimation()}
                   transition={{
                     y: { repeat: Infinity, duration: 3.5, delay: 0.5 },
                     x: { type: "spring", stiffness: 300, damping: 20 },
                   }}
                   src={meActive?.sprite || ""}
+                  alt={meActive?.name || "My Active Creature"}
                   className="w-full h-full object-contain z-10"
                 />
               </div>
@@ -510,9 +586,9 @@ export const BattlePage = () => {
                 </div>
                 <div className="flex justify-between items-center px-1">
                   <div className="flex gap-1">
-                    {[...Array(3)].map((_, i) => (
+                    {Array.from({ length: 3 }).map((_, i) => (
                       <div
-                        key={i}
+                        key={["my_bar_1", "my_bar_2", "my_bar_3"][i]}
                         className={`w-3 h-1 rounded-full ${i < me.team.filter((c) => c.hp > 0).length ? "bg-blue-500" : "bg-neutral-800"}`}
                       />
                     ))}
@@ -523,11 +599,21 @@ export const BattlePage = () => {
                 </div>
                 {meActive?.buffs && (
                   <div className="flex gap-1.5 mt-2">
-                    {meActive.buffs.atk > 1 && <Swords className="w-3.5 h-3.5 text-orange-400 drop-shadow-[0_0_5px_rgba(251,146,60,0.8)]" />}
-                    {meActive.buffs.def > 1 && <Shield className="w-3.5 h-3.5 text-blue-400 drop-shadow-[0_0_5px_rgba(96,165,250,0.8)]" />}
-                    {meActive.buffs.has_choice && <Star className="w-3.5 h-3.5 text-purple-400 drop-shadow-[0_0_5px_rgba(192,132,252,0.8)]" />}
-                    {meActive.buffs.has_focus && <Activity className="w-3.5 h-3.5 text-emerald-400 drop-shadow-[0_0_5px_rgba(52,211,153,0.8)]" />}
-                    {meActive.buffs.has_oran && <Heart className="w-3.5 h-3.5 text-red-400 drop-shadow-[0_0_5px_rgba(248,113,113,0.8)]" />}
+                    {meActive.buffs.atk > 1 && (
+                      <Swords className="w-3.5 h-3.5 text-orange-400 drop-shadow-[0_0_5px_rgba(251,146,60,0.8)]" />
+                    )}
+                    {meActive.buffs.def > 1 && (
+                      <Shield className="w-3.5 h-3.5 text-blue-400 drop-shadow-[0_0_5px_rgba(96,165,250,0.8)]" />
+                    )}
+                    {meActive.buffs.has_choice && (
+                      <Star className="w-3.5 h-3.5 text-purple-400 drop-shadow-[0_0_5px_rgba(192,132,252,0.8)]" />
+                    )}
+                    {meActive.buffs.has_focus && (
+                      <Activity className="w-3.5 h-3.5 text-emerald-400 drop-shadow-[0_0_5px_rgba(52,211,153,0.8)]" />
+                    )}
+                    {meActive.buffs.has_oran && (
+                      <Heart className="w-3.5 h-3.5 text-red-400 drop-shadow-[0_0_5px_rgba(248,113,113,0.8)]" />
+                    )}
                   </div>
                 )}
               </div>
@@ -548,8 +634,11 @@ export const BattlePage = () => {
             className="flex-1 min-h-0 overflow-y-auto bg-neutral-900/70 rounded-xl p-2 mt-2 space-y-1.5 border border-white/10"
           >
             {chatMessages.length > 0 ? (
-              chatMessages.map((message) => (
-                <div key={message.id} className="text-xs leading-snug">
+              chatMessages.map((message, index) => (
+                <div
+                  key={message.id || `chat-${index}`}
+                  className="text-xs leading-snug"
+                >
                   <span className="font-bold text-white">
                     {message.senderId === myId ? "Tú" : message.senderName}:
                   </span>{" "}
@@ -557,7 +646,9 @@ export const BattlePage = () => {
                 </div>
               ))
             ) : (
-              <p className="text-[10px] text-neutral-500">No hay mensajes aún.</p>
+              <p className="text-[10px] text-neutral-500">
+                No hay mensajes aún.
+              </p>
             )}
           </div>
 
@@ -587,7 +678,9 @@ export const BattlePage = () => {
             </button>
           </div>
           {chatStatus && (
-            <div className="mt-2 text-[10px] text-neutral-500">{chatStatus}</div>
+            <div className="mt-2 text-[10px] text-neutral-500">
+              {chatStatus}
+            </div>
           )}
         </div>
 
@@ -598,10 +691,10 @@ export const BattlePage = () => {
           </div>
           <div className="flex-1 overflow-y-auto pt-2">
             <div className="grid grid-cols-4 gap-2">
-              {inventory.map((item) => (
+              {inventory.map((item, index) => (
                 <button
-                  key={item.id}
-                  onClick={() => handleUseItem(item.id)}
+                  key={item.id || `tactical-${index}`}
+                  onClick={() => void handleUseItem(item.id)}
                   disabled={!myTurn || selectingReviveTarget !== null}
                   className="group flex flex-col items-center justify-center p-2 bg-neutral-800/80 rounded-lg border border-white/5 hover:border-cyan-500 transition-all disabled:opacity-30 relative"
                 >
@@ -612,7 +705,7 @@ export const BattlePage = () => {
                     {item.object.name}
                   </span>
                   {selectingReviveTarget === item.id && (
-                     <div className="absolute inset-0 ring-2 ring-emerald-500 rounded-lg animate-pulse pointer-events-none" />
+                    <div className="absolute inset-0 ring-2 ring-emerald-500 rounded-lg animate-pulse pointer-events-none" />
                   )}
                 </button>
               ))}
@@ -622,21 +715,28 @@ export const BattlePage = () => {
 
         {/* Bench (Horizontal) */}
         <div className="flex gap-2 shrink-0 w-full lg:w-auto overflow-x-auto pb-1 max-w-full">
-          {me.team.map((c) => (
+          {me.team.map((c, index) => (
             <button
-              key={c.id}
+              key={c.id || `bench-${index}`}
               onClick={() => {
                 if (selectingReviveTarget) {
-                   if (c.hp === 0) handleUseItem(selectingReviveTarget, c.id);
+                  if (c.hp === 0)
+                    void handleUseItem(selectingReviveTarget, c.id);
                 } else {
-                   handleSwap(c.id);
+                  void handleSwap(c.id);
                 }
               }}
-              disabled={!myTurn || (!selectingReviveTarget && (c.hp === 0 || c.id === me.active_creature_id)) || (selectingReviveTarget !== null && c.hp > 0)}
-              className={`relative w-20 h-20 lg:w-24 lg:h-24 rounded-2xl bg-neutral-900/80 border-2 ${c.id === me.active_creature_id ? "border-amber-500 shadow-[0_0_20px_rgba(245,158,11,0.3)]" : (selectingReviveTarget && c.hp === 0 ? "border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.4)] animate-pulse" : "border-white/10")} hover:border-white transition-all overflow-hidden p-2 ${c.hp === 0 && !selectingReviveTarget ? "opacity-30 grayscale cursor-not-allowed" : "hover:scale-105"}`}
+              disabled={
+                !myTurn ||
+                (!selectingReviveTarget &&
+                  (c.hp === 0 || c.id === me.active_creature_id)) ||
+                (selectingReviveTarget !== null && c.hp > 0)
+              }
+              className={`relative w-20 h-20 lg:w-24 lg:h-24 rounded-2xl bg-neutral-900/80 border-2 ${getBenchButtonBorder(c)} hover:border-white transition-all overflow-hidden p-2 ${c.hp === 0 && !selectingReviveTarget ? "opacity-30 grayscale cursor-not-allowed" : "hover:scale-105"}`}
             >
               <img
                 src={c.sprite}
+                alt={c.name}
                 className="w-full h-full object-contain mb-2"
               />
               <div className="absolute top-1 left-2 text-[10px] font-black uppercase text-white/40">

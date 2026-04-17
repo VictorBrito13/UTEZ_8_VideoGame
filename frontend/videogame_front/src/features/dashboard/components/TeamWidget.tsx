@@ -20,8 +20,8 @@ export const TeamWidget = () => {
       try {
         const response = await apiClient.get("/api/team/");
         setTeam(response.data);
-      } catch (error) {
-        console.error("Error fetching dashboard team:", error);
+      } catch {
+        // Squad widget stays empty on failure.
       }
     };
     fetchTeam();

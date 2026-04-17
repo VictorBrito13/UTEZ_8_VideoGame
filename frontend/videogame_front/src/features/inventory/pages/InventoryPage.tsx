@@ -28,9 +28,10 @@ interface InventoryItem {
 export const InventoryPage = () => {
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [useStatus, setUseStatus] = useState<{
     msg: string;
-    type: "success" | "error";
+    type: "success" | "error" | "info";
   } | null>(null);
 
   useEffect(() => {
@@ -41,9 +42,12 @@ export const InventoryPage = () => {
         const invData = Array.isArray(response.data)
           ? response.data[0]
           : response.data;
-        setItems(invData.items || []);
-      } catch (error) {
-        console.error("Error fetching inventory:", error);
+        setItems(invData?.items || []);
+        setLoadError(null);
+      } catch {
+        setLoadError(
+          "Could not load your inventory. Please refresh or try again later.",
+        );
       } finally {
         setLoading(false);
       }
@@ -51,17 +55,18 @@ export const InventoryPage = () => {
     fetchInventory();
   }, []);
 
-  const handleUseItem = async (itemId: number) => {
+  const handleUseItem = async (_itemId: number) => {
     try {
-      // Need a creature ID to use on. For now, we'll ask the user or pick the first from team
-      console.log(`Preparing to use item ID: ${itemId}`);
       setUseStatus({
-        msg: "Select a creature from 'My Collection' to apply this item.",
-        type: "success",
+        msg: "Items are used during battles. Start a match from the dashboard.",
+        type: "info",
       });
       setTimeout(() => setUseStatus(null), 4000);
-    } catch (error) {
-      setUseStatus({ msg: "Critical error using item.", type: "error" });
+    } catch {
+      setUseStatus({
+        msg: "Something went wrong. Please try again.",
+        type: "error",
+      });
     }
   };
 
@@ -93,22 +98,32 @@ export const InventoryPage = () => {
           </div>
 
           <AnimatePresence>
-            {useStatus && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                className={`mb-6 p-4 rounded-xl border flex items-center gap-3 ${
-                  useStatus.type === "success"
-                    ? "bg-emerald-500/10 border-emerald-500/50 text-emerald-400"
-                    : "bg-red-500/10 border-red-500/50 text-red-400"
-                }`}
-              >
+            {useStatus && (() => {
+              let statusClasses = "bg-red-500/10 border-red-500/50 text-red-400";
+              if (useStatus.type === "success") {
+                statusClasses = "bg-emerald-500/10 border-emerald-500/50 text-emerald-400";
+              } else if (useStatus.type === "info") {
+                statusClasses = "bg-cyan-500/10 border-cyan-500/40 text-cyan-200";
+              }
+              return (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  className={`mb-6 p-4 rounded-xl border flex items-center gap-3 ${statusClasses}`}
+                >
                 <AlertCircle size={18} />
-                <p className="font-bold">{useStatus.msg}</p>
-              </motion.div>
-            )}
+                  <p className="font-bold">{useStatus.msg}</p>
+                </motion.div>
+              );
+            })()}
           </AnimatePresence>
+
+          {loadError && !loading && (
+            <div className="mb-8 p-6 rounded-2xl border border-red-500/40 bg-red-500/10 text-red-300 text-sm font-medium text-center">
+              {loadError}
+            </div>
+          )}
 
           {loading ? (
             <div className="flex justify-center items-center h-64">
@@ -118,7 +133,7 @@ export const InventoryPage = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {items.map((item, index) => (
                 <motion.div
-                  key={item.id}
+                  key={item.id || `inv-${index}`}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.05 }}
@@ -149,11 +164,13 @@ export const InventoryPage = () => {
                           <Package size={24} className="opacity-50" />
                         )}
                       </AnimatePresence>
-                      
+
                       {/* Inner Glow */}
-                      <div className={`absolute inset-0 rounded-xl bg-gradient-to-tr from-transparent to-white/5 opacity-0 group-hover:opacity-100 transition-opacity`}></div>
+                      <div
+                        className={`absolute inset-0 rounded-xl bg-gradient-to-tr from-transparent to-white/5 opacity-0 group-hover:opacity-100 transition-opacity`}
+                      ></div>
                     </div>
-                    
+
                     <div className="text-right">
                       <span className="text-2xl font-black italic text-neutral-700 group-hover:text-amber-500/20 transition-colors">
                         x{item.quantity}
@@ -195,7 +212,7 @@ export const InventoryPage = () => {
             </div>
           )}
 
-          {!loading && items.length === 0 && (
+          {!loading && !loadError && items.length === 0 && (
             <div className="text-center py-24 bg-neutral-900/20 border border-dashed border-white/10 rounded-3xl">
               <div className="w-16 h-16 bg-neutral-800 rounded-full flex items-center justify-center mx-auto mb-4 border border-white/5 text-neutral-500">
                 <ShoppingBag size={32} />

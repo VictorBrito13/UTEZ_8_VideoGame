@@ -80,14 +80,19 @@ const LeaderboardPage: React.FC = () => {
                 <tbody>
                   {entries.map((row, index) => {
                     const rank = index + 1;
-                    const medal =
-                      rank === 1
-                        ? "text-amber-400"
-                        : rank === 2
-                          ? "text-neutral-300"
-                          : rank === 3
-                            ? "text-amber-700"
-                            : "text-neutral-600";
+                    
+                    let medal = "text-neutral-600";
+                    if (rank === 1) medal = "text-amber-400";
+                    else if (rank === 2) medal = "text-neutral-300";
+                    else if (rank === 3) medal = "text-amber-700";
+
+                    let avatarContent = <div className="text-neutral-500 font-black text-xs uppercase">{row.username.charAt(0)}</div>;
+                    if (row.fotoBase64) {
+                      avatarContent = <img src={row.fotoBase64} alt={row.username} className="h-full w-full object-cover" />;
+                    } else if (row.trainerSprite) {
+                      avatarContent = <img src={row.trainerSprite} alt={row.username} className="h-7 w-7 object-contain" style={{ imageRendering: "pixelated" }} />;
+                    }
+
                     return (
                       <tr
                         key={row.userId}
@@ -102,7 +107,12 @@ const LeaderboardPage: React.FC = () => {
                           </span>
                         </td>
                         <td className="px-6 py-4 font-bold text-white">
-                          {row.username}
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 overflow-hidden rounded-full border border-white/10 bg-neutral-800 flex shrink-0 items-center justify-center">
+                              {avatarContent}
+                            </div>
+                            {row.username}
+                          </div>
                         </td>
                         <td className="px-6 py-4 text-right font-mono text-cyan-400">
                           {row.elo}

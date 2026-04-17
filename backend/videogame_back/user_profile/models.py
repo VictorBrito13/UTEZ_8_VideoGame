@@ -97,3 +97,19 @@ class Ranking(models.Model):
 
   def __str__(self):
     return f"{self.user.username} (ELO: {self.elo})"
+  
+  def clean(self):
+    # Security: Validations to prevent data corruption
+    if self.wins < 0:
+      raise ValueError("Wins cannot be negative")
+    if self.losses < 0:
+      raise ValueError("Losses cannot be negative")
+    if self.elo < 0:
+      raise ValueError("ELO cannot be negative")
+    # Security: Validate reasonable ELO range (0-4000)
+    if self.elo > 4000:
+      raise ValueError("ELO exceeds maximum allowed value")
+      
+  def save(self, *args, **kwargs):
+    self.full_clean()
+    super().save(*args, **kwargs)

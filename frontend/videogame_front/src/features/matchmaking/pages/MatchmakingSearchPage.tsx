@@ -6,11 +6,22 @@ import { Heading } from "../../../common/ui/Heading";
 import { Text } from "../../../common/ui/Text";
 import { BackButton } from "../../../common/ui/BackButton";
 import { useMatchmaking } from "../hooks/useMatchmaking";
+import { useEffect } from "react";
 
 const MatchmakingSearchPage = () => {
   const token = localStorage.getItem("access_token");
   const navigate = useNavigate();
   const { state, cancelSearch } = useMatchmaking();
+
+  useEffect(() => {
+    if (state.phase === "matched" && state.match) {
+      const battleId = state.match.battleId;
+      const timer = setTimeout(() => {
+        navigate(`/battle/${battleId}`);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [state.phase, state.match, navigate]);
 
   if (!token) {
     return <Navigate to="/login" replace />;

@@ -25,6 +25,7 @@ export const PokedexPage = () => {
   const [draftTeam, setDraftTeam] = useState<Creature[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [message, setMessage] = useState<{
     text: string;
     type: "success" | "error";
@@ -56,8 +57,11 @@ export const PokedexPage = () => {
 
       setDraftTeam(initialDraft);
       setOriginalTeamIds(initialDraft.map((m: any) => m.id));
-    } catch (error) {
-      console.error("Error fetching Pokedex data:", error);
+      setLoadError(null);
+    } catch {
+      setLoadError(
+        "Could not load species or your squad. Please refresh or try again later.",
+      );
     } finally {
       setLoading(false);
     }
@@ -103,8 +107,8 @@ export const PokedexPage = () => {
   );
 
   const isModified =
-    JSON.stringify([...originalTeamIds].sort()) !==
-    JSON.stringify([...draftTeam.map((m) => m.id)].sort());
+    JSON.stringify([...originalTeamIds].sort((a, b) => a - b)) !==
+    JSON.stringify([...draftTeam.map((m) => m.id)].sort((a, b) => a - b));
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -120,6 +124,13 @@ export const PokedexPage = () => {
               Accessing Global Species Database // Deck_Builder_Mode
             </p>
           </div>
+
+          {loadError && !loading && (
+            <div className="mb-8 p-5 rounded-[2rem] border border-red-500/40 bg-red-500/10 text-red-300 text-sm font-medium flex items-center gap-3">
+              <ShieldAlert size={20} />
+              {loadError}
+            </div>
+          )}
 
           <AnimatePresence>
             {message && (
@@ -145,7 +156,7 @@ export const PokedexPage = () => {
             )}
           </AnimatePresence>
 
-          {!loading && (
+          {!loading && !loadError && (
             <SquadBar
               draftTeam={draftTeam.map((d) => ({
                 id: d.id,
@@ -181,11 +192,13 @@ export const PokedexPage = () => {
             </div>
           </div>
 
-          {loading ? (
+          {loading && (
             <div className="flex justify-center items-center h-64">
               <div className="w-16 h-16 border-4 border-white/5 border-t-white rounded-full animate-spin"></div>
             </div>
-          ) : (
+          )}
+
+          {!loading && !loadError && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
               {filteredCreatures.map((creature, index) => {
                 const isSelected = draftTeam.some((m) => m.id === creature.id);

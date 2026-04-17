@@ -7,46 +7,47 @@ import { Heading } from "../../../common/ui/Heading";
 import { Text } from "../../../common/ui/Text";
 import { motion } from "framer-motion";
 
+/** Must match `VALID_TRAINER_SPRITES` on the backend (user_profile.serializers). */
 const HERO_AVATARS = [
   {
     id: 1,
     name: "RED_HERO",
-    url: "https://play.pokemonshowdown.com/sprites/trainers/red.png",
+    url: "https://cdn.jsdelivr.net/npm/pokeapi-sprites/sprites/trainers/1.png",
   },
   {
     id: 2,
     name: "BLUE_RIVAL",
-    url: "https://play.pokemonshowdown.com/sprites/trainers/blue.png",
+    url: "https://cdn.jsdelivr.net/npm/pokeapi-sprites/sprites/trainers/2.png",
   },
   {
     id: 3,
     name: "DAWN",
-    url: "https://play.pokemonshowdown.com/sprites/trainers/dawn.png",
+    url: "https://cdn.jsdelivr.net/npm/pokeapi-sprites/sprites/trainers/3.png",
   },
   {
     id: 4,
     name: "ETHAN_SOUL",
-    url: "https://play.pokemonshowdown.com/sprites/trainers/ethan.png",
+    url: "https://cdn.jsdelivr.net/npm/pokeapi-sprites/sprites/trainers/5.png",
   },
   {
     id: 5,
     name: "LYRA_HEART",
-    url: "https://play.pokemonshowdown.com/sprites/trainers/lyra.png",
+    url: "https://cdn.jsdelivr.net/npm/pokeapi-sprites/sprites/trainers/7.png",
   },
   {
     id: 6,
     name: "BRENDAN_RUBY",
-    url: "https://play.pokemonshowdown.com/sprites/trainers/brendan.png",
+    url: "https://cdn.jsdelivr.net/npm/pokeapi-sprites/sprites/trainers/10.png",
   },
   {
     id: 7,
     name: "MAY_SAPPHIRE",
-    url: "https://play.pokemonshowdown.com/sprites/trainers/may.png",
+    url: "https://cdn.jsdelivr.net/npm/pokeapi-sprites/sprites/trainers/12.png",
   },
   {
     id: 8,
     name: "SILVER",
-    url: "https://play.pokemonshowdown.com/sprites/trainers/silver.png",
+    url: "https://cdn.jsdelivr.net/npm/pokeapi-sprites/sprites/trainers/13.png",
   },
 ];
 
@@ -92,15 +93,15 @@ const RegisterPage: React.FC = () => {
             </Text>
           </div>
 
-          {error && (
+          {error ? (
             <motion.div
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
-              className="mb-8 p-4 bg-red-500/10 border border-red-500/30 rounded-2xl text-red-400 text-xs font-bold text-center uppercase tracking-widest"
+              className="mb-8 p-4 bg-red-500/10 border border-red-500/30 rounded-2xl text-red-400 text-xs font-semibold text-center leading-relaxed"
             >
-              System Error: {error}
+              {typeof error === "string" ? error : "Registration failed."}
             </motion.div>
-          )}
+          ) : null}
 
           <form onSubmit={handleRegister} className="space-y-10">
             {/* HERO SELECTION GRID */}

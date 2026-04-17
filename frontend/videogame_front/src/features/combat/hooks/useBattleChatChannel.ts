@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { encryptJson } from "../../../common/utils/payloadCrypto";
 import { BASE_URL } from "../../../common/utils/url";
 import type { ChatMessage } from "../types";
 
@@ -43,8 +44,11 @@ export function useBattleChatChannel({
 
         if (type === "chat_message") {
           const senderId = Number(data.sender_id ?? 0);
-          const senderName = String(data.sender_username ?? "Unknown");
-          const message = String(data.message ?? "");
+          const senderName =
+            typeof data.sender_username === "string"
+              ? data.sender_username
+              : "Unknown";
+          const message = typeof data.message === "string" ? data.message : "";
 
           if (message) {
             onMessage({
@@ -59,13 +63,22 @@ export function useBattleChatChannel({
 
         if (type === "chat_history") {
           const messages = Array.isArray(data.messages) ? data.messages : [];
-          messages.forEach((historyItem) => {
+          messages.forEach((historyItem, index) => {
             const senderId = Number(historyItem.sender_id ?? 0);
-            const senderName = String(
-              historyItem.sender_username ?? historyItem["sender__username"] ?? "Unknown",
-            );
-            const message = String(historyItem.message ?? "");
-            const id = Number(historyItem.id ?? Date.now());
+            let senderName = "Unknown";
+            if (typeof historyItem.sender_username === "string") {
+              senderName = historyItem.sender_username;
+            } else if (typeof historyItem["sender__username"] === "string") {
+              senderName = historyItem["sender__username"];
+            }
+            const message =
+              typeof historyItem.message === "string"
+                ? historyItem.message
+                : "";
+            // Use index to ensure uniqueness if ID is missing or duplicate in history
+            const id = historyItem.id
+              ? Number(historyItem.id)
+              : Date.now() + index;
 
             if (message) {
               onMessage({ id, senderId, senderName, text: message });
@@ -75,11 +88,12 @@ export function useBattleChatChannel({
         }
 
         if (type === "error" || type === "rate_limited") {
-          onSystemMessage?.(String(data.message ?? "Chat error."));
+          onSystemMessage?.(
+            typeof data.message === "string" ? data.message : "Chat error.",
+          );
         }
-      } catch (err) {
+      } catch {
         onSystemMessage?.("Chat parse error.");
-        console.error("Chat WS parse error:", err);
       }
     };
 
@@ -106,7 +120,7 @@ export function useBattleChatChannel({
     };
   }, [battleId, onMessage, onSystemMessage]);
 
-  const sendMessage = (message: string) => {
+  const sendMessage = async (message: string) => {
     const trimmed = message.trim();
     if (!trimmed || !wsRef.current) {
       return false;
@@ -117,7 +131,10 @@ export function useBattleChatChannel({
       return false;
     }
 
-    wsRef.current.send(JSON.stringify({ type: "chat.message", message: trimmed }));
+    const message_encrypted = await encryptJson(trimmed);
+    wsRef.current.send(
+      JSON.stringify({ type: "chat.message", message_encrypted }),
+    );
     return true;
   };
 

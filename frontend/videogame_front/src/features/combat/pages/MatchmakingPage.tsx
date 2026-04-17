@@ -1,92 +1,117 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Swords, Search, XCircle, ShieldAlert } from "lucide-react";
+import { toast } from "sonner";
+import { Swords, Search, XCircle } from "lucide-react";
 import { BackButton } from "../../../common/ui/BackButton";
 import { BASE_URL } from "../../../common/utils/url";
 
+function processMatchmakingMessage(
+  event: MessageEvent,
+  ws: WebSocket,
+  searchingRef: { current: boolean },
+  setStatus: React.Dispatch<React.SetStateAction<"idle" | "searching" | "found">>,
+  setMessage: React.Dispatch<React.SetStateAction<string>>,
+  setOpponent: React.Dispatch<React.SetStateAction<any>>,
+  navigate: (path: string) => void,
+) {
+  try {
+    const data = JSON.parse(event.data);
+    switch (data.type) {
+      case "matchmaking.queued":
+        setMessage(`In queue. Your ELO: ${data.elo}. Broadening search...`);
+        break;
+      case "matchmaking.cancelled":
+        searchingRef.current = false;
+        setStatus("idle");
+        setMessage("Search cancelled.");
+        navigate("/");
+        break;
+      case "matchmaking.found":
+        searchingRef.current = false;
+        setStatus("found");
+        setOpponent(data.opponent);
+        setMessage("Opponent found! Connecting to battle arena...");
+        setTimeout(() => {
+          navigate(`/battle/${data.battleId}`);
+          ws.close();
+        }, 3000);
+        break;
+      case "error":
+      case "rate_limited": {
+        searchingRef.current = false;
+        const errText =
+          typeof data.message === "string" && data.message.length > 0
+            ? data.message
+            : "An error occurred";
+        toast.error(errText);
+        setStatus("idle");
+        setMessage("");
+        ws.close();
+        navigate("/");
+        break;
+      }
+    }
+  } catch {
+    // Ignore invalid JSON
+  }
+}
+
 export const MatchmakingPage = () => {
-  const [status, setStatus] = useState<
-    "idle" | "searching" | "found" | "error"
-  >("idle");
+  const [status, setStatus] = useState<"idle" | "searching" | "found">("idle");
   const [message, setMessage] = useState("");
   const [opponent, setOpponent] = useState<any>(null);
   const wsRef = useRef<WebSocket | null>(null);
+  const searchingRef = useRef(false);
   const navigate = useNavigate();
 
   const handleStartSearch = () => {
     setStatus("searching");
+    searchingRef.current = true;
     setMessage("Searching for opponent...");
 
-    // Connect to WebSocket
     const token = localStorage.getItem("access_token") || "";
-    const wsUrl = BASE_URL.replace("http://", "ws://").replace(
-      "https://",
-      "wss://",
-    );
+    const wsUrl = BASE_URL.replace("http://", "ws://").replace("https://", "wss://");
     const ws = new WebSocket(`${wsUrl}/ws/matchmaking?token=${token}`);
     wsRef.current = ws;
 
     ws.onopen = () => {
-      // Send join message
       ws.send(JSON.stringify({ type: "matchmaking.join" }));
     };
 
-    ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        console.log("Matchmaking event:", data);
-
-        switch (data.type) {
-          case "matchmaking.queued":
-            setMessage(`In queue. Your ELO: ${data.elo}. Broadening search...`);
-            break;
-          case "matchmaking.found":
-            setStatus("found");
-            setOpponent(data.opponent);
-            setMessage("Opponent found! Connecting to battle arena...");
-
-            // Navigate to battle arena after a short delay
-            setTimeout(() => {
-              navigate(`/battle/${data.battleId}`);
-              ws.close();
-            }, 3000);
-            break;
-          case "error":
-          case "rate_limited":
-            setStatus("error");
-            setMessage(data.message || "An error occurred");
-            ws.close();
-            break;
-        }
-      } catch (err) {
-        console.error("Error parsing matchmaking message:", err);
-      }
+    ws.onmessage = (evt) => {
+      processMatchmakingMessage(evt, ws, searchingRef, setStatus, setMessage, setOpponent, navigate);
     };
 
-    ws.onerror = (error) => {
-      console.error("Matchmaking WS Error:", error);
-      setStatus("error");
-      setMessage("Connection error. Ensure the server is running.");
+    ws.onerror = () => {
+      searchingRef.current = false;
+      toast.error("Connection error. Ensure the server is running.");
+      setStatus("idle");
+      setMessage("");
       ws.close();
+      navigate("/");
     };
 
     ws.onclose = () => {
-      if (status === "searching") {
+      if (searchingRef.current) {
+        searchingRef.current = false;
         setStatus("idle");
         setMessage("Search cancelled.");
+        navigate("/");
       }
     };
   };
 
   const handleCancelSearch = () => {
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+    searchingRef.current = false;
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({ type: "matchmaking.cancel" }));
       wsRef.current.close();
     }
     setStatus("idle");
     setMessage("Search cancelled.");
     setOpponent(null);
+    navigate("/");
   };
 
   useEffect(() => {
@@ -95,7 +120,7 @@ export const MatchmakingPage = () => {
 
     // Cleanup on unmount
     return () => {
-      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
         wsRef.current.send(JSON.stringify({ type: "matchmaking.cancel" }));
         wsRef.current.close();
       }
@@ -216,27 +241,6 @@ export const MatchmakingPage = () => {
                   {message}
                 </p>
               </div>
-            </motion.div>
-          )}
-
-          {status === "error" && (
-            <motion.div
-              key="error"
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="flex flex-col items-center gap-6"
-            >
-              <div className="w-24 h-24 rounded-full bg-red-500/10 border border-red-500/50 flex items-center justify-center text-red-500">
-                <ShieldAlert size={40} />
-              </div>
-              <p className="font-bold text-red-400">{message}</p>
-              <button
-                onClick={() => setStatus("idle")}
-                className="w-full py-4 rounded-2xl bg-neutral-900 border border-white/10 text-white font-black hover:bg-neutral-800 transition-colors uppercase tracking-widest mt-4"
-              >
-                Try Again
-              </button>
             </motion.div>
           )}
         </AnimatePresence>

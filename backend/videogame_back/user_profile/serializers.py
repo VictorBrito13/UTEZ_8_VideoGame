@@ -1,7 +1,27 @@
 import base64
-from rest_framework import serializers
+import re
+from chat.utils import BAD_WORDS
+
 from django.contrib.auth.models import User
-from .models import Profile, UserCreature, Team, TeamCreature, Ranking
+from rest_framework import serializers
+
+from core.payload_crypto import decrypt_json
+
+from .models import Profile, Ranking, Team, TeamCreature, UserCreature
+
+VALID_TRAINER_SPRITES = [
+    "trainer_red.png",
+    "https://cdn.jsdelivr.net/npm/pokeapi-sprites/sprites/trainers/1.png",
+    "https://cdn.jsdelivr.net/npm/pokeapi-sprites/sprites/trainers/2.png",
+    "https://cdn.jsdelivr.net/npm/pokeapi-sprites/sprites/trainers/10.png",
+    "https://cdn.jsdelivr.net/npm/pokeapi-sprites/sprites/trainers/3.png",
+    "https://cdn.jsdelivr.net/npm/pokeapi-sprites/sprites/trainers/5.png",
+    "https://cdn.jsdelivr.net/npm/pokeapi-sprites/sprites/trainers/12.png",
+    "https://cdn.jsdelivr.net/npm/pokeapi-sprites/sprites/trainers/7.png",
+    "https://cdn.jsdelivr.net/npm/pokeapi-sprites/sprites/trainers/13.png",
+]
+
+BASE64_PREFIX = "base64,"
 
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
@@ -11,12 +31,69 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
   password = serializers.CharField(write_only=True)
   trainer_sprite = serializers.CharField(write_only=True, required=False)
+  email = serializers.EmailField(required=False, allow_blank=True)
+  email_encrypted = serializers.CharField(write_only=True, required=False)
 
   class Meta:
     model = User
-    fields = ["username", "email", "password", "trainer_sprite"]
+    fields = [
+      "username",
+      "email",
+      "email_encrypted",
+      "password",
+      "trainer_sprite",
+    ]
+
+  def validate_username(self, value: str) -> str:
+    if not re.match(r"^[a-zA-Z0-9_-]+$", value):
+      raise serializers.ValidationError(
+        "Username can only contain alphanumeric characters, underscores, and hyphens."
+      )
+    lower_val = value.lower()
+    for word in BAD_WORDS:
+      if word in lower_val:
+        raise serializers.ValidationError(
+          "Username contains inappropriate language."
+        )
+    return value
+
+  def validate_email(self, value: str) -> str:
+    normalized = (value or "").strip().lower()
+    if not normalized:
+      raise serializers.ValidationError("Email is required.")
+    if User.objects.filter(email__iexact=normalized).exists():
+      raise serializers.ValidationError(
+        "A user with this email already exists.",
+      )
+    return normalized
+
+  def validate(self, attrs):
+    initial = getattr(self, "initial_data", None) or {}
+    if initial.get("email_encrypted"):
+      try:
+        plain = decrypt_json(initial["email_encrypted"])
+      except ValueError as exc:
+        raise serializers.ValidationError(
+          {"email_encrypted": "Invalid encrypted email payload."}
+        ) from exc
+      if not isinstance(plain, str):
+        raise serializers.ValidationError(
+          {"email_encrypted": "Invalid encrypted email payload."}
+        )
+      attrs["email"] = self.validate_email(plain.strip().lower())
+    elif not (attrs.get("email") or "").strip():
+      raise serializers.ValidationError(
+        {"email": "Email is required."},
+      )
+    return attrs
+
+  def validate_trainer_sprite(self, value: str) -> str:
+    if value and value not in VALID_TRAINER_SPRITES:
+      raise serializers.ValidationError("Avatar seleccionado inválido o no autorizado.")
+    return value
 
   def create(self, validated_data):
+    validated_data.pop("email_encrypted", None)
     trainer_sprite = validated_data.pop("trainer_sprite", None)
     user = User.objects.create_user(
       username=validated_data["username"],
@@ -39,6 +116,7 @@ class ProfileSerializer(serializers.ModelSerializer):
   """
 
   foto_base64 = serializers.CharField(required=False, allow_null=True)
+  bio_encrypted = serializers.CharField(write_only=True, required=False)
   username = serializers.ReadOnlyField(source="user.username")
   elo = serializers.IntegerField(source="user.ranking.elo", read_only=True)
   wins = serializers.IntegerField(source="user.ranking.wins", read_only=True)
@@ -55,20 +133,80 @@ class ProfileSerializer(serializers.ModelSerializer):
       "trainer_sprite",
       "foto_base64",
       "bio",
+      "bio_encrypted",
       "created_at",
     ]
 
+  def validate_trainer_sprite(self, value):
+    if value and value not in VALID_TRAINER_SPRITES:
+      raise serializers.ValidationError("Avatar seleccionado inválido o no autorizado.")
+    return value
+
+  def validate_foto_base64(self, value):
+    if not value:
+      return value
+
+    if len(value) > 5 * 1024 * 1024 * 1.33:
+      raise serializers.ValidationError("La imagen excede el límite de 5MB.")
+
+    foto_data = value
+    if BASE64_PREFIX in foto_data:
+      _, foto_data = foto_data.split(BASE64_PREFIX)
+        
+    try:
+      decoded_data = base64.b64decode(foto_data)
+    except Exception:
+      raise serializers.ValidationError("Formato Base64 inválido.")
+        
+    valid_signatures = {
+      b"\xff\xd8\xff": "image/jpeg",
+      b"\x89PNG\r\n\x1a\n": "image/png",
+      b"RIFF": "image/webp",
+    }
+    
+    is_valid = False
+    for sig in valid_signatures:
+      if decoded_data.startswith(sig):
+        if sig == b"RIFF" and decoded_data[8:12] != b"WEBP":
+          continue
+        is_valid = True
+        break
+            
+    if not is_valid:
+      raise serializers.ValidationError("El archivo no es una imagen válida (solo JPG, PNG, WEBP permitidos).")
+        
+    return value
+
+  def validate(self, attrs):
+    initial = getattr(self, "initial_data", None) or {}
+    if initial.get("bio_encrypted"):
+      try:
+        plain = decrypt_json(initial["bio_encrypted"])
+      except ValueError as exc:
+        raise serializers.ValidationError(
+          {"bio_encrypted": "Invalid encrypted bio payload."}
+        ) from exc
+      if not isinstance(plain, str):
+        raise serializers.ValidationError(
+          {"bio_encrypted": "Invalid encrypted bio payload."}
+        )
+      attrs["bio"] = plain
+    return attrs
+
   def update(self, instance, validated_data):
+    validated_data.pop("bio_encrypted", None)
     foto_data = validated_data.pop("foto_base64", None)
+
     if foto_data:
-      if "base64," in foto_data:
-        _, foto_data = foto_data.split("base64,")
+      if BASE64_PREFIX in foto_data:
+        _, foto_data = foto_data.split(BASE64_PREFIX)
       try:
         instance.foto_binaria = base64.b64decode(foto_data)
       except Exception:
         raise serializers.ValidationError(
           "Invalid Base64 format for profile picture."
         )
+
     return super().update(instance, validated_data)
 
 

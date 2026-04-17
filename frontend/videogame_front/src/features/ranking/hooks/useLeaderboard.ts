@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
+import axios from "axios";
 import apiClient from "../../../api/apiClient";
+import { encryptJson } from "../../../common/utils/payloadCrypto";
 import type { LeaderboardEntry } from "../types";
 
 type UseLeaderboardResult = {
@@ -19,16 +21,23 @@ export function useLeaderboard(limit = 100): UseLeaderboardResult {
     const load = async () => {
       try {
         setLoading(true);
+        const e_limit = await encryptJson(limit);
         const { data } = await apiClient.get("/api/leaderboard", {
-          params: { limit },
+          params: { e_limit },
         });
         if (!cancelled) {
           setEntries(data.results ?? []);
           setError(null);
         }
-      } catch {
+      } catch (err: unknown) {
         if (!cancelled) {
-          setError("Failed to load leaderboard.");
+          if (axios.isAxiosError(err) && !err.response) {
+            setError(
+              "Unable to reach the server. Check your connection and try again.",
+            );
+          } else {
+            setError("Could not load the leaderboard. Please try again.");
+          }
         }
       } finally {
         if (!cancelled) {

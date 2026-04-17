@@ -6,6 +6,7 @@ Run with: python manage.py shell < test_error_handling.py
 
 import os
 import django
+import pytest
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "videogame_back.settings")
 django.setup()
@@ -14,6 +15,7 @@ from django.contrib.auth.models import User
 from combat.models import Battle
 
 
+@pytest.mark.django_db
 def test_error_handling():
   print("🛡️ Testing Battle Error Handling...")
 
