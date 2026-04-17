@@ -59,17 +59,22 @@ class ProfileSerializer(serializers.ModelSerializer):
     ]
 
   def update(self, instance, validated_data):
-    foto_data = validated_data.pop("foto_base64", None)
-    if foto_data:
-      if "base64," in foto_data:
-        _, foto_data = foto_data.split("base64,")
-      try:
-        instance.foto_binaria = base64.b64decode(foto_data)
-      except Exception:
-        raise serializers.ValidationError(
-          "Invalid Base64 format for profile picture."
-        )
-    return super().update(instance, validated_data)
+        foto_data = validated_data.pop("foto_base64", None)
+
+        if foto_data:
+            if "base64," in foto_data:
+                _, foto_data = foto_data.split("base64,")
+            try:
+                instance.foto_binaria = base64.b64decode(foto_data)
+            except Exception:
+                raise serializers.ValidationError(
+                    "Invalid Base64 format for profile picture."
+                )
+
+        if "foto" in validated_data:
+            instance.foto = validated_data["foto"]
+
+        return super().update(instance, validated_data)
 
 
 class UserSerializer(serializers.ModelSerializer):

@@ -251,3 +251,6 @@ if importlib.util.find_spec("argon2") is not None:
   PASSWORD_HASHERS.insert(
     0, "django.contrib.auth.hashers.Argon2PasswordHasher"
   )
+  
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'

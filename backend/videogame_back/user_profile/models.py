@@ -18,6 +18,8 @@ class Profile(models.Model):
 
   # Personal Photo (Binary/Base64)
   foto_binaria = models.BinaryField(null=True, blank=True)
+  # Photo Media
+  foto = models.ImageField(upload_to='profiles/', null=True, blank=True)
 
   bio = models.TextField(max_length=500, blank=True)
   created_at = models.DateTimeField(auto_now_add=True)
