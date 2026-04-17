@@ -10,10 +10,10 @@ from django.contrib.auth import get_user_model
 
 @database_sync_to_async
 def get_user(user_id):
-  User = get_user_model()
+  user_model = get_user_model()
   try:
-    return User.objects.get(id=user_id)
-  except User.DoesNotExist:
+    return user_model.objects.get(id=user_id)
+  except user_model.DoesNotExist:
     return AnonymousUser()
 
 

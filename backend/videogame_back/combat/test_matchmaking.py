@@ -1,6 +1,7 @@
 """Unit tests for matchmaking queue (no Channels WebSocket required)."""
 
 from datetime import timedelta
+from unittest.mock import patch
 
 from django.test import TestCase
 
@@ -88,3 +89,31 @@ class MatchmakingQueueTests(TestCase):
     backend.upsert_ticket(third)
     pair = try_match_for_user(backend, 3, cfg, now=now)
     self.assertIsNone(pair)
+
+  def test_skip_pairing_if_players_fought_recently(self):
+    """Anti-smurf: skip pairing if two users fought in last N minutes"""
+    backend = InMemoryMatchmakingBackend()
+    cfg = MatchmakingConfig()
+
+    now = _now_utc()
+    t1 = MatchmakingTicket(
+      user_id=1,
+      elo=1000,
+      queued_at=now,
+      channel_name="ch1",
+    )
+    t2 = MatchmakingTicket(
+      user_id=2,
+      elo=1000,
+      queued_at=now,
+      channel_name="ch2",
+    )
+    backend.upsert_ticket(t1)
+    backend.upsert_ticket(t2)
+
+    with patch(
+      "combat.matchmaking.service._have_played_together_recently",
+      return_value=True,
+    ):
+      pair = try_match_for_user(backend, 1, cfg, now=now)
+      self.assertIsNone(pair)

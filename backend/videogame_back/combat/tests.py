@@ -549,3 +549,44 @@ class BattleActionHandlersTests(SimpleTestCase):
     self.consumer.send_json.assert_awaited_with(
       {"type": "error", "message": "Failed to process action"}
     )
+
+  def test_handle_start_battle_cannot_start(self):
+    """Test _handle_start_battle error when battle cannot start"""
+    self.consumer._can_start_battle = AsyncMock(return_value=False)
+    async_to_sync(self.consumer._handle_start_battle)()
+    self.consumer.send_json.assert_awaited_with(
+      {"type": "error", "message": "Cannot start battle"}
+    )
+
+  def test_award_victory_by_abandonment_rejects_invalid_scenario(self):
+    self.consumer._battle = SimpleNamespace(status=Battle.BattleStatus.PLAYING)
+    self.consumer._validate_abandonment_scenario_async = AsyncMock(
+      return_value=False
+    )
+
+    async_to_sync(self.consumer._award_victory_by_abandonment)(
+      SimpleNamespace(id=2, username="winner")
+    )
+
+    self.consumer.send_json.assert_awaited_with(
+      {
+        "type": "error",
+        "message": "Invalid abandonment scenario detected",
+      }
+    )
+
+  def test_award_victory_by_abandonment_handles_finalize_failure(self):
+    self.consumer._battle = SimpleNamespace(status=Battle.BattleStatus.PLAYING)
+    self.consumer._validate_abandonment_scenario_async = AsyncMock(
+      return_value=True
+    )
+    self.consumer._finalize_battle_sync = AsyncMock(
+      return_value={"success": False, "error": "db_error"}
+    )
+    self.consumer._refresh_battle_sync = AsyncMock()
+
+    async_to_sync(self.consumer._award_victory_by_abandonment)(
+      SimpleNamespace(id=2, username="winner")
+    )
+
+    self.consumer._refresh_battle_sync.assert_not_awaited()

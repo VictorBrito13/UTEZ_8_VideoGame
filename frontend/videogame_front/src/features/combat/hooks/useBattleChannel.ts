@@ -14,6 +14,7 @@ type UseBattleChannelParams = {
   battleId: string | undefined;
   myId: number | null;
   setBattleState: Dispatch<SetStateAction<BattleState | null>>;
+  battleStateRef: { current: BattleState | null };
   setWinnerId: Dispatch<SetStateAction<number | null>>;
   setInventory: Dispatch<SetStateAction<InventoryItem[]>>;
   addLog: (msg: string) => void;
@@ -32,6 +33,7 @@ type ProcessActionContext = {
   playerId: number;
   payload: Record<string, unknown>;
   setBattleState: Dispatch<SetStateAction<BattleState | null>>;
+  battleStateRef: { current: BattleState | null };
   setIsAttacking?: Dispatch<SetStateAction<string | null>>;
   setIsHit?: Dispatch<SetStateAction<string | null>>;
   setFloatingDamage?: Dispatch<
@@ -47,17 +49,12 @@ type ProcessActionContext = {
 
 const processAttackAction = (ctx: ProcessActionContext) => {
   const damage = ctx.payload.damage as number;
+  const currentBattle = ctx.battleStateRef.current;
+  if (!currentBattle) return;
 
-  let validTag: AnimTarget | null = null;
-  ctx.setBattleState((current) => {
-    if (!current) return current;
-    validTag = ctx.playerId === current.player1.id ? "p1" : "p2";
-    return { ...current };
-  });
-
-  if (!validTag) return;
-  const attackerTag = validTag as AnimTarget;
-  const victimTag: AnimTarget = validTag === "p1" ? "p2" : "p1";
+  const attackerTag: AnimTarget =
+    ctx.playerId === currentBattle.player1.id ? "p1" : "p2";
+  const victimTag: AnimTarget = attackerTag === "p1" ? "p2" : "p1";
 
   ctx.setIsAttacking?.(attackerTag);
 
@@ -127,6 +124,8 @@ const processUseItemAction = (ctx: ProcessActionContext) => {
   const uid = ctx.myIdRef.current;
 
   let targetTag: AnimTarget | null = null;
+  const currentBattle = ctx.battleStateRef.current;
+  if (!currentBattle) return;
 
   ctx.setBattleState((prev) => {
     if (!prev) return prev;
@@ -175,6 +174,7 @@ export function useBattleChannel({
   battleId,
   myId,
   setBattleState,
+  battleStateRef,
   setWinnerId,
   setInventory,
   addLog,
@@ -258,11 +258,11 @@ export function useBattleChannel({
             const payload = data.data as Record<string, unknown>;
 
             if (action === "attack") {
-              processAttackAction({ playerId, payload, setBattleState, setIsAttacking, setIsHit, setFloatingDamage, myIdRef, addLogRef });
+              processAttackAction({ playerId, payload, setBattleState, battleStateRef, setIsAttacking, setIsHit, setFloatingDamage, myIdRef, addLogRef });
             } else if (action === "swap") {
-              processSwapAction({ playerId, payload, setBattleState, myIdRef, addLogRef });
+              processSwapAction({ playerId, payload, setBattleState, battleStateRef, myIdRef, addLogRef });
             } else if (action === "use_item") {
-              processUseItemAction({ playerId, payload, setBattleState, setUseItemVfx, setInventory, myIdRef, addLogRef });
+              processUseItemAction({ playerId, payload, setBattleState, battleStateRef, setUseItemVfx, setInventory, myIdRef, addLogRef });
             } else if (action === "skip_turn") {
               addLogRef.current(payload.message as string);
             }
@@ -295,5 +295,16 @@ export function useBattleChannel({
     return () => {
       ws.close();
     };
-  }, [battleId]);
+  }, [
+    battleId,
+    battleStateRef,
+    setBattleState,
+    setFloatingDamage,
+    setInventory,
+    setIsAttacking,
+    setIsHit,
+    setUseItemVfx,
+    setWinnerId,
+    wsRef,
+  ]);
 }

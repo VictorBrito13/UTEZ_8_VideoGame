@@ -30,6 +30,7 @@ export const BattlePage = () => {
   // Use logs silently to avoid unused var warning if necessary, or simply declare it
   console.debug("Battle logs:", logs.length);
   const wsRef = useRef<WebSocket | null>(null);
+  const battleStateRef = useRef<BattleState | null>(null);
   const [isAttacking, setIsAttacking] = useState<string | null>(null);
   const [isHit, setIsHit] = useState<string | null>(null);
   const [floatingDamage, setFloatingDamage] = useState<{
@@ -64,6 +65,25 @@ export const BattlePage = () => {
 
   // Fetch my profile and inventory
   useEffect(() => {
+    battleStateRef.current = battleState;
+  }, [battleState]);
+
+  useBattleChannel({
+    battleId,
+    myId,
+    setBattleState,
+    battleStateRef,
+    setWinnerId,
+    setInventory,
+    addLog,
+    setIsAttacking,
+    setIsHit,
+    setFloatingDamage,
+    setUseItemVfx,
+    wsRef,
+  });
+
+  useEffect(() => {
     const fetchData = async () => {
       try {
         const [profileRes, invRes] = await Promise.all([
@@ -85,20 +105,6 @@ export const BattlePage = () => {
     };
     fetchData();
   }, []);
-
-  useBattleChannel({
-    battleId,
-    myId,
-    setBattleState,
-    setWinnerId,
-    setInventory,
-    addLog,
-    setIsAttacking,
-    setIsHit,
-    setFloatingDamage,
-    setUseItemVfx,
-    wsRef,
-  });
 
   const { connected: chatConnected, sendMessage: sendChatMessage } =
     useBattleChatChannel({
