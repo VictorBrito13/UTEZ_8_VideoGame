@@ -178,7 +178,7 @@ class BattleConsumer(AsyncWebsocketConsumer):
       return None
 
   async def _award_victory_by_abandonment(self, winner: User) -> None:
-    """Award victory to a player due to opponent abandonment.
+    """Award victory to a player due to opponent abandonment with integrity validation.
 
     The disconnecting user (`self._user`) is always the loser. Do not use
     `_get_other_player()` for the loser: that returns the opponent of
@@ -187,6 +187,21 @@ class BattleConsumer(AsyncWebsocketConsumer):
     """
     try:
       abandoner = self._user
+      
+      # Security: Validate abandonment scenario
+      if not await self._validate_abandonment_scenario_async(winner, abandoner):
+        logger.error(
+          "Abandonment scenario validation failed battle_id={} winner={} abandoner={}",
+          self._battle_id,
+          winner.id,
+          abandoner.id
+        )
+        await self.send_json({
+          "type": "error",
+          "message": "Invalid abandonment scenario detected"
+        })
+        return
+      
       result = await self._finalize_battle_sync(winner, abandoner)
       if not result.get("success"):
         logger.error(
@@ -1219,6 +1234,16 @@ class BattleConsumer(AsyncWebsocketConsumer):
     from .models import Battle
 
     try:
+      # 0. Security: Validate battle integrity before finalizing
+      integrity_check = self._validate_battle_integrity_sync(winner, loser)
+      if not integrity_check["valid"]:
+        logger.error(
+          "Battle integrity check failed battle_id={} reason={}",
+          self._battle_id,
+          integrity_check["reason"]
+        )
+        return {"success": False, "error": f"Battle integrity validation failed: {integrity_check['reason']}"}
+      
       # 1. Update status and winner
       self._battle.status = Battle.BattleStatus.FINISHED
       self._battle.winner = winner
@@ -1291,8 +1316,246 @@ class BattleConsumer(AsyncWebsocketConsumer):
       logger.error(f"Error in _finalize_battle_sync: {e}")
       return {"success": False, "error": str(e)}
 
+  def _validate_battle_integrity_sync(self, winner: User, loser: User) -> dict:
+    """
+    Security: Complete battle integrity validation before ranking updates.
+    Verifies that the battle ended legitimately and all conditions are met.
+    """
+    try:
+      # 1. Verify battle is in proper state for finalization
+      if self._battle.status not in [Battle.BattleStatus.PLAYING, Battle.BattleStatus.WAITING, "matched"]:
+        return {"valid": False, "reason": f"Invalid battle status: {self._battle.status}"}
+      
+      # 2. Verify both teams exist and are valid
+      from user_profile.models import Team
+      
+      try:
+        winner_team = Team.objects.prefetch_related("team_creatures__user_creature").get(user=winner)
+        loser_team = Team.objects.prefetch_related("team_creatures__user_creature").get(user=loser)
+      except Team.DoesNotExist:
+        return {"valid": False, "reason": "Missing team for one or both players"}
+      
+      # 3. Verify loser has all creatures fainted (HP = 0)
+      loser_alive_creatures = []
+      for tc in loser_team.team_creatures.all():
+        if tc.user_creature.current_hp > 0:
+          loser_alive_creatures.append(tc.user_creature.id)
+      
+      if loser_alive_creatures:
+        return {
+          "valid": False, 
+          "reason": f"Loser has {len(loser_alive_creatures)} alive creatures: {loser_alive_creatures}"
+        }
+      
+      # 4. Verify winner has at least one creature alive
+      winner_alive_creatures = []
+      for tc in winner_team.team_creatures.all():
+        if tc.user_creature.current_hp > 0:
+          winner_alive_creatures.append(tc.user_creature.id)
+      
+      if not winner_alive_creatures:
+        return {"valid": False, "reason": "Winner has no alive creatures"}
+      
+      # 5. Verify battle participants match winner/loser
+      if self._battle.player1 not in [winner, loser] or self._battle.player2 not in [winner, loser]:
+        return {"valid": False, "reason": "Winner/loser not matching battle participants"}
+      
+      # 6. Additional security: Check for suspicious patterns
+      total_creatures_winner = winner_team.team_creatures.count()
+      total_creatures_loser = loser_team.team_creatures.count()
+      
+      if total_creatures_winner == 0 or total_creatures_loser == 0:
+        return {"valid": False, "reason": "One or both teams have no creatures"}
+      
+      # 7. Log successful integrity check
+      logger.info(
+        "Battle integrity validated battle_id={} winner={} loser={} winner_alive={} loser_alive={}",
+        self._battle_id,
+        winner.id,
+        loser.id,
+        len(winner_alive_creatures),
+        len(loser_alive_creatures)
+      )
+      
+      return {"valid": True, "reason": "All integrity checks passed"}
+      
+    except Exception as e:
+      logger.error(f"Error in battle integrity validation: {e}")
+      return {"valid": False, "reason": f"Validation error: {str(e)}"}
+
+  async def _verify_victory_conditions_async(self, winner: User, loser: User) -> bool:
+    """
+    Security: Async verification that victory conditions are legitimately met.
+    Double-checks that loser team is completely defeated.
+    """
+    try:
+      from user_profile.models import Team
+      
+      # Get loser team with current creature data
+      loser_team = await self._get_team_async(loser)
+      if not loser_team:
+        return False
+      
+      # Verify all loser creatures have HP = 0
+      all_fainted = True
+      fainted_creatures = []
+      
+      for tc in loser_team.team_creatures.all():
+        await self._refresh_user_creature_async(tc.user_creature)
+        if tc.user_creature.current_hp > 0:
+          all_fainted = False
+          fainted_creatures.append({
+            "id": tc.user_creature.id,
+            "name": tc.user_creature.creature.name,
+            "hp": tc.user_creature.current_hp
+          })
+      
+      if not all_fainted:
+        logger.warning(
+          "Victory validation failed - loser has alive creatures battle_id={} creatures={}",
+          self._battle_id,
+          fainted_creatures
+        )
+        return False
+      
+      # Verify winner has at least one alive creature
+      winner_team = await self._get_team_async(winner)
+      if not winner_team:
+        return False
+      
+      winner_has_alive = False
+      for tc in winner_team.team_creatures.all():
+        await self._refresh_user_creature_async(tc.user_creature)
+        if tc.user_creature.current_hp > 0:
+          winner_has_alive = True
+          break
+      
+      if not winner_has_alive:
+        logger.warning(
+          "Victory validation failed - winner has no alive creatures battle_id={}",
+          self._battle_id
+        )
+        return False
+      
+      logger.info(
+        "Victory conditions verified battle_id={} winner={} loser={}",
+        self._battle_id,
+        winner.id,
+        loser.id
+      )
+      
+      return True
+      
+    except Exception as e:
+      logger.error(f"Error in victory conditions verification: {e}")
+      return False
+
+  async def _get_team_async(self, user: User):
+    """Get team with async support"""
+    try:
+      from user_profile.models import Team
+      return await Team.objects.prefetch_related("team_creatures__user_creature").aget(user=user)
+    except Team.DoesNotExist:
+      return None
+
+  async def _refresh_user_creature_async(self, user_creature):
+    """Refresh user_creature from database"""
+    try:
+      from user_profile.models import UserCreature
+      fresh = await UserCreature.objects.aget(id=user_creature.id)
+      user_creature.current_hp = fresh.current_hp
+      user_creature.level = fresh.level
+    except UserCreature.DoesNotExist:
+      pass
+
+  async def _validate_abandonment_scenario_async(self, winner: User, abandoner: User) -> bool:
+    """
+    Security: Validate that abandonment scenario is legitimate.
+    Ensures battle is in proper state and participants are correct.
+    """
+    try:
+      # 1. Verify battle is in active state
+      if self._battle.status != Battle.BattleStatus.PLAYING:
+        logger.warning(
+          "Abandonment validation failed - battle not in PLAYING status battle_id={} status={}",
+          self._battle_id,
+          self._battle.status
+        )
+        return False
+      
+      # 2. Verify participants match battle
+      if self._battle.player1 not in [winner, abandoner] or self._battle.player2 not in [winner, abandoner]:
+        logger.warning(
+          "Abandonment validation failed - participants mismatch battle_id={} winner={} abandoner={} player1={} player2={}",
+          self._battle_id,
+          winner.id,
+          abandoner.id,
+          self._battle.player1.id,
+          self._battle.player2.id
+        )
+        return False
+      
+      # 3. Verify both teams exist and have creatures
+      winner_team = await self._get_team_async(winner)
+      abandoner_team = await self._get_team_async(abandoner)
+      
+      if not winner_team or not abandoner_team:
+        logger.warning(
+          "Abandonment validation failed - missing teams battle_id={} winner_team={} abandoner_team={}",
+          self._battle_id,
+          bool(winner_team),
+          bool(abandoner_team)
+        )
+        return False
+      
+      if winner_team.team_creatures.count() == 0 or abandoner_team.team_creatures.count() == 0:
+        logger.warning(
+          "Abandonment validation failed - empty teams battle_id={} winner_creatures={} abandoner_creatures={}",
+          self._battle_id,
+          winner_team.team_creatures.count(),
+          abandoner_team.team_creatures.count()
+        )
+        return False
+      
+      # 4. Verify abandoner is actually the disconnecting user
+      if abandoner != self._user:
+        logger.warning(
+          "Abandonment validation failed - abandoner mismatch battle_id={} expected={} actual={}",
+          self._battle_id,
+          self._user.id,
+          abandoner.id
+        )
+        return False
+      
+      logger.info(
+        "Abandonment scenario validated battle_id={} winner={} abandoner={}",
+        self._battle_id,
+        winner.id,
+        abandoner.id
+      )
+      
+      return True
+      
+    except Exception as e:
+      logger.error(f"Error in abandonment scenario validation: {e}")
+      return False
+
   async def _award_victory_normal(self, winner: User, loser: User) -> None:
-    """Award normal victory (HP depletion)"""
+    """Award normal victory (HP depletion) with integrity validation"""
+    # Security: Additional validation before awarding victory
+    if not await self._verify_victory_conditions_async(winner, loser):
+      logger.error(
+        "Victory conditions validation failed battle_id={} winner={} loser={}",
+        self._battle_id,
+        winner.id,
+        loser.id
+      )
+      await self.send_json({
+        "type": "error",
+        "message": "Invalid victory conditions detected"
+      })
+      return
+    
     # Use the definitive sync helper for all DB actions
     result = await self._finalize_battle_sync(winner, loser)
 
