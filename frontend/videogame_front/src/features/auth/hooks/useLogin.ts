@@ -13,7 +13,7 @@ export const useLogin = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     setLoading(true);
     setError("");
@@ -26,6 +26,7 @@ export const useLogin = () => {
       const from = location.state?.from?.pathname || "/";
       navigate(from, { replace: true });
     } catch (err) {
+      console.error("Login Error:", err);
       setError("Credenciales inválidas");
     } finally {
       setLoading(false);

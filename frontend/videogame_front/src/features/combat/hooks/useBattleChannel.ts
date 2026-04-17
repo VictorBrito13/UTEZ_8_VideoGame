@@ -2,7 +2,7 @@ import {
   useEffect,
   useRef,
   type Dispatch,
-  type MutableRefObject,
+  type RefObject,
   type SetStateAction,
 } from "react";
 import { BASE_URL } from "../../../common/utils/url";
@@ -25,7 +25,7 @@ type UseBattleChannelParams = {
   setUseItemVfx: Dispatch<
     SetStateAction<{ target: AnimTarget; type: string } | null>
   >;
-  wsRef: MutableRefObject<WebSocket | null>;
+  wsRef: RefObject<WebSocket | null>;
 };
 
 export function useBattleChannel({
@@ -63,6 +63,134 @@ export function useBattleChannel({
     const qs = token ? `?token=${encodeURIComponent(token)}` : "";
     const ws = new WebSocket(`${wsUrl}/ws/battle/${battleId}${qs}`);
     wsRef.current = ws;
+
+    const handleBattleAction = (data: Record<string, unknown>) => {
+      const action = data.action as string;
+      const playerId = data.player_id as number;
+      const payload = data.data as Record<string, unknown>;
+
+      if (action === "attack") {
+        const damage = payload.damage as number;
+        const attackerId = playerId;
+
+        setBattleState((current) => {
+          if (!current) return current;
+          const isAttackerP1 = attackerId === current.player1.id;
+          const attackerTag = isAttackerP1 ? "p1" : "p2";
+          const victimTag = isAttackerP1 ? "p2" : "p1";
+
+          setIsAttacking(attackerTag);
+
+          setTimeout(() => {
+            setIsHit(victimTag);
+            setFloatingDamage({ target: victimTag, amount: damage });
+          }, 450);
+
+          setTimeout(() => {
+            setIsAttacking(null);
+            setIsHit(null);
+            setFloatingDamage(null);
+
+            setBattleState((prev) => {
+              if (!prev) return prev;
+              const newState = structuredClone(prev) as BattleState;
+              const atkUid = playerId;
+              const defUid =
+                (payload.defender_user_id as number | undefined) ??
+                (atkUid === newState.player1.id
+                  ? newState.player2.id
+                  : newState.player1.id);
+              const isDefP1 = defUid === newState.player1.id;
+              const target = isDefP1 ? newState.player1 : newState.player2;
+              const defActiveId = payload.defender_active_id as number;
+              const hpAfter = payload.defender_hp as number;
+
+              const creatureToUpdate = target.team.find(
+                (c) => c.id === defActiveId,
+              );
+              if (creatureToUpdate) {
+                creatureToUpdate.hp = Math.max(0, hpAfter);
+              }
+              if (payload.forced_switch && payload.new_defender_active_id) {
+                target.active_creature_id =
+                  payload.new_defender_active_id as number | null;
+              }
+              return newState;
+            });
+            const uid = myIdRef.current;
+            addLogRef.current(
+              `${playerId === uid ? "Tú" : "Oponente"} atacaste! Daño: ${damage}`,
+            );
+          }, 1000);
+
+          return current;
+        });
+      } else if (action === "swap") {
+        const targetId = payload.creature_id as number;
+        setBattleState((prev) => {
+          if (!prev) return prev;
+          const newState = structuredClone(prev) as BattleState;
+          const isP1 = playerId === newState.player1.id;
+          if (isP1) {
+            newState.player1.active_creature_id = targetId;
+          } else {
+            newState.player2.active_creature_id = targetId;
+          }
+          return newState;
+        });
+      } else if (action === "use_item") {
+        const item_name = payload.item_name as string;
+        const heal_amount = payload.heal_amount as number | undefined;
+        const new_hp = payload.new_hp as number | undefined | null;
+        const creature_id = payload.creature_id as number;
+        const vfx_type = payload.vfx_type as string;
+        const uid = myIdRef.current;
+
+        setBattleState((prev) => {
+          if (!prev) return prev;
+          const isItemUserP1 = playerId === prev.player1.id;
+          const targetTag = isItemUserP1 ? "p1" : "p2";
+
+          setUseItemVfx({ target: targetTag, type: vfx_type });
+          setTimeout(() => {
+            setUseItemVfx(null);
+          }, 1500);
+
+          const newState = structuredClone(prev) as BattleState;
+          const p = isItemUserP1 ? newState.player1 : newState.player2;
+          const creature = p.team.find((c) => c.id === creature_id);
+          if (creature) {
+            if (new_hp !== undefined && new_hp !== null) creature.hp = new_hp;
+            if (payload.buffs) {
+              creature.buffs = payload.buffs as NonNullable<
+                CreatureData["buffs"]
+              >;
+            }
+          }
+          return newState;
+        });
+
+        let logMsg = `${playerId === uid ? "Tú" : "Oponente"} usó ${item_name}!`;
+        if (heal_amount && heal_amount > 0) logMsg += ` (+${heal_amount} HP)`;
+        addLogRef.current(logMsg);
+
+        if (playerId === uid) {
+          setInventory((prev) =>
+            prev
+              .map((item) => {
+                if (item.id === (payload.item_id as number)) {
+                  return { ...item, quantity: item.quantity - 1 };
+                }
+                return item;
+              })
+              .filter((item) => item.quantity > 0),
+          );
+        }
+      } else if (action === "skip_turn") {
+        const msg = payload.message as string;
+        addLogRef.current(msg);
+      }
+    };
 
     ws.onopen = () => {
       addLogRef.current("System: Connected to Battle Arena.");
@@ -113,148 +241,9 @@ export function useBattleChannel({
             );
             break;
 
-          case "battle_action": {
-            const action = data.action as string;
-            const playerId = data.player_id as number;
-            const payload = data.data as Record<string, unknown>;
-
-            if (action === "attack") {
-              const damage = payload.damage as number;
-              const attackerId = playerId;
-
-              setBattleState((current) => {
-                if (!current) return current;
-                const isAttackerP1 = attackerId === current.player1.id;
-                const attackerTag = isAttackerP1 ? "p1" : "p2";
-                const victimTag = isAttackerP1 ? "p2" : "p1";
-
-                setIsAttacking(attackerTag);
-
-                setTimeout(() => {
-                  setIsHit(victimTag);
-                  setFloatingDamage({ target: victimTag, amount: damage });
-                }, 450);
-
-                setTimeout(() => {
-                  setIsAttacking(null);
-                  setIsHit(null);
-                  setFloatingDamage(null);
-
-                  setBattleState((prev) => {
-                    if (!prev) return prev;
-                    const newState = JSON.parse(
-                      JSON.stringify(prev),
-                    ) as BattleState;
-                    const atkUid = playerId;
-                    const defUid =
-                      (payload.defender_user_id as number | undefined) ??
-                      (atkUid === newState.player1.id
-                        ? newState.player2.id
-                        : newState.player1.id);
-                    const isDefP1 = defUid === newState.player1.id;
-                    const target = isDefP1
-                      ? newState.player1
-                      : newState.player2;
-                    const defActiveId = payload.defender_active_id as number;
-                    const hpAfter = payload.defender_hp as number;
-
-                    const creatureToUpdate = target.team.find(
-                      (c) => c.id === defActiveId,
-                    );
-                    if (creatureToUpdate) {
-                      creatureToUpdate.hp = Math.max(0, hpAfter);
-                    }
-                    if (
-                      payload.forced_switch &&
-                      payload.new_defender_active_id
-                    ) {
-                      target.active_creature_id =
-                        payload.new_defender_active_id as number | null;
-                    }
-                    return newState;
-                  });
-                  const uid = myIdRef.current;
-                  addLogRef.current(
-                    `${playerId === uid ? "Tú" : "Oponente"} atacaste! Daño: ${damage}`,
-                  );
-                }, 1000);
-
-                return current;
-              });
-            } else if (action === "swap") {
-              const targetId = payload.creature_id as number;
-              setBattleState((prev) => {
-                if (!prev) return prev;
-                const newState = JSON.parse(
-                  JSON.stringify(prev),
-                ) as BattleState;
-                const isP1 = playerId === newState.player1.id;
-                if (isP1) {
-                  newState.player1.active_creature_id = targetId;
-                } else {
-                  newState.player2.active_creature_id = targetId;
-                }
-                return newState;
-              });
-            } else if (action === "use_item") {
-              const item_name = payload.item_name as string;
-              const heal_amount = payload.heal_amount as number | undefined;
-              const new_hp = payload.new_hp as number | undefined | null;
-              const creature_id = payload.creature_id as number;
-              const vfx_type = payload.vfx_type as string;
-              const uid = myIdRef.current;
-
-              setBattleState((prev) => {
-                if (!prev) return prev;
-                const isItemUserP1 = playerId === prev.player1.id;
-                const targetTag = isItemUserP1 ? "p1" : "p2";
-
-                // Trigger animation
-                setUseItemVfx({ target: targetTag, type: vfx_type });
-                setTimeout(() => {
-                  setUseItemVfx(null);
-                }, 1500);
-
-                const newState = JSON.parse(
-                  JSON.stringify(prev),
-                ) as BattleState;
-                const p = isItemUserP1 ? newState.player1 : newState.player2;
-                const creature = p.team.find((c) => c.id === creature_id);
-                if (creature) {
-                  if (new_hp !== undefined && new_hp !== null)
-                    creature.hp = new_hp;
-                  if (payload.buffs) {
-                    creature.buffs = payload.buffs as NonNullable<
-                      CreatureData["buffs"]
-                    >;
-                  }
-                }
-                return newState;
-              });
-
-              let logMsg = `${playerId === uid ? "Tú" : "Oponente"} usó ${item_name}!`;
-              if (heal_amount && heal_amount > 0)
-                logMsg += ` (+${heal_amount} HP)`;
-              addLogRef.current(logMsg);
-
-              if (playerId === uid) {
-                setInventory((prev) =>
-                  prev
-                    .map((item) => {
-                      if (item.id === (payload.item_id as number)) {
-                        return { ...item, quantity: item.quantity - 1 };
-                      }
-                      return item;
-                    })
-                    .filter((item) => item.quantity > 0),
-                );
-              }
-            } else if (action === "skip_turn") {
-              const msg = payload.message as string;
-              addLogRef.current(msg);
-            }
+          case "battle_action":
+            handleBattleAction(data);
             break;
-          }
 
           case "battle_abandoned":
             setBattleState((prev) =>

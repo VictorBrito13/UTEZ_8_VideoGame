@@ -49,7 +49,7 @@ class JWTAuthMiddleware:
     return await self.inner(scope, receive, send)
 
 
-def JWTAuthMiddlewareStack(inner):
+def jwt_auth_middleware_stack(inner):
   from channels.auth import AuthMiddlewareStack
 
   return JWTAuthMiddleware(AuthMiddlewareStack(inner))
