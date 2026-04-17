@@ -84,9 +84,6 @@ class ProfileSerializer(serializers.ModelSerializer):
                     "Invalid Base64 format for profile picture."
                 )
 
-        if "foto" in validated_data:
-            instance.foto = validated_data["foto"]
-
         return super().update(instance, validated_data)
 
 

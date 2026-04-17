@@ -17,7 +17,7 @@ def get_leaderboard_rankings(limit: int):
     logger.info("Leaderboard accessed limit={}", limit)
     
     rankings = list(
-      Ranking.objects.select_related("user").order_by("-elo", "user_id")[:limit]
+      Ranking.objects.select_related("user", "user__profile").order_by("-elo", "user_id")[:limit]
     )
     
     # Security: Validate data integrity before returning

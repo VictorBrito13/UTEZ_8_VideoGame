@@ -11,6 +11,7 @@ import {
   Swords,
   User as UserIcon,
   Trophy,
+  Camera,
 } from "lucide-react";
 import { TeamWidget } from "../components/TeamWidget";
 import apiClient from "../../../api/apiClient";
@@ -61,6 +62,7 @@ const TRAINER_AVATARS = [
 const DashboardPage: React.FC = () => {
   const token = localStorage.getItem("access_token");
   const navigate = useNavigate();
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [profile, setProfile] = useState<any>(null);
   const [loadingAvatar, setLoadingAvatar] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
@@ -107,6 +109,29 @@ const DashboardPage: React.FC = () => {
     } finally {
       setLoadingAvatar(false);
     }
+  };
+
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const base64String = reader.result as string;
+      try {
+        setLoadingAvatar(true);
+        await apiClient.patch("/api/profile/update_profile/", {
+          foto_base64: base64String,
+        });
+        setProfile((prev: any) => ({ ...prev, foto_base64: base64String }));
+      } catch (error) {
+        console.error("Error updating profile photo", error);
+        setAvatarError("No se pudo actualizar la foto de perfil.");
+      } finally {
+        setLoadingAvatar(false);
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   const navItems = [
@@ -156,18 +181,34 @@ const DashboardPage: React.FC = () => {
 
           <div className="flex items-center gap-6 relative z-10 w-full md:w-auto">
             {/* Profile Photo */}
-            <div className="relative group cursor-pointer shrink-0">
+            <div 
+              className="relative group cursor-pointer shrink-0"
+              onClick={() => fileInputRef.current?.click()}
+            >
               <div className="w-20 h-20 bg-neutral-900 border-2 border-white/10 rounded-full flex items-center justify-center overflow-hidden relative shadow-lg group-hover:border-white/30 transition-all">
                 {profile?.foto_base64 ? (
                   <img
                     src={profile.foto_base64}
                     alt="Profile"
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover group-hover:opacity-50 transition-opacity"
                   />
                 ) : (
-                  <UserIcon size={32} className="text-neutral-700" />
+                  <UserIcon size={32} className="text-neutral-700 group-hover:opacity-50 transition-opacity" />
                 )}
               </div>
+
+              {/* Camera Icon Overlay */}
+              <div className="absolute bottom-0 right-0 bg-neutral-800 border border-white/20 p-1.5 rounded-full shadow-lg group-hover:scale-110 group-hover:bg-cyan-500 transition-all z-20">
+                <Camera size={14} className="text-white" />
+              </div>
+              
+              <input
+                type="file"
+                ref={fileInputRef}
+                accept="image/*"
+                className="hidden"
+                onChange={handlePhotoUpload}
+              />
             </div>
 
             {/* User Info & Stats */}
