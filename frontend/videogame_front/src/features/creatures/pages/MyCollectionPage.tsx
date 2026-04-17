@@ -43,8 +43,8 @@ export const MyCollectionPage = () => {
 
       setDraftTeam(teamMembers);
       setOriginalTeamIds(teamMembers.map((m: any) => m.id));
-    } catch (error) {
-      console.error("Error fetching collection:", error);
+    } catch {
+      // Collection stays empty on failure; user can retry by refreshing.
     } finally {
       setLoading(false);
     }

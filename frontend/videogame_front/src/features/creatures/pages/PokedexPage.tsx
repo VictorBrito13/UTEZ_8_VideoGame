@@ -58,8 +58,7 @@ export const PokedexPage = () => {
       setDraftTeam(initialDraft);
       setOriginalTeamIds(initialDraft.map((m: any) => m.id));
       setLoadError(null);
-    } catch (error) {
-      console.error("Error fetching Pokedex data:", error);
+    } catch {
       setLoadError(
         "Could not load species or your squad. Please refresh or try again later.",
       );

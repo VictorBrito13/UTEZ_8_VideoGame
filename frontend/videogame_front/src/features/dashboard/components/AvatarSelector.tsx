@@ -69,8 +69,8 @@ export const AvatarSelector = ({
       });
       onAvatarSelect(url);
       onClose();
-    } catch (error) {
-      console.error("Error updating trainer sprite:", error);
+    } catch {
+      // Selection modal stays open; user can retry.
     } finally {
       setLoading(false);
     }

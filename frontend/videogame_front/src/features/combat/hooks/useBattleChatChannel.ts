@@ -43,7 +43,10 @@ export function useBattleChatChannel({
 
         if (type === "chat_message") {
           const senderId = Number(data.sender_id ?? 0);
-          const senderName = typeof data.sender_username === "string" ? data.sender_username : "Unknown";
+          const senderName =
+            typeof data.sender_username === "string"
+              ? data.sender_username
+              : "Unknown";
           const message = typeof data.message === "string" ? data.message : "";
 
           if (message) {
@@ -61,12 +64,20 @@ export function useBattleChatChannel({
           const messages = Array.isArray(data.messages) ? data.messages : [];
           messages.forEach((historyItem, index) => {
             const senderId = Number(historyItem.sender_id ?? 0);
-            const senderName = typeof historyItem.sender_username === "string" 
-              ? historyItem.sender_username 
-              : (typeof historyItem["sender__username"] === "string" ? historyItem["sender__username"] : "Unknown");
-            const message = typeof historyItem.message === "string" ? historyItem.message : "";
+            const senderName =
+              typeof historyItem.sender_username === "string"
+                ? historyItem.sender_username
+                : typeof historyItem["sender__username"] === "string"
+                  ? historyItem["sender__username"]
+                  : "Unknown";
+            const message =
+              typeof historyItem.message === "string"
+                ? historyItem.message
+                : "";
             // Use index to ensure uniqueness if ID is missing or duplicate in history
-            const id = historyItem.id ? Number(historyItem.id) : Date.now() + index;
+            const id = historyItem.id
+              ? Number(historyItem.id)
+              : Date.now() + index;
 
             if (message) {
               onMessage({ id, senderId, senderName, text: message });
@@ -76,11 +87,12 @@ export function useBattleChatChannel({
         }
 
         if (type === "error" || type === "rate_limited") {
-          onSystemMessage?.(typeof data.message === "string" ? data.message : "Chat error.");
+          onSystemMessage?.(
+            typeof data.message === "string" ? data.message : "Chat error.",
+          );
         }
-      } catch (err) {
+      } catch {
         onSystemMessage?.("Chat parse error.");
-        console.error("Chat WS parse error:", err);
       }
     };
 
@@ -118,7 +130,9 @@ export function useBattleChatChannel({
       return false;
     }
 
-    wsRef.current.send(JSON.stringify({ type: "chat.message", message: trimmed }));
+    wsRef.current.send(
+      JSON.stringify({ type: "chat.message", message: trimmed }),
+    );
     return true;
   };
 

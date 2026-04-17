@@ -1,12 +1,25 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Swords, Zap, Activity, Heart, Shield, ArrowUp, Star } from "lucide-react";
+import {
+  Swords,
+  Zap,
+  Activity,
+  Heart,
+  Shield,
+  ArrowUp,
+  Star,
+} from "lucide-react";
 import apiClient from "../../../api/apiClient";
 import { BattleEndOverlay } from "../components/BattleEndOverlay";
 import { useBattleChannel } from "../hooks/useBattleChannel";
 import { useBattleChatChannel } from "../hooks/useBattleChatChannel";
-import type { BattleState, ChatMessage, InventoryItem, PlayerData } from "../types";
+import type {
+  BattleState,
+  ChatMessage,
+  InventoryItem,
+  PlayerData,
+} from "../types";
 
 export const BattlePage = () => {
   const { battleId } = useParams();
@@ -25,7 +38,9 @@ export const BattlePage = () => {
     target: "p1" | "p2";
     type: string;
   } | null>(null);
-  const [selectingReviveTarget, setSelectingReviveTarget] = useState<number | null>(null);
+  const [selectingReviveTarget, setSelectingReviveTarget] = useState<
+    number | null
+  >(null);
   const [winnerId, setWinnerId] = useState<number | null>(null);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
@@ -37,17 +52,13 @@ export const BattlePage = () => {
     setLogs((prev) => [msg, ...prev].slice(0, 10));
   };
 
-  const handleChatMessage = useCallback(
-    (message: ChatMessage) => {
-      setChatMessages((prev) => [...prev, message]);
-    },
-    []
-  );
+  const handleChatMessage = useCallback((message: ChatMessage) => {
+    setChatMessages((prev) => [...prev, message]);
+  }, []);
 
   const handleChatStatus = useCallback((message: string) => {
     setChatStatus(message);
   }, []);
-
 
   // Fetch my profile and inventory
   useEffect(() => {
@@ -66,8 +77,8 @@ export const BattlePage = () => {
           ? invRes.data[0]
           : invRes.data;
         setInventory(invData?.items || []);
-      } catch (err) {
-        console.error("Error fetching battle data", err);
+      } catch {
+        // Non-fatal: battle UI continues without prefetched profile/inventory.
       }
     };
     fetchData();
@@ -186,7 +197,7 @@ export const BattlePage = () => {
         data: payload,
       }),
     );
-    
+
     setSelectingReviveTarget(null);
   };
 
@@ -244,12 +255,30 @@ export const BattlePage = () => {
   const getVfxIcon = (type: string) => {
     switch (type) {
       case "HEAL":
-      case "REVIVE": return <Heart className="text-red-500 w-24 h-24 drop-shadow-[0_0_20px_rgba(239,68,68,0.9)]" />;
-      case "BUFF_ATK": return <Swords className="text-orange-500 w-24 h-24 drop-shadow-[0_0_20px_rgba(249,115,22,0.9)]" />;
-      case "BUFF_DEF": return <Shield className="text-blue-500 w-24 h-24 drop-shadow-[0_0_20px_rgba(59,130,246,0.9)]" />;
-      case "BUFF_SPEED": return <Zap className="text-yellow-400 w-24 h-24 drop-shadow-[0_0_20px_rgba(250,204,21,0.9)]" />;
-      case "EQUIP": return <ArrowUp className="text-purple-500 w-24 h-24 drop-shadow-[0_0_20px_rgba(168,85,247,0.9)]" />;
-      default: return <Star className="text-white w-24 h-24 drop-shadow-[0_0_20px_rgba(255,255,255,0.9)]" />;
+      case "REVIVE":
+        return (
+          <Heart className="text-red-500 w-24 h-24 drop-shadow-[0_0_20px_rgba(239,68,68,0.9)]" />
+        );
+      case "BUFF_ATK":
+        return (
+          <Swords className="text-orange-500 w-24 h-24 drop-shadow-[0_0_20px_rgba(249,115,22,0.9)]" />
+        );
+      case "BUFF_DEF":
+        return (
+          <Shield className="text-blue-500 w-24 h-24 drop-shadow-[0_0_20px_rgba(59,130,246,0.9)]" />
+        );
+      case "BUFF_SPEED":
+        return (
+          <Zap className="text-yellow-400 w-24 h-24 drop-shadow-[0_0_20px_rgba(250,204,21,0.9)]" />
+        );
+      case "EQUIP":
+        return (
+          <ArrowUp className="text-purple-500 w-24 h-24 drop-shadow-[0_0_20px_rgba(168,85,247,0.9)]" />
+        );
+      default:
+        return (
+          <Star className="text-white w-24 h-24 drop-shadow-[0_0_20px_rgba(255,255,255,0.9)]" />
+        );
     }
   };
 
@@ -268,7 +297,9 @@ export const BattlePage = () => {
     const hasAtkBuff = (oppActive?.buffs?.atk || 1) > 1.4;
     return {
       y: [0, -5, 0],
-      filter: hasAtkBuff ? "drop-shadow(0 0 15px rgba(251,146,60,0.8))" : "none",
+      filter: hasAtkBuff
+        ? "drop-shadow(0 0 15px rgba(251,146,60,0.8))"
+        : "none",
       scale: hasAtkBuff ? [1, 1.05, 1] : 1,
     };
   };
@@ -288,14 +319,18 @@ export const BattlePage = () => {
     const hasAtkBuff = (meActive?.buffs?.atk || 1) > 1.4;
     return {
       y: [0, -5, 0],
-      filter: hasAtkBuff ? "drop-shadow(0 0 15px rgba(251,146,60,0.8))" : "none",
+      filter: hasAtkBuff
+        ? "drop-shadow(0 0 15px rgba(251,146,60,0.8))"
+        : "none",
       scale: hasAtkBuff ? [1, 1.05, 1] : 1,
     };
   };
 
   const getBenchButtonBorder = (c: any) => {
-    if (c.id === me.active_creature_id) return "border-amber-500 shadow-[0_0_20px_rgba(245,158,11,0.3)]";
-    if (selectingReviveTarget && c.hp === 0) return "border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.4)] animate-pulse";
+    if (c.id === me.active_creature_id)
+      return "border-amber-500 shadow-[0_0_20px_rgba(245,158,11,0.3)]";
+    if (selectingReviveTarget && c.hp === 0)
+      return "border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.4)] animate-pulse";
     return "border-white/10";
   };
 
@@ -386,11 +421,21 @@ export const BattlePage = () => {
                 </div>
                 {oppActive?.buffs && (
                   <div className="flex gap-1.5 mt-2 justify-end">
-                    {oppActive.buffs.atk > 1 && <Swords className="w-3.5 h-3.5 text-orange-400 drop-shadow-[0_0_5px_rgba(251,146,60,0.8)]" />}
-                    {oppActive.buffs.def > 1 && <Shield className="w-3.5 h-3.5 text-blue-400 drop-shadow-[0_0_5px_rgba(96,165,250,0.8)]" />}
-                    {oppActive.buffs.has_choice && <Star className="w-3.5 h-3.5 text-purple-400 drop-shadow-[0_0_5px_rgba(192,132,252,0.8)]" />}
-                    {oppActive.buffs.has_focus && <Activity className="w-3.5 h-3.5 text-emerald-400 drop-shadow-[0_0_5px_rgba(52,211,153,0.8)]" />}
-                    {oppActive.buffs.has_oran && <Heart className="w-3.5 h-3.5 text-red-400 drop-shadow-[0_0_5px_rgba(248,113,113,0.8)]" />}
+                    {oppActive.buffs.atk > 1 && (
+                      <Swords className="w-3.5 h-3.5 text-orange-400 drop-shadow-[0_0_5px_rgba(251,146,60,0.8)]" />
+                    )}
+                    {oppActive.buffs.def > 1 && (
+                      <Shield className="w-3.5 h-3.5 text-blue-400 drop-shadow-[0_0_5px_rgba(96,165,250,0.8)]" />
+                    )}
+                    {oppActive.buffs.has_choice && (
+                      <Star className="w-3.5 h-3.5 text-purple-400 drop-shadow-[0_0_5px_rgba(192,132,252,0.8)]" />
+                    )}
+                    {oppActive.buffs.has_focus && (
+                      <Activity className="w-3.5 h-3.5 text-emerald-400 drop-shadow-[0_0_5px_rgba(52,211,153,0.8)]" />
+                    )}
+                    {oppActive.buffs.has_oran && (
+                      <Heart className="w-3.5 h-3.5 text-red-400 drop-shadow-[0_0_5px_rgba(248,113,113,0.8)]" />
+                    )}
                   </div>
                 )}
               </div>
@@ -539,11 +584,21 @@ export const BattlePage = () => {
                 </div>
                 {meActive?.buffs && (
                   <div className="flex gap-1.5 mt-2">
-                    {meActive.buffs.atk > 1 && <Swords className="w-3.5 h-3.5 text-orange-400 drop-shadow-[0_0_5px_rgba(251,146,60,0.8)]" />}
-                    {meActive.buffs.def > 1 && <Shield className="w-3.5 h-3.5 text-blue-400 drop-shadow-[0_0_5px_rgba(96,165,250,0.8)]" />}
-                    {meActive.buffs.has_choice && <Star className="w-3.5 h-3.5 text-purple-400 drop-shadow-[0_0_5px_rgba(192,132,252,0.8)]" />}
-                    {meActive.buffs.has_focus && <Activity className="w-3.5 h-3.5 text-emerald-400 drop-shadow-[0_0_5px_rgba(52,211,153,0.8)]" />}
-                    {meActive.buffs.has_oran && <Heart className="w-3.5 h-3.5 text-red-400 drop-shadow-[0_0_5px_rgba(248,113,113,0.8)]" />}
+                    {meActive.buffs.atk > 1 && (
+                      <Swords className="w-3.5 h-3.5 text-orange-400 drop-shadow-[0_0_5px_rgba(251,146,60,0.8)]" />
+                    )}
+                    {meActive.buffs.def > 1 && (
+                      <Shield className="w-3.5 h-3.5 text-blue-400 drop-shadow-[0_0_5px_rgba(96,165,250,0.8)]" />
+                    )}
+                    {meActive.buffs.has_choice && (
+                      <Star className="w-3.5 h-3.5 text-purple-400 drop-shadow-[0_0_5px_rgba(192,132,252,0.8)]" />
+                    )}
+                    {meActive.buffs.has_focus && (
+                      <Activity className="w-3.5 h-3.5 text-emerald-400 drop-shadow-[0_0_5px_rgba(52,211,153,0.8)]" />
+                    )}
+                    {meActive.buffs.has_oran && (
+                      <Heart className="w-3.5 h-3.5 text-red-400 drop-shadow-[0_0_5px_rgba(248,113,113,0.8)]" />
+                    )}
                   </div>
                 )}
               </div>
@@ -565,7 +620,10 @@ export const BattlePage = () => {
           >
             {chatMessages.length > 0 ? (
               chatMessages.map((message, index) => (
-                <div key={message.id || `chat-${index}`} className="text-xs leading-snug">
+                <div
+                  key={message.id || `chat-${index}`}
+                  className="text-xs leading-snug"
+                >
                   <span className="font-bold text-white">
                     {message.senderId === myId ? "Tú" : message.senderName}:
                   </span>{" "}
@@ -573,7 +631,9 @@ export const BattlePage = () => {
                 </div>
               ))
             ) : (
-              <p className="text-[10px] text-neutral-500">No hay mensajes aún.</p>
+              <p className="text-[10px] text-neutral-500">
+                No hay mensajes aún.
+              </p>
             )}
           </div>
 
@@ -603,7 +663,9 @@ export const BattlePage = () => {
             </button>
           </div>
           {chatStatus && (
-            <div className="mt-2 text-[10px] text-neutral-500">{chatStatus}</div>
+            <div className="mt-2 text-[10px] text-neutral-500">
+              {chatStatus}
+            </div>
           )}
         </div>
 
@@ -628,7 +690,7 @@ export const BattlePage = () => {
                     {item.object.name}
                   </span>
                   {selectingReviveTarget === item.id && (
-                     <div className="absolute inset-0 ring-2 ring-emerald-500 rounded-lg animate-pulse pointer-events-none" />
+                    <div className="absolute inset-0 ring-2 ring-emerald-500 rounded-lg animate-pulse pointer-events-none" />
                   )}
                 </button>
               ))}
@@ -643,12 +705,17 @@ export const BattlePage = () => {
               key={c.id || `bench-${index}`}
               onClick={() => {
                 if (selectingReviveTarget) {
-                   if (c.hp === 0) handleUseItem(selectingReviveTarget, c.id);
+                  if (c.hp === 0) handleUseItem(selectingReviveTarget, c.id);
                 } else {
-                   handleSwap(c.id);
+                  handleSwap(c.id);
                 }
               }}
-              disabled={!myTurn || (!selectingReviveTarget && (c.hp === 0 || c.id === me.active_creature_id)) || (selectingReviveTarget !== null && c.hp > 0)}
+              disabled={
+                !myTurn ||
+                (!selectingReviveTarget &&
+                  (c.hp === 0 || c.id === me.active_creature_id)) ||
+                (selectingReviveTarget !== null && c.hp > 0)
+              }
               className={`relative w-20 h-20 lg:w-24 lg:h-24 rounded-2xl bg-neutral-900/80 border-2 ${getBenchButtonBorder(c)} hover:border-white transition-all overflow-hidden p-2 ${c.hp === 0 && !selectingReviveTarget ? "opacity-30 grayscale cursor-not-allowed" : "hover:scale-105"}`}
             >
               <img

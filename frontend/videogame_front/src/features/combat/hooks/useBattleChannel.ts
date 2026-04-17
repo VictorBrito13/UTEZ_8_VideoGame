@@ -112,8 +112,9 @@ export function useBattleChannel({
                 creatureToUpdate.hp = Math.max(0, hpAfter);
               }
               if (payload.forced_switch && payload.new_defender_active_id) {
-                target.active_creature_id =
-                  payload.new_defender_active_id as number | null;
+                target.active_creature_id = payload.new_defender_active_id as
+                  | number
+                  | null;
               }
               return newState;
             });
@@ -199,7 +200,6 @@ export function useBattleChannel({
     ws.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data) as Record<string, unknown>;
-        console.log("Battle event:", data);
 
         switch (data.type) {
           case "battle_state":
@@ -259,8 +259,8 @@ export function useBattleChannel({
             addLogRef.current(`Error: ${data.message as string}`);
             break;
         }
-      } catch (err) {
-        console.error("Parse error", err);
+      } catch {
+        // Malformed WS payload ignored.
       }
     };
 

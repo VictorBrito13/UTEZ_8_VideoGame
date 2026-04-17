@@ -60,8 +60,8 @@ export const SquadBar = ({
             type_1: tc.user_creature.type_1_name, // Make sure this is in the response
           }));
           setInternalTeam(teamMembers);
-        } catch (error) {
-          console.error("Error fetching internal squad:", error);
+        } catch {
+          // Draft squad stays empty on fetch failure.
         }
       };
       fetchTeam();
@@ -77,8 +77,8 @@ export const SquadBar = ({
       const ids = activeTeam.map((m) => m.id);
       await apiClient.post("/api/team/set_team/", { creature_ids: ids });
       onSaveSuccess();
-    } catch (error) {
-      console.error("Error saving team:", error);
+    } catch {
+      // Save failure: UI already reflects local state.
     } finally {
       setSaving(false);
     }

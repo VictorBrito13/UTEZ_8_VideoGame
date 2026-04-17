@@ -83,13 +83,12 @@ export const MatchmakingPage = () => {
             break;
           }
         }
-      } catch (err) {
-        console.error("Error parsing matchmaking message:", err);
+      } catch {
+        // Invalid JSON from server is ignored.
       }
     };
 
-    ws.onerror = (error) => {
-      console.error("Matchmaking WS Error:", error);
+    ws.onerror = () => {
       searchingRef.current = false;
       toast.error("Connection error. Ensure the server is running.");
       setStatus("idle");

@@ -44,8 +44,7 @@ export const InventoryPage = () => {
           : response.data;
         setItems(invData?.items || []);
         setLoadError(null);
-      } catch (error) {
-        console.error("Error fetching inventory:", error);
+      } catch {
         setLoadError(
           "Could not load your inventory. Please refresh or try again later.",
         );
@@ -56,17 +55,14 @@ export const InventoryPage = () => {
     fetchInventory();
   }, []);
 
-  const handleUseItem = async (itemId: number) => {
+  const handleUseItem = async (_itemId: number) => {
     try {
-      // Need a creature ID to use on. For now, we'll ask the user or pick the first from team
-      console.log(`Preparing to use item ID: ${itemId}`);
       setUseStatus({
         msg: "Items are used during battles. Start a match from the dashboard.",
         type: "info",
       });
       setTimeout(() => setUseStatus(null), 4000);
-    } catch (error) {
-      console.error("Failed to use item:", error);
+    } catch {
       setUseStatus({
         msg: "Something went wrong. Please try again.",
         type: "error",

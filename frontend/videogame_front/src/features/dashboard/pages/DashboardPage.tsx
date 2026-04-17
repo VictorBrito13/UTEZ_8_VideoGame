@@ -72,8 +72,7 @@ const DashboardPage: React.FC = () => {
         const response = await apiClient.get("/api/profile/me/");
         setProfile(response.data);
         setProfileError(null);
-      } catch (error) {
-        console.error("Error fetching profile:", error);
+      } catch {
         setProfileError(
           "Could not load your profile. Try refreshing the page.",
         );
@@ -99,8 +98,7 @@ const DashboardPage: React.FC = () => {
         trainer_sprite: url,
       });
       setProfile((prev: any) => ({ ...prev, trainer_sprite: url }));
-    } catch (error) {
-      console.error("Error updating trainer sprite:", error);
+    } catch {
       setAvatarError(
         "Could not update your avatar. Check your connection and try again.",
       );
