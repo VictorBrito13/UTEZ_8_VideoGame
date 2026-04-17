@@ -1,7 +1,7 @@
-from django.urls import path
+from django.urls import re_path
 
 from . import views
 
 urlpatterns = [
-  path("leaderboard", views.leaderboard, name="leaderboard"),
+  re_path(r"^leaderboard/?$", views.leaderboard, name="leaderboard"),
 ]
