@@ -19,6 +19,8 @@ VALID_TRAINER_SPRITES = [
     "https://cdn.jsdelivr.net/npm/pokeapi-sprites/sprites/trainers/13.png",
 ]
 
+BASE64_PREFIX = "base64,"
+
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
   """
@@ -116,8 +118,8 @@ class ProfileSerializer(serializers.ModelSerializer):
       raise serializers.ValidationError("La imagen excede el límite de 5MB.")
 
     foto_data = value
-    if "base64," in foto_data:
-      _, foto_data = foto_data.split("base64,")
+    if BASE64_PREFIX in foto_data:
+      _, foto_data = foto_data.split(BASE64_PREFIX)
         
     try:
       decoded_data = base64.b64decode(foto_data)
@@ -133,9 +135,8 @@ class ProfileSerializer(serializers.ModelSerializer):
     is_valid = False
     for sig in valid_signatures:
       if decoded_data.startswith(sig):
-        if sig == b"RIFF":
-          if decoded_data[8:12] != b"WEBP":
-            continue
+        if sig == b"RIFF" and decoded_data[8:12] != b"WEBP":
+          continue
         is_valid = True
         break
             
@@ -145,19 +146,19 @@ class ProfileSerializer(serializers.ModelSerializer):
     return value
 
   def update(self, instance, validated_data):
-        foto_data = validated_data.pop("foto_base64", None)
+    foto_data = validated_data.pop("foto_base64", None)
 
-        if foto_data:
-            if "base64," in foto_data:
-                _, foto_data = foto_data.split("base64,")
-            try:
-                instance.foto_binaria = base64.b64decode(foto_data)
-            except Exception:
-                raise serializers.ValidationError(
-                    "Invalid Base64 format for profile picture."
-                )
+    if foto_data:
+      if BASE64_PREFIX in foto_data:
+        _, foto_data = foto_data.split(BASE64_PREFIX)
+      try:
+        instance.foto_binaria = base64.b64decode(foto_data)
+      except Exception:
+        raise serializers.ValidationError(
+          "Invalid Base64 format for profile picture."
+        )
 
-        return super().update(instance, validated_data)
+    return super().update(instance, validated_data)
 
 
 class UserSerializer(serializers.ModelSerializer):

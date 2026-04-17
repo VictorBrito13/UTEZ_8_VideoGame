@@ -1,0 +1,208 @@
+============================= test session starts =============================
+platform win32 -- Python 3.11.9, pytest-9.0.3, pluggy-1.6.0
+django: version: 5.2.10, settings: videogame_back.settings (from ini)
+rootdir: c:\Users\kuiss\Desktop\kuki\trabajos_chidos\Projectos_personales\UTEZ_8_VideoGame\backend\videogame_back
+configfile: pytest.ini
+testpaths: .
+plugins: anyio-4.12.0, asyncio-1.3.0, cov-7.1.0, django-4.12.0
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 36 items
+
+combat\test_matchmaking.py ....                                          [ 11%]
+combat\tests.py ......                                                   [ 27%]
+ranking\tests.py .                                                       [ 30%]
+user_profile\tests.py ......                                             [ 47%]
+combat\tests.py ........                                                 [ 69%]
+test_battle_states.py F                                                  [ 72%]
+test_error_handling.py F                                                 [ 75%]
+test_rewards.py F                                                        [ 77%]
+utils\log\tests.py ..                                                    [ 83%]
+videogame_back\tests.py ......                                           [100%]
+
+================================== FAILURES ===================================
+_____________________________ test_battle_states ______________________________
+test_battle_states.py:21: in test_battle_states
+    user1, _ = User.objects.get_or_create(
+C:\Users\kuiss\AppData\Local\Programs\Python\Python311\Lib\site-packages\django\db\models\manager.py:87: in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\kuiss\AppData\Local\Programs\Python\Python311\Lib\site-packages\django\db\models\query.py:948: in get_or_create
+    return self.get(**kwargs), False
+           ^^^^^^^^^^^^^^^^^^
+C:\Users\kuiss\AppData\Local\Programs\Python\Python311\Lib\site-packages\django\db\models\query.py:631: in get
+    num = len(clone)
+          ^^^^^^^^^^
+C:\Users\kuiss\AppData\Local\Programs\Python\Python311\Lib\site-packages\django\db\models\query.py:368: in __len__
+    self._fetch_all()
+C:\Users\kuiss\AppData\Local\Programs\Python\Python311\Lib\site-packages\django\db\models\query.py:1954: in _fetch_all
+    self._result_cache = list(self._iterable_class(self))
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\kuiss\AppData\Local\Programs\Python\Python311\Lib\site-packages\django\db\models\query.py:93: in __iter__
+    results = compiler.execute_sql(
+C:\Users\kuiss\AppData\Local\Programs\Python\Python311\Lib\site-packages\django\db\models\sql\compiler.py:1621: in execute_sql
+    cursor = self.connection.cursor()
+             ^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\kuiss\AppData\Local\Programs\Python\Python311\Lib\site-packages\django\utils\asyncio.py:26: in inner
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+C:\Users\kuiss\AppData\Local\Programs\Python\Python311\Lib\site-packages\django\db\backends\base\base.py:320: in cursor
+    return self._cursor()
+           ^^^^^^^^^^^^^^
+C:\Users\kuiss\AppData\Local\Programs\Python\Python311\Lib\site-packages\django\db\backends\base\base.py:296: in _cursor
+    self.ensure_connection()
+E   RuntimeError: Database access not allowed, use the "django_db" mark, or the "db" or "transactional_db" fixtures to enable it.
+---------------------------- Captured stdout call -----------------------------
+\U0001f3ae Testing Battle State Machine...
+_____________________________ test_error_handling _____________________________
+test_error_handling.py:21: in test_error_handling
+    user1, _ = User.objects.get_or_create(
+C:\Users\kuiss\AppData\Local\Programs\Python\Python311\Lib\site-packages\django\db\models\manager.py:87: in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\kuiss\AppData\Local\Programs\Python\Python311\Lib\site-packages\django\db\models\query.py:948: in get_or_create
+    return self.get(**kwargs), False
+           ^^^^^^^^^^^^^^^^^^
+C:\Users\kuiss\AppData\Local\Programs\Python\Python311\Lib\site-packages\django\db\models\query.py:631: in get
+    num = len(clone)
+          ^^^^^^^^^^
+C:\Users\kuiss\AppData\Local\Programs\Python\Python311\Lib\site-packages\django\db\models\query.py:368: in __len__
+    self._fetch_all()
+C:\Users\kuiss\AppData\Local\Programs\Python\Python311\Lib\site-packages\django\db\models\query.py:1954: in _fetch_all
+    self._result_cache = list(self._iterable_class(self))
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\kuiss\AppData\Local\Programs\Python\Python311\Lib\site-packages\django\db\models\query.py:93: in __iter__
+    results = compiler.execute_sql(
+C:\Users\kuiss\AppData\Local\Programs\Python\Python311\Lib\site-packages\django\db\models\sql\compiler.py:1621: in execute_sql
+    cursor = self.connection.cursor()
+             ^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\kuiss\AppData\Local\Programs\Python\Python311\Lib\site-packages\django\utils\asyncio.py:26: in inner
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+C:\Users\kuiss\AppData\Local\Programs\Python\Python311\Lib\site-packages\django\db\backends\base\base.py:320: in cursor
+    return self._cursor()
+           ^^^^^^^^^^^^^^
+C:\Users\kuiss\AppData\Local\Programs\Python\Python311\Lib\site-packages\django\db\backends\base\base.py:296: in _cursor
+    self.ensure_connection()
+E   RuntimeError: Database access not allowed, use the "django_db" mark, or the "db" or "transactional_db" fixtures to enable it.
+---------------------------- Captured stdout call -----------------------------
+\U0001f6e1\ufe0f Testing Battle Error Handling...
+________________________________ test_rewards _________________________________
+test_rewards.py:15: in test_rewards
+    if Object.objects.count() == 0:
+       ^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\kuiss\AppData\Local\Programs\Python\Python311\Lib\site-packages\django\db\models\manager.py:87: in manager_method
+    return getattr(self.get_queryset(), name)(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\kuiss\AppData\Local\Programs\Python\Python311\Lib\site-packages\django\db\models\query.py:606: in count
+    return self.query.get_count(using=self.db)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\kuiss\AppData\Local\Programs\Python\Python311\Lib\site-packages\django\db\models\sql\query.py:644: in get_count
+    return obj.get_aggregation(using, {"__count": Count("*")})["__count"]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\kuiss\AppData\Local\Programs\Python\Python311\Lib\site-packages\django\db\models\sql\query.py:626: in get_aggregation
+    result = compiler.execute_sql(SINGLE)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\kuiss\AppData\Local\Programs\Python\Python311\Lib\site-packages\django\db\models\sql\compiler.py:1621: in execute_sql
+    cursor = self.connection.cursor()
+             ^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\kuiss\AppData\Local\Programs\Python\Python311\Lib\site-packages\django\utils\asyncio.py:26: in inner
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+C:\Users\kuiss\AppData\Local\Programs\Python\Python311\Lib\site-packages\django\db\backends\base\base.py:320: in cursor
+    return self._cursor()
+           ^^^^^^^^^^^^^^
+C:\Users\kuiss\AppData\Local\Programs\Python\Python311\Lib\site-packages\django\db\backends\base\base.py:296: in _cursor
+    self.ensure_connection()
+E   RuntimeError: Database access not allowed, use the "django_db" mark, or the "db" or "transactional_db" fixtures to enable it.
+=============================== tests coverage ================================
+_______________ coverage: platform win32, python 3.11.9-final-0 _______________
+
+Name                                         Stmts   Miss Branch BrPart   Cover   Missing
+-----------------------------------------------------------------------------------------
+audit\__init__.py                                0      0      0      0 100.00%
+audit\admin.py                                   1      0      0      0 100.00%
+audit\apps.py                                    6      0      0      0 100.00%
+audit\models.py                                 21      1      4      1  92.00%   22->25, 31
+audit\signals.py                                49      5     26      3  89.33%   28-29, 58, 79, 82
+audit\views.py                                   1      1      0      0   0.00%   1
+chat\__init__.py                                 0      0      0      0 100.00%
+chat\admin.py                                    1      0      0      0 100.00%
+chat\apps.py                                     3      0      0      0 100.00%
+chat\consumers.py                               99     99     22      0   0.00%   1-221
+chat\models.py                                   8      0      0      0 100.00%
+chat\routing.py                                  3      3      0      0   0.00%   1-4
+chat\utils.py                                   17     12      4      0  23.81%   11, 34-45, 52-54
+chat\views.py                                    0      0      0      0 100.00%
+combat\__init__.py                               0      0      0      0 100.00%
+combat\admin.py                                  1      0      0      0 100.00%
+combat\apps.py                                   3      0      0      0 100.00%
+combat\battle_consumer.py                      743    368    204     37  49.00%   19, 37-87, 91-112, 119-152, 159-166, 170-178, 193-203, 209-214, 240-241, 245-265, 271-317, 331-367, 383-391, 509-518, 527-570, 576-581, 586, 591, 596, 601-602, 607-608, 613-614, 619-620, 625, 634-644, 648-660, 814, 818, 822, 835, 843, 863, 871, 875, 933-935, 944, 949, 972, 983->exit, 1005-1019, 1035, 1041, 1049, 1059, 1068-1070, 1091, 1248, 1265-1270, 1305, 1336-1338, 1358, 1363-1364, 1370-1376, 1380, 1386, 1399-1401, 1408-1468, 1475-1476, 1480-1486, 1496-1501, 1505-1513, 1520-1526, 1529-1535, 1539-1545, 1556-1558, 1563-1604, 1609-1620, 1637-1656, 1716->1722, 1717->1722, 1718->1717, 1727-1729, 1733-1762, 1796-1797, 1803-1834, 1838-1850, 1854-1857, 1862-1872, 1876-1886, 1890-1899, 1903-1906, 1910-1922, 1926-1929
+combat\consumers.py                            131    131     34      0   0.00%   1-232
+combat\damage_models.py                         46     46      0      0   0.00%   1-115
+combat\damage_service.py                        48     48     12      0   0.00%   1-155
+combat\matchmaking\__init__.py                   0      0      0      0 100.00%
+combat\matchmaking\backend.py                   18      0      0      0 100.00%
+combat\matchmaking\factory.py                   14     14      4      0   0.00%   1-21
+combat\matchmaking\in_memory_backend.py         16      0      0      0 100.00%
+combat\matchmaking\redis_backend.py              7      7      0      0   0.00%   1-23
+combat\matchmaking\service.py                   56      2     20      3  93.42%   50, 77, 97->88
+combat\models.py                                24      4      0      0  83.33%   35, 39, 43, 47
+combat\routing.py                                4      4      0      0   0.00%   1-6
+combat\views.py                                  0      0      0      0 100.00%
+core\__init__.py                                 0      0      0      0 100.00%
+core\admin.py                                    1      0      0      0 100.00%
+core\apps.py                                     3      0      0      0 100.00%
+core\middleware.py                              16      1      2      1  88.89%   24
+core\models.py                                   1      0      0      0 100.00%
+core\team_payload_cipher.py                     22      5      6      3  71.43%   10, 26-27, 30, 33
+core\views.py                                    1      1      0      0   0.00%   1
+creatures\__init__.py                            0      0      0      0 100.00%
+creatures\admin.py                               1      0      0      0 100.00%
+creatures\apps.py                                3      0      0      0 100.00%
+creatures\creature_security.py                  79     53     18      0  26.80%   41-80, 94, 108, 121-125, 139-150, 164-179, 184-197, 216-221
+creatures\models.py                             49      7      6      2  80.00%   47, 49, 85-86, 89-90, 93
+creatures\serializers.py                        20      2      0      0  90.00%   46-47
+creatures\views.py                              79     56      8      0  26.44%   28-57, 68-73, 86, 93-122, 131-146, 156-179
+give_starter.py                                 23     10      6      1  48.28%   21-41
+inventory\__init__.py                            0      0      0      0 100.00%
+inventory\admin.py                               1      0      0      0 100.00%
+inventory\apps.py                                3      0      0      0 100.00%
+inventory\models.py                             31      2      2      1  90.91%   64, 71
+inventory\reward_service.py                     30     22      6      0  22.22%   25-72
+inventory\serializers.py                        20      3      2      0  77.27%   19-21
+inventory\services.py                           33     24     14      0  19.15%   12-37, 42-57
+inventory\views.py                              40     24      4      0  36.36%   19, 22-26, 29-35, 40-68
+populate_creatures.py                           58     58     12      0   0.00%   1-138
+populate_items.py                               26     26      4      0   0.00%   1-132
+ranking\__init__.py                              0      0      0      0 100.00%
+ranking\apps.py                                  5      0      0      0 100.00%
+ranking\services.py                             14      4      4      1  72.22%   26, 33-38
+ranking\views.py                                20      3      2      1  81.82%   11, 14-15
+scratch_check_matchmaking.py                    23     23      6      0   0.00%   1-27
+user_profile\__init__.py                         0      0      0      0 100.00%
+user_profile\admin.py                            1      0      0      0 100.00%
+user_profile\apps.py                             3      0      0      0 100.00%
+user_profile\models.py                          67     14     16      7  72.29%   27-31, 34, 47, 63, 77, 85, 99, 104, 106, 108, 111
+user_profile\serializers.py                    115     47     32      4  50.34%   40, 46, 54, 59, 62-64, 67-79, 109-111, 114-146, 149-161
+user_profile\views.py                           69     17     14      2  74.70%   23-29, 52, 64, 98, 132, 136-140, 144-149
+utils\__init__.py                                0      0      0      0 100.00%
+utils\log\__init__.py                            3      0      0      0 100.00%
+utils\log\api_exceptions.py                     36      4     20      6  82.14%   22->24, 46, 48, 50, 52, 65->68
+utils\log\config.py                             23      0      2      0 100.00%
+utils\log\interceptor.py                        13      4      2      1  66.67%   14-15, 19-20
+utils\log\request_logging.py                    19      1      4      1  91.30%   18
+videogame_back\__init__.py                       0      0      0      0 100.00%
+videogame_back\jwt_auth_middleware.py           41      7     10      2  82.35%   13-17, 33->36, 43-44, 46->49
+videogame_back\jwt_websocket_middleware.py      31     31      4      0   0.00%   3-43
+videogame_back\rate_limit.py                    44     44     10      0   0.00%   1-75
+videogame_back\routing.py                        3      3      0      0   0.00%   1-4
+videogame_back\views.py                          3      1      0      0  66.67%   8
+-----------------------------------------------------------------------------------------
+TOTAL                                         2393   1242    546     77  45.80%
+Coverage HTML written to dir htmlcov
+Coverage XML written to file coverage.xml
+=========================== short test summary info ===========================
+FAILED test_battle_states.py::test_battle_states - RuntimeError: Database acc...
+FAILED test_error_handling.py::test_error_handling - RuntimeError: Database a...
+FAILED test_rewards.py::test_rewards - RuntimeError: Database access not allo...
+======================== 3 failed, 33 passed in 25.56s ========================

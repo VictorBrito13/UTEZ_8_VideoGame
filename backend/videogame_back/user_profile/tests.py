@@ -128,3 +128,108 @@ class TeamSetEncryptedPayloadTests(TestCase):
       response.data["message"],
       "Invalid encrypted creature_ids payload",
     )
+
+  def test_set_team_rejects_non_list_creature_ids(self):
+    response = self.client.post(
+      self.url,
+      {"creature_ids": "not_a_list"},
+      format="json",
+    )
+
+    self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+    self.assertEqual(
+      response.data["message"],
+      "Invalid data format",
+    )
+
+  def test_set_team_rejects_more_than_3_creatures(self):
+    response = self.client.post(
+      self.url,
+      {"creature_ids": [
+        self.creature_1.id,
+        self.creature_2.id,
+        self.creature_1.id,
+        self.creature_2.id,
+      ]},
+      format="json",
+    )
+
+    self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+    self.assertEqual(
+      response.data["message"],
+      "Team cannot exceed 3 creatures",
+    )
+
+  def test_set_team_rejects_missing_species(self):
+    response = self.client.post(
+      self.url,
+      {"creature_ids": [999999]},
+      format="json",
+    )
+
+    self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+    self.assertEqual(response.data["message"], "One or more species not found")
+
+
+class ProfileAndRegistrationValidationTests(TestCase):
+  def setUp(self):
+    self.client = APIClient()
+    self.register_url = reverse("register")
+    self.user = User.objects.create_user(
+      username="profile_user",
+      email="profile@example.com",
+      password="secret123",
+    )
+    self.client.force_authenticate(user=self.user)
+    self.update_profile_url = "/api/profile/update_profile/"
+
+  def test_register_rejects_whitespace_email(self):
+    response = self.client.post(
+      self.register_url,
+      {
+        "username": "new_user_email",
+        "email": "   ",
+        "password": "secret123",
+      },
+      format="json",
+    )
+
+    self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+    self.assertIn("email", response.data["error"])
+
+  def test_register_rejects_invalid_trainer_sprite(self):
+    response = self.client.post(
+      self.register_url,
+      {
+        "username": "new_user_sprite",
+        "email": "sprite@example.com",
+        "password": "secret123",
+        "trainer_sprite": "not_allowed.png",
+      },
+      format="json",
+    )
+
+    self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+    self.assertIn("trainer_sprite", response.data["error"])
+
+  def test_update_profile_rejects_invalid_base64(self):
+    response = self.client.patch(
+      self.update_profile_url,
+      {"foto_base64": "base64,%%%"},
+      format="json",
+    )
+
+    self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+    self.assertIn("foto_base64", response.data)
+
+  def test_update_profile_rejects_non_image_payload(self):
+    raw = base64.b64encode(b"hello_world").decode("ascii")
+
+    response = self.client.patch(
+      self.update_profile_url,
+      {"foto_base64": f"base64,{raw}"},
+      format="json",
+    )
+
+    self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+    self.assertIn("foto_base64", response.data)

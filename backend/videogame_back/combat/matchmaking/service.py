@@ -62,7 +62,7 @@ def _drop_stale_tickets(
 ) -> None:
   """Remove tickets older than max_age (orphaned if disconnect was missed)."""
   limit = timedelta(seconds=max_age_s)
-  for ticket in list(backend.list_tickets()):
+  for ticket in backend.list_tickets():
     if now - ticket.queued_at > limit:
       backend.remove_ticket(ticket.user_id)
 

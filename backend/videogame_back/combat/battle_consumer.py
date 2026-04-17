@@ -1229,6 +1229,25 @@ class BattleConsumer(AsyncWebsocketConsumer):
       ),
     }
 
+  def _get_team_sync(self, user: User):
+    from user_profile.models import Team
+
+    return Team.objects.prefetch_related("team_creatures__user_creature").get(user=user)
+
+  def _get_alive_creature_ids(self, team) -> list[int]:
+    return [
+      tc.user_creature.id
+      for tc in team.team_creatures.all()
+      if tc.user_creature.current_hp > 0
+    ]
+
+  def _get_participant_validation_reason(
+    self, winner: User, loser: User
+  ) -> str | None:
+    if self._battle.player1 not in [winner, loser] or self._battle.player2 not in [winner, loser]:
+      return "Winner/loser not matching battle participants"
+    return None
+
   @sync_to_async
   @transaction.atomic
   def _finalize_battle_sync(
@@ -1272,10 +1291,6 @@ class BattleConsumer(AsyncWebsocketConsumer):
 
       winner_ranking, _ = Ranking.objects.get_or_create(user=winner)
       loser_ranking, _ = Ranking.objects.get_or_create(user=loser)
-      
-      # Security: Log pre-update state for audit
-      pre_update_winner_elo = winner_ranking.elo
-      pre_update_loser_elo = loser_ranking.elo
       
       K, expected_winner = (
         32,
@@ -1332,77 +1347,55 @@ class BattleConsumer(AsyncWebsocketConsumer):
     For knockout victories, the loser must have no HP remaining. Abandonment
     forfeits without KO, so HP-based checks are skipped when abandonment=True.
     """
+    from user_profile.models import Team
+
     try:
-      # 1. Verify battle is in proper state for finalization
-      if self._battle.status not in [Battle.BattleStatus.PLAYING, Battle.BattleStatus.WAITING, "matched"]:
+      if self._battle.status not in [
+        Battle.BattleStatus.PLAYING,
+        Battle.BattleStatus.WAITING,
+        "matched",
+      ]:
         return {"valid": False, "reason": f"Invalid battle status: {self._battle.status}"}
-      
-      # 2. Verify both teams exist and are valid
-      from user_profile.models import Team
-      
+
       try:
-        winner_team = Team.objects.prefetch_related("team_creatures__user_creature").get(user=winner)
-        loser_team = Team.objects.prefetch_related("team_creatures__user_creature").get(user=loser)
+        winner_team = self._get_team_sync(winner)
+        loser_team = self._get_team_sync(loser)
       except Team.DoesNotExist:
         return {"valid": False, "reason": "Missing team for one or both players"}
-      
+
+      winner_alive_creatures = self._get_alive_creature_ids(winner_team)
+      loser_alive_creatures = self._get_alive_creature_ids(loser_team)
+
       if not abandonment:
-        # 3. Verify loser has all creatures fainted (HP = 0)
-        loser_alive_creatures = []
-        for tc in loser_team.team_creatures.all():
-          if tc.user_creature.current_hp > 0:
-            loser_alive_creatures.append(tc.user_creature.id)
-        
         if loser_alive_creatures:
           return {
-            "valid": False, 
-            "reason": f"Loser has {len(loser_alive_creatures)} alive creatures: {loser_alive_creatures}"
+            "valid": False,
+            "reason": f"Loser has {len(loser_alive_creatures)} alive creatures: {loser_alive_creatures}",
           }
-        
-        # 4. Verify winner has at least one creature alive
-        winner_alive_creatures = []
-        for tc in winner_team.team_creatures.all():
-          if tc.user_creature.current_hp > 0:
-            winner_alive_creatures.append(tc.user_creature.id)
-        
         if not winner_alive_creatures:
           return {"valid": False, "reason": "Winner has no alive creatures"}
-      else:
-        # HP state is irrelevant for forfeit; log counts for audit only.
-        loser_alive_creatures = [
-          tc.user_creature.id
-          for tc in loser_team.team_creatures.all()
-          if tc.user_creature.current_hp > 0
-        ]
-        winner_alive_creatures = [
-          tc.user_creature.id
-          for tc in winner_team.team_creatures.all()
-          if tc.user_creature.current_hp > 0
-        ]
-      
-      # 5. Verify battle participants match winner/loser
-      if self._battle.player1 not in [winner, loser] or self._battle.player2 not in [winner, loser]:
-        return {"valid": False, "reason": "Winner/loser not matching battle participants"}
-      
-      # 6. Additional security: Check for suspicious patterns
+
+      participant_reason = self._get_participant_validation_reason(winner, loser)
+      if participant_reason:
+        return {"valid": False, "reason": participant_reason}
+
       total_creatures_winner = winner_team.team_creatures.count()
       total_creatures_loser = loser_team.team_creatures.count()
-      
+
       if total_creatures_winner == 0 or total_creatures_loser == 0:
         return {"valid": False, "reason": "One or both teams have no creatures"}
-      
-      # 7. Log successful integrity check
+
       logger.info(
         "Battle integrity validated battle_id={} winner={} loser={} winner_alive={} loser_alive={}",
         self._battle_id,
         winner.id,
         loser.id,
         len(winner_alive_creatures),
-        len(loser_alive_creatures)
+        len(loser_alive_creatures),
       )
-      
+
       return {"valid": True, "reason": "All integrity checks passed"}
-      
+
     except Exception as e:
       logger.error(f"Error in battle integrity validation: {e}")
       return {"valid": False, "reason": f"Validation error: {str(e)}"}
