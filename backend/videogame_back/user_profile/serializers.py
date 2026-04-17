@@ -1,7 +1,9 @@
 import base64
-from rest_framework import serializers
+
 from django.contrib.auth.models import User
-from .models import Profile, UserCreature, Team, TeamCreature, Ranking
+from rest_framework import serializers
+
+from .models import Profile, Ranking, Team, TeamCreature, UserCreature
 
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
@@ -11,10 +13,21 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
   password = serializers.CharField(write_only=True)
   trainer_sprite = serializers.CharField(write_only=True, required=False)
+  email = serializers.EmailField(required=True)
 
   class Meta:
     model = User
     fields = ["username", "email", "password", "trainer_sprite"]
+
+  def validate_email(self, value: str) -> str:
+    normalized = (value or "").strip().lower()
+    if not normalized:
+      raise serializers.ValidationError("Email is required.")
+    if User.objects.filter(email__iexact=normalized).exists():
+      raise serializers.ValidationError(
+        "A user with this email already exists.",
+      )
+    return normalized
 
   def create(self, validated_data):
     trainer_sprite = validated_data.pop("trainer_sprite", None)

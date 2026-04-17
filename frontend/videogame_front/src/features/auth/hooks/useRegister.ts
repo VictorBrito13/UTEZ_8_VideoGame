@@ -3,27 +3,57 @@ import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { authController } from "../controllers/authController";
 
+/**
+ * Build a single message from DRF-style bodies, e.g.
+ * { error: { username: ["..."] } } or { username: ["..."] }.
+ * Must never throw — a throw here skips setError and can blank the page.
+ */
 function formatRegistrationError(data: unknown): string {
-  const payload = data as { error?: unknown };
-  const err = payload?.error;
-  if (typeof err === "string") {
-    return err;
-  }
-  if (err && typeof err === "object" && !Array.isArray(err)) {
-    const lines = Object.entries(err as Record<string, unknown>).map(
-      ([field, value]) => {
-        const msgs = Array.isArray(value) ? value : [value];
-        const text = msgs
-          .map((m) => (typeof m === "string" ? m : String(m)))
-          .join(" ");
-        return `${field}: ${text}`;
-      },
-    );
-    if (lines.length) {
-      return lines.join(". ");
+  try {
+    if (data == null) {
+      return "Registration failed. Check your details and try again.";
     }
+    if (typeof data === "string") {
+      return data;
+    }
+    if (typeof data !== "object") {
+      return "Registration failed. Check your details and try again.";
+    }
+
+    const payload = data as Record<string, unknown>;
+    const wrapped = payload.error;
+    const source =
+      wrapped !== undefined && wrapped !== null ? wrapped : payload;
+
+    if (typeof source === "string") {
+      return source;
+    }
+    if (Array.isArray(source)) {
+      return source.map((x) => String(x)).join(". ");
+    }
+    if (source && typeof source === "object" && !Array.isArray(source)) {
+      const lines = Object.entries(source as Record<string, unknown>).map(
+        ([field, value]) => {
+          const msgs = Array.isArray(value) ? value : [value];
+          const text = msgs
+            .map((m) => {
+              if (m == null) return "";
+              if (typeof m === "string") return m;
+              if (typeof m === "object") return JSON.stringify(m);
+              return String(m);
+            })
+            .join(" ");
+          return `${field}: ${text}`;
+        },
+      );
+      if (lines.length) {
+        return lines.join(". ");
+      }
+    }
+    return "Registration failed. Check your details and try again.";
+  } catch {
+    return "Registration failed. Check your details and try again.";
   }
-  return "Registration failed. Check your details and try again.";
 }
 
 export const useRegister = () => {
@@ -54,7 +84,7 @@ export const useRegister = () => {
       await authController.register(formData);
       navigate("/login");
     } catch (err: unknown) {
-      if (axios.isAxiosError(err) && err.response?.data) {
+      if (axios.isAxiosError(err) && err.response?.data !== undefined) {
         setError(formatRegistrationError(err.response.data));
       } else if (axios.isAxiosError(err) && !err.response) {
         setError(

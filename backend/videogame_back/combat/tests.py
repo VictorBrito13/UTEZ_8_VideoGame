@@ -2,15 +2,15 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 from asgiref.sync import async_to_sync
+from creatures.models import Creature, Type
 from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.test import SimpleTestCase, TestCase
+from inventory.models import Inventory, InventoryItem, Object
+from user_profile.models import Ranking, Team, TeamCreature, UserCreature
 
 from combat.battle_consumer import BattleConsumer
 from combat.models import Battle
-from creatures.models import Creature, Type
-from inventory.models import Inventory, InventoryItem, Object
-from user_profile.models import Team, TeamCreature, UserCreature
 
 
 class BattleConsumerTests(TestCase):
@@ -244,7 +244,10 @@ class BattleConsumerTests(TestCase):
 
         if case.get("expected_hp") is not None:
           self.assertEqual(result["new_hp"], case["expected_hp"])
-          self.assertEqual(result["heal_amount"], case["expected_hp"] - case["starting_hp"])
+          self.assertEqual(
+            result["heal_amount"],
+            case["expected_hp"] - case["starting_hp"],
+          )
 
         if case.get("expected_cache"):
           self.assertTrue(cache.get(
@@ -267,6 +270,83 @@ class BattleConsumerTests(TestCase):
           self.assertTrue(item_exists)
           item.refresh_from_db()
           self.assertEqual(item.quantity, case["quantity"] - 1)
+
+  def test_abandonment_penalizes_abandoner_and_boosts_stayer_elo(self):
+    """Disconnecting user loses ELO; remaining player gains ELO (regression)."""
+    Ranking.objects.update_or_create(
+      user=self.player1,
+      defaults={"elo": 1000, "wins": 0, "losses": 0},
+    )
+    Ranking.objects.update_or_create(
+      user=self.player2,
+      defaults={"elo": 1000, "wins": 0, "losses": 0},
+    )
+
+    self.consumer._user = self.player1
+    self.consumer.channel_layer = SimpleNamespace(group_send=AsyncMock())
+
+    with patch.object(
+      BattleConsumer,
+      "_award_all_rewards",
+      new_callable=AsyncMock,
+    ):
+      async_to_sync(self.consumer._award_victory_by_abandonment)(self.player2)
+
+    r_stayer = Ranking.objects.get(user=self.player2)
+    r_abandoner = Ranking.objects.get(user=self.player1)
+    self.assertGreater(r_stayer.elo, 1000)
+    self.assertLess(r_abandoner.elo, 1000)
+    self.assertEqual(r_stayer.wins, 1)
+    self.assertEqual(r_stayer.losses, 0)
+    self.assertEqual(r_abandoner.losses, 1)
+    self.assertEqual(r_abandoner.wins, 0)
+
+    self.battle.refresh_from_db()
+    self.assertEqual(self.battle.winner_id, self.player2.id)
+
+  def test_broadcast_battle_state_after_finish_no_lazy_orm_error(self):
+    """Regression: broadcast must not hit sync ORM from async (winner FK)."""
+    from combat.models import Battle
+
+    self.battle.status = Battle.BattleStatus.FINISHED
+    self.battle.winner = self.player2
+    self.battle.save()
+    self.consumer.channel_layer = SimpleNamespace(group_send=AsyncMock())
+
+    async_to_sync(self.consumer._broadcast_battle_state_to_group)()
+
+    self.consumer.channel_layer.group_send.assert_awaited_once()
+    call_kw = self.consumer.channel_layer.group_send.call_args[0][1]
+    payload = call_kw["payload"]
+    self.assertEqual(payload["winner_id"], self.player2.id)
+    self.assertEqual(payload["status"], Battle.BattleStatus.FINISHED)
+
+  def test_abandonment_elo_when_player_two_abandons(self):
+    Ranking.objects.update_or_create(
+      user=self.player1,
+      defaults={"elo": 1000, "wins": 0, "losses": 0},
+    )
+    Ranking.objects.update_or_create(
+      user=self.player2,
+      defaults={"elo": 1000, "wins": 0, "losses": 0},
+    )
+
+    self.consumer._user = self.player2
+    self.consumer.channel_layer = SimpleNamespace(group_send=AsyncMock())
+
+    with patch.object(
+      BattleConsumer,
+      "_award_all_rewards",
+      new_callable=AsyncMock,
+    ):
+      async_to_sync(self.consumer._award_victory_by_abandonment)(self.player1)
+
+    r1 = Ranking.objects.get(user=self.player1)
+    r2 = Ranking.objects.get(user=self.player2)
+    self.assertGreater(r1.elo, 1000)
+    self.assertLess(r2.elo, 1000)
+    self.assertEqual(r1.wins, 1)
+    self.assertEqual(r2.losses, 1)
 
   def test_item_helpers_cover_target_resolution_and_validation_errors(self):
     self.assertEqual(
@@ -370,7 +450,9 @@ class BattleActionHandlersTests(SimpleTestCase):
     self.consumer._handle_end_turn.assert_not_awaited()
 
   def test_handle_attack_action_error_path(self):
-    self.consumer._get_next_player = AsyncMock(return_value=SimpleNamespace(id=2))
+    self.consumer._get_next_player = AsyncMock(
+      return_value=SimpleNamespace(id=2),
+    )
     self.consumer._apply_damage = AsyncMock(
       return_value={"success": False, "error": "boom"}
     )
@@ -457,7 +539,9 @@ class BattleActionHandlersTests(SimpleTestCase):
     self.consumer._handle_attack_action.assert_not_awaited()
 
     self.consumer._validate_action = AsyncMock(return_value=True)
-    self.consumer._handle_attack_action = AsyncMock(side_effect=RuntimeError("x"))
+    self.consumer._handle_attack_action = AsyncMock(
+      side_effect=RuntimeError("x"),
+    )
     with patch("combat.battle_consumer.logger.exception") as mock_exception:
       async_to_sync(self.consumer._handle_battle_action)(payload)
 
