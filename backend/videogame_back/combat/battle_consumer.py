@@ -177,37 +177,41 @@ class BattleConsumer(AsyncWebsocketConsumer):
       return None
 
   async def _award_victory_by_abandonment(self, winner: User) -> None:
-    """Award victory to a player due to opponent abandonment"""
-    try:
-      # Update battle status
-      await self._update_battle_status(Battle.BattleStatus.FINISHED)
-      await self._set_battle_winner(winner)
+    """Award victory to a player due to opponent abandonment.
 
-      # Update ELO ratings
-      loser = await self._get_other_player()
-      if loser:
-        await self._heal_team_sync(winner)
-        await self._heal_team_sync(loser)
-        await self._update_elo_ratings(winner, loser)
+    The disconnecting user (`self._user`) is always the loser. Do not use
+    `_get_other_player()` for the loser: that returns the opponent of
+    `self._user`, which is the winner and caused ELO to be applied twice to
+    the same player (winner lost points, abandoner unchanged).
+    """
+    try:
+      abandoner = self._user
+      result = await self._finalize_battle_sync(winner, abandoner)
+      if not result.get("success"):
+        logger.error(
+          "Error finalizing abandonment battle_id={} error={}",
+          self._battle_id,
+          result.get("error"),
+        )
+        return
 
       await self._refresh_battle_sync()
-      await self._broadcast_battle_state_to_group()
 
-      # Broadcast abandonment result
       await self.channel_layer.group_send(
         f"battle_{self._battle_id}",
         {
           "type": "battle_abandoned",
-          "winner_id": winner.id,
-          "winner_username": getattr(winner, "username", "Winner"),
-          "abandoned_player_id": self._user.id,
-          "abandoned_username": getattr(self._user, "username", "Someone"),
+          "winner_id": result["winner_id"],
+          "winner_username": result["winner_username"],
+          "abandoned_player_id": result["loser_id"],
+          "abandoned_username": result["loser_username"],
           "reason": "abandonment",
         },
       )
 
-      # Award rewards to both
-      await self._award_all_rewards(winner, loser)
+      await self._broadcast_battle_state_to_group()
+
+      await self._award_all_rewards(winner, abandoner)
 
       logger.info(
         "Battle {} ended by abandonment - Winner: {}",
@@ -605,46 +609,6 @@ class BattleConsumer(AsyncWebsocketConsumer):
       if self._battle.current_turn == self._battle.player1
       else self._battle.player1
     )
-
-  @sync_to_async
-  def _update_elo_ratings(self, winner: User, loser: User) -> None:
-    """Update ELO ratings after battle"""
-    try:
-      from user_profile.models import Ranking
-
-      # Get or create rankings
-      winner_ranking, _ = Ranking.objects.get_or_create(user=winner)
-      loser_ranking, _ = Ranking.objects.get_or_create(user=loser)
-
-      # Calculate ELO changes
-      K = 32  # K-factor for ELO calculation
-      expected_winner = 1 / (
-        1 + 10 ** ((loser_ranking.elo - winner_ranking.elo) / 400)
-      )
-      expected_loser = 1 - expected_winner
-
-      # Update ELO
-      winner_ranking.elo += int(K * (1 - expected_winner))
-      loser_ranking.elo += int(K * (0 - expected_loser))
-
-      # Update win/loss records
-      winner_ranking.wins += 1
-      loser_ranking.losses += 1
-
-      # Save rankings
-      winner_ranking.save()
-      loser_ranking.save()
-
-      logger.info(
-        "ELO Updated - {}: {}, {}: {}",
-        winner.username,
-        winner_ranking.elo,
-        loser.username,
-        loser_ranking.elo,
-      )
-
-    except Exception as e:
-      logger.error(f"Error updating ELO ratings: {e}")
 
   @sync_to_async
   def _initialize_team_state(self, user):
@@ -1306,10 +1270,6 @@ class BattleConsumer(AsyncWebsocketConsumer):
       # Refresh local object
       await self._refresh_battle_sync()
 
-      # All clients must receive finished state + winner_id for the overlay
-      await self._broadcast_battle_state_to_group()
-
-      # Broadcast victory specific event (Overlay triggers)
       await self.channel_layer.group_send(
         f"battle_{self._battle_id}",
         {
@@ -1322,7 +1282,8 @@ class BattleConsumer(AsyncWebsocketConsumer):
         },
       )
 
-      # Award final items/XP
+      await self._broadcast_battle_state_to_group()
+
       await self._award_all_rewards(winner, loser)
       logger.info(
         "Battle {} ended by KO - Winner: {}",
@@ -1350,7 +1311,15 @@ class BattleConsumer(AsyncWebsocketConsumer):
 
   @sync_to_async
   def _refresh_battle_sync(self):
-    self._battle.refresh_from_db()
+    """Reload battle with FKs so async code never triggers lazy ORM queries."""
+    from .models import Battle
+
+    self._battle = Battle.objects.select_related(
+      "player1",
+      "player2",
+      "winner",
+      "current_turn",
+    ).get(pk=self._battle.pk)
 
   async def _validate_action(self, payload: dict) -> bool:
     """Validate battle action"""
@@ -1460,10 +1429,8 @@ class BattleConsumer(AsyncWebsocketConsumer):
           "type": "battle_state",
           "battle_id": self._battle_id,
           "status": self._battle.status,
-          "winner_id": self._battle.winner.id if self._battle.winner else None,
-          "current_turn": self._battle.current_turn.id
-          if self._battle.current_turn
-          else None,
+          "winner_id": self._battle.winner_id,
+          "current_turn": self._battle.current_turn_id,
           "turn_number": self._battle.turn_number,
           "player1": {
             "id": self._battle.player1.id,
@@ -1494,10 +1461,8 @@ class BattleConsumer(AsyncWebsocketConsumer):
         "type": "battle_state",
         "battle_id": self._battle_id,
         "status": self._battle.status,
-        "winner_id": self._battle.winner.id if self._battle.winner else None,
-        "current_turn": self._battle.current_turn.id
-        if self._battle.current_turn
-        else None,
+        "winner_id": self._battle.winner_id,
+        "current_turn": self._battle.current_turn_id,
         "turn_number": self._battle.turn_number,
         "player1": {
           "id": self._battle.player1.id,

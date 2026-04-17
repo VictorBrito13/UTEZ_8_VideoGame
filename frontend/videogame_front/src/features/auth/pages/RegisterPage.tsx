@@ -92,15 +92,15 @@ const RegisterPage: React.FC = () => {
             </Text>
           </div>
 
-          {error && (
+          {error ? (
             <motion.div
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
-              className="mb-8 p-4 bg-red-500/10 border border-red-500/30 rounded-2xl text-red-400 text-xs font-bold text-center uppercase tracking-widest"
+              className="mb-8 p-4 bg-red-500/10 border border-red-500/30 rounded-2xl text-red-400 text-xs font-semibold text-center leading-relaxed"
             >
-              System Error: {error}
+              {typeof error === "string" ? error : "Registration failed."}
             </motion.div>
-          )}
+          ) : null}
 
           <form onSubmit={handleRegister} className="space-y-10">
             {/* HERO SELECTION GRID */}

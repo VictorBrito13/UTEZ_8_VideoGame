@@ -65,7 +65,7 @@ const LoginPage: React.FC = () => {
         </form>
 
         <Text variant="secondary" className="text-center mt-6">
-          Don't have an character?{" "}
+          Don&apos;t have an account yet?{" "}
           <Link
             to="/register"
             className="font-semibold text-cyan-400 hover:text-cyan-300 transition-colors"

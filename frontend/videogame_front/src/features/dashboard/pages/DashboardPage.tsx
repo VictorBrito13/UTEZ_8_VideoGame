@@ -63,14 +63,20 @@ const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const [profile, setProfile] = useState<any>(null);
   const [loadingAvatar, setLoadingAvatar] = useState(false);
+  const [profileError, setProfileError] = useState<string | null>(null);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchProfile = async () => {
       try {
         const response = await apiClient.get("/api/profile/me/");
         setProfile(response.data);
+        setProfileError(null);
       } catch (error) {
         console.error("Error fetching profile:", error);
+        setProfileError(
+          "Could not load your profile. Try refreshing the page.",
+        );
       }
     };
     if (token) fetchProfile();
@@ -87,6 +93,7 @@ const DashboardPage: React.FC = () => {
 
   const handleSelectAvatar = async (url: string) => {
     setLoadingAvatar(true);
+    setAvatarError(null);
     try {
       await apiClient.patch("/api/profile/update_profile/", {
         trainer_sprite: url,
@@ -94,6 +101,9 @@ const DashboardPage: React.FC = () => {
       setProfile((prev: any) => ({ ...prev, trainer_sprite: url }));
     } catch (error) {
       console.error("Error updating trainer sprite:", error);
+      setAvatarError(
+        "Could not update your avatar. Check your connection and try again.",
+      );
     } finally {
       setLoadingAvatar(false);
     }
@@ -130,6 +140,16 @@ const DashboardPage: React.FC = () => {
         animate={{ opacity: 1, y: 0 }}
         className="w-full px-4 md:px-12"
       >
+        {profileError && (
+          <div className="mb-6 rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+            {profileError}
+          </div>
+        )}
+        {avatarError && (
+          <div className="mb-6 rounded-2xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+            {avatarError}
+          </div>
+        )}
         {/* ROW 1: PROFILE HEADER */}
         <div className="flex flex-col md:flex-row justify-between items-center bg-neutral-950 border border-white/10 rounded-[2rem] p-6 mb-12 shadow-2xl backdrop-blur-xl relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 rounded-full blur-[100px] pointer-events-none" />
@@ -169,7 +189,7 @@ const DashboardPage: React.FC = () => {
                   <Swords size={12} /> Elo: {profile?.elo || 1000} Pts
                 </span>
                 <span className="flex items-center gap-1.5 text-amber-400 bg-amber-400/10 px-3 py-1 rounded-full border border-amber-400/20">
-                  <Trophy size={12} /> Victorias: {profile?.wins || 0}
+                  <Trophy size={12} /> Wins: {profile?.wins || 0}
                 </span>
               </div>
             </div>
@@ -186,7 +206,7 @@ const DashboardPage: React.FC = () => {
                 size={20}
                 className="group-hover:rotate-12 transition-transform"
               />
-              <span className="text-base text-shadow-sm">Iniciar Pelea</span>
+              <span className="text-base text-shadow-sm">Start battle</span>
             </button>
           </div>
 

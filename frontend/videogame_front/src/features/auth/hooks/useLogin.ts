@@ -1,4 +1,5 @@
 import { useState } from "react";
+import axios from "axios";
 import { useNavigate, useLocation } from "react-router-dom";
 import { authController } from "../controllers/authController";
 
@@ -25,9 +26,19 @@ export const useLogin = () => {
 
       const from = location.state?.from?.pathname || "/";
       navigate(from, { replace: true });
-    } catch (err) {
-      console.error("Login Error:", err);
-      setError("Credenciales inválidas");
+    } catch (err: unknown) {
+      const isNetwork =
+        axios.isAxiosError(err) &&
+        (!err.response || err.code === "ERR_NETWORK");
+      if (isNetwork) {
+        setError(
+          "Unable to reach the server. Check your connection and try again.",
+        );
+      } else if (axios.isAxiosError(err) && err.response?.status === 401) {
+        setError("Invalid username or password.");
+      } else {
+        setError("Sign-in failed. Please try again.");
+      }
     } finally {
       setLoading(false);
     }
