@@ -8,6 +8,7 @@ from asgiref.sync import sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
 from django.contrib.auth.models import User
 from django.core.cache import cache
+from django.db import transaction
 from inventory.reward_service import award_battle_rewards
 from utils.log import logger
 
@@ -1212,6 +1213,7 @@ class BattleConsumer(AsyncWebsocketConsumer):
     }
 
   @sync_to_async
+  @transaction.atomic
   def _finalize_battle_sync(self, winner: User, loser: User) -> dict:
     """All-in-one sync method to update DB at victory to avoid async errors"""
     from .models import Battle
@@ -1234,21 +1236,49 @@ class BattleConsumer(AsyncWebsocketConsumer):
           uc.current_hp = uc.creature.hp
           uc.save()
 
-      # 3. Update ELO
+      # 3. Update ELO with security validations
       from user_profile.models import Ranking
 
       winner_ranking, _ = Ranking.objects.get_or_create(user=winner)
       loser_ranking, _ = Ranking.objects.get_or_create(user=loser)
+      
+      # Security: Log pre-update state for audit
+      pre_update_winner_elo = winner_ranking.elo
+      pre_update_loser_elo = loser_ranking.elo
+      
       K, expected_winner = (
         32,
         1 / (1 + 10 ** ((loser_ranking.elo - winner_ranking.elo) / 400)),
       )
-      winner_ranking.elo += int(K * (1 - expected_winner))
-      loser_ranking.elo += int(K * (0 - (1 - expected_winner)))
+      
+      winner_elo_change = int(K * (1 - expected_winner))
+      loser_elo_change = int(K * (0 - (1 - expected_winner)))
+      
+      # Security: Validate reasonable ELO changes
+      if abs(winner_elo_change) > 50 or abs(loser_elo_change) > 50:
+        logger.warning(
+          "Unusual ELO change detected battle_id={} winner_change={} loser_change={}",
+          self._battle_id,
+          winner_elo_change,
+          loser_elo_change
+        )
+      
+      winner_ranking.elo += winner_elo_change
+      loser_ranking.elo += loser_elo_change
       winner_ranking.wins += 1
       loser_ranking.losses += 1
       winner_ranking.save()
       loser_ranking.save()
+      
+      # Security: Audit log for ranking changes
+      logger.info(
+        "Ranking updated battle_id={} winner_id={} winner_elo_change={} loser_id={} loser_elo_change={}",
+        self._battle_id,
+        winner.id,
+        winner_elo_change,
+        loser.id,
+        loser_elo_change
+      )
 
       return {
         "success": True,
