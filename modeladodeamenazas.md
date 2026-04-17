@@ -85,15 +85,16 @@
 * **Roles:** Usuario
 
 **Elemento:** Selección de Opciones de Avatar (Personalization Form)
-* **Estado en Proyecto:** ❌ NO Implementado (Grave)
+* **Estado en Proyecto:** ✅ Implementado
 * **Riesgos:** Manipulación de valores para usar assets bloqueados.
 * **Medidas Ideales:** Validación en servidor de que el usuario posee el nivel o permiso para usar dicho ítem visual.
+* **Evidencia:** Se ha implementado `VALID_TRAINER_SPRITES` y la validación correspondiente en `ProfileSerializer` y `UserRegistrationSerializer`.
 
 **Elemento:** Subida de Imagen de Avatar (File Upload - Base64 Decoder)
-* **Estado en Proyecto:** ❌ NO Implementado (Grave)
+* **Estado en Proyecto:** ✅ Implementado
 * **Riesgos:** Carga de archivos maliciosos (Web Shells o desbordamiento de String).
 * **Medidas Ideales:** Restricción estricta de extensiones válidas y validación de cabeceras (MIME type).
-* **Debería Ser Modificado:** Tu `ProfileSerializer` recibe `foto_data` en Base64 y lo inyecta a decodificador binario. JAMÁS filtras si el base64 es de verdad un `.jpg` o un script ofuscado.
+* **Evidencia:** El método `validate_foto_base64` decodifica la cadena, valida su límite de tamaño a 5MB y verifica las cabeceras (Magic Bytes) para aceptar únicamente `JPG`, `PNG` o `WEBP`.
 
 ---
 

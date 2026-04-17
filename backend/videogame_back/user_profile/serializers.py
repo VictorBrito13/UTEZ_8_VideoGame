@@ -7,6 +7,18 @@ from rest_framework import serializers
 
 from .models import Profile, Ranking, Team, TeamCreature, UserCreature
 
+VALID_TRAINER_SPRITES = [
+    "trainer_red.png",
+    "https://cdn.jsdelivr.net/npm/pokeapi-sprites/sprites/trainers/1.png",
+    "https://cdn.jsdelivr.net/npm/pokeapi-sprites/sprites/trainers/2.png",
+    "https://cdn.jsdelivr.net/npm/pokeapi-sprites/sprites/trainers/10.png",
+    "https://cdn.jsdelivr.net/npm/pokeapi-sprites/sprites/trainers/3.png",
+    "https://cdn.jsdelivr.net/npm/pokeapi-sprites/sprites/trainers/5.png",
+    "https://cdn.jsdelivr.net/npm/pokeapi-sprites/sprites/trainers/12.png",
+    "https://cdn.jsdelivr.net/npm/pokeapi-sprites/sprites/trainers/7.png",
+    "https://cdn.jsdelivr.net/npm/pokeapi-sprites/sprites/trainers/13.png",
+]
+
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
   """
@@ -43,6 +55,11 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         "A user with this email already exists.",
       )
     return normalized
+
+  def validate_trainer_sprite(self, value: str) -> str:
+    if value and value not in VALID_TRAINER_SPRITES:
+      raise serializers.ValidationError("Avatar seleccionado inválido o no autorizado.")
+    return value
 
   def create(self, validated_data):
     trainer_sprite = validated_data.pop("trainer_sprite", None)
@@ -85,6 +102,47 @@ class ProfileSerializer(serializers.ModelSerializer):
       "bio",
       "created_at",
     ]
+
+  def validate_trainer_sprite(self, value):
+    if value and value not in VALID_TRAINER_SPRITES:
+      raise serializers.ValidationError("Avatar seleccionado inválido o no autorizado.")
+    return value
+
+  def validate_foto_base64(self, value):
+    if not value:
+      return value
+
+    if len(value) > 5 * 1024 * 1024 * 1.33:
+      raise serializers.ValidationError("La imagen excede el límite de 5MB.")
+
+    foto_data = value
+    if "base64," in foto_data:
+      _, foto_data = foto_data.split("base64,")
+        
+    try:
+      decoded_data = base64.b64decode(foto_data)
+    except Exception:
+      raise serializers.ValidationError("Formato Base64 inválido.")
+        
+    valid_signatures = {
+      b"\xff\xd8\xff": "image/jpeg",
+      b"\x89PNG\r\n\x1a\n": "image/png",
+      b"RIFF": "image/webp",
+    }
+    
+    is_valid = False
+    for sig in valid_signatures:
+      if decoded_data.startswith(sig):
+        if sig == b"RIFF":
+          if decoded_data[8:12] != b"WEBP":
+            continue
+        is_valid = True
+        break
+            
+    if not is_valid:
+      raise serializers.ValidationError("El archivo no es una imagen válida (solo JPG, PNG, WEBP permitidos).")
+        
+    return value
 
   def update(self, instance, validated_data):
         foto_data = validated_data.pop("foto_base64", None)
