@@ -8,6 +8,9 @@ from rest_framework_simplejwt.views import (
 from . import views
 from user_profile import views as user_profile_views
 
+from django.conf import settings
+from django.conf.urls.static import static
+
 urlpatterns = [
   path("admin", admin.site.urls),
   path("api/health", views.health, name="health"),
@@ -19,3 +22,6 @@ urlpatterns = [
   path("api/", include("inventory.urls")),
   path("api/creatures/", include("creatures.urls")),
 ]
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
