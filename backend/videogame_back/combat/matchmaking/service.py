@@ -12,26 +12,19 @@ def _have_played_together_recently(user1_id: int, user2_id: int, minutes: int = 
   Verifica si dos jugadores han competido en los últimos 'minutos' especificados.
   Previene manipulación con cuentas secundarias.
   """
-  from django.contrib.auth.models import User
   from ..models import Battle
   
-  try:
-    user1 = User.objects.get(id=user1_id)
-    user2 = User.objects.get(id=user2_id)
-    
-    # Buscar batallas entre estos dos jugadores en los últimos minutos
-    cutoff_time = datetime.now(tz=timezone.utc) - timedelta(minutes=minutes)
-    
-    recent_battles = Battle.objects.filter(
-      models.Q(player1=user1, player2=user2) | 
-      models.Q(player1=user2, player2=user1),
-      created_at__gte=cutoff_time,
-      status__in=[Battle.BattleStatus.PLAYING, Battle.BattleStatus.FINISHED]
-    )
-    
-    return recent_battles.exists()
-  except User.DoesNotExist:
-    return False
+  # Buscar batallas entre estos dos jugadores en los últimos minutos
+  cutoff_time = datetime.now(tz=timezone.utc) - timedelta(minutes=minutes)
+  
+  recent_battles = Battle.objects.filter(
+    models.Q(player1_id=user1_id, player2_id=user2_id) | 
+    models.Q(player1_id=user2_id, player2_id=user1_id),
+    created_at__gte=cutoff_time,
+    status__in=[Battle.BattleStatus.PLAYING, Battle.BattleStatus.FINISHED]
+  )
+  
+  return recent_battles.exists()
 
 
 @dataclass(frozen=True, slots=True)
@@ -91,7 +84,6 @@ def try_match_for_user(
     return None
 
   seeker_range = current_range_for_ticket(seeker, config, now=now)
-
   candidates: list[MatchmakingTicket] = []
   for ticket in tickets:
     if ticket.user_id == seeker.user_id:
