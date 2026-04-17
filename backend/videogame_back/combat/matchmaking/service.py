@@ -3,7 +3,35 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
+from django.db import models
 from .backend import MatchmakingBackend, MatchmakingPair, MatchmakingTicket
+
+
+def _have_played_together_recently(user1_id: int, user2_id: int, hours: int = 2) -> bool:
+  """
+  Verifica si dos jugadores han competido en las últimas 'horas' especificadas.
+  Previene manipulación con cuentas secundarias.
+  """
+  from django.contrib.auth.models import User
+  from ..models import Battle
+  
+  try:
+    user1 = User.objects.get(id=user1_id)
+    user2 = User.objects.get(id=user2_id)
+    
+    # Buscar batallas entre estos dos jugadores en las últimas horas
+    cutoff_time = datetime.now(tz=timezone.utc) - timedelta(hours=hours)
+    
+    recent_battles = Battle.objects.filter(
+      models.Q(player1=user1, player2=user2) | 
+      models.Q(player1=user2, player2=user1),
+      created_at__gte=cutoff_time,
+      status__in=[Battle.BattleStatus.PLAYING, Battle.BattleStatus.FINISHED]
+    )
+    
+    return recent_battles.exists()
+  except User.DoesNotExist:
+    return False
 
 
 @dataclass(frozen=True, slots=True)
@@ -52,6 +80,11 @@ def try_match_for_user(
   for ticket in tickets:
     if ticket.user_id == seeker.user_id:
       continue
+    
+    # Verificación anti-cuentas secundarias
+    if _have_played_together_recently(seeker.user_id, ticket.user_id):
+      continue
+    
     diff = abs(ticket.elo - seeker.elo)
     if diff <= seeker_range:
       candidates.append(ticket)
