@@ -1,5 +1,7 @@
 from django.contrib.auth.models import User
 from django.test import TestCase
+
+from core.payload_crypto import encrypt_json
 from user_profile.models import Ranking
 
 
@@ -17,3 +19,10 @@ class LeaderboardApiTests(TestCase):
     self.assertEqual(len(payload["results"]), 2)
     self.assertEqual(payload["results"][0]["username"], "hi")
     self.assertEqual(payload["results"][0]["elo"], 1100)
+
+  def test_leaderboard_accepts_encrypted_limit(self):
+    User.objects.create_user(username="solo", password="x")
+    enc = encrypt_json(5)
+    response = self.client.get(f"/api/leaderboard?e_limit={enc}")
+    self.assertEqual(response.status_code, 200)
+    self.assertIn("results", response.json())

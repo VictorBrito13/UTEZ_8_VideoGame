@@ -11,6 +11,7 @@ import {
   Star,
 } from "lucide-react";
 import apiClient from "../../../api/apiClient";
+import { encryptJson } from "../../../common/utils/payloadCrypto";
 import { BattleEndOverlay } from "../components/BattleEndOverlay";
 import { useBattleChannel } from "../hooks/useBattleChannel";
 import { useBattleChatChannel } from "../hooks/useBattleChatChannel";
@@ -164,17 +165,18 @@ export const BattlePage = () => {
     );
   };
 
-  const handleSwap = (creatureId: number) => {
+  const handleSwap = async (creatureId: number) => {
+    const data_encrypted = await encryptJson({ creature_id: creatureId });
     wsRef.current?.send(
       JSON.stringify({
         type: "battle.action",
         action: "swap",
-        data: { creature_id: creatureId },
+        data_encrypted,
       }),
     );
   };
 
-  const handleUseItem = (itemId: number, forceTargetId?: number) => {
+  const handleUseItem = async (itemId: number, forceTargetId?: number) => {
     const item = inventory.find((i) => i.id === itemId);
     if (!item) return;
 
@@ -186,7 +188,7 @@ export const BattlePage = () => {
       }
       if (fainted.length === 1) {
         // Auto-select the only fainted creature
-        handleUseItem(itemId, fainted[0].id);
+        await handleUseItem(itemId, fainted[0].id);
         return;
       }
       // Start selection mode
@@ -195,14 +197,15 @@ export const BattlePage = () => {
       return;
     }
 
-    const payload: any = { item_id: itemId };
+    const payload: Record<string, number> = { item_id: itemId };
     if (forceTargetId) payload.target_id = forceTargetId;
 
+    const data_encrypted = await encryptJson(payload);
     wsRef.current?.send(
       JSON.stringify({
         type: "battle.action",
         action: "use_item",
-        data: payload,
+        data_encrypted,
       }),
     );
 
@@ -219,11 +222,11 @@ export const BattlePage = () => {
     }
   };
 
-  const handleSendChat = () => {
+  const handleSendChat = async () => {
     const trimmed = chatInput.trim();
     if (!trimmed) return;
 
-    const sent = sendChatMessage(trimmed);
+    const sent = await sendChatMessage(trimmed);
     if (sent) {
       setChatInput("");
     } else {
@@ -691,7 +694,7 @@ export const BattlePage = () => {
               {inventory.map((item, index) => (
                 <button
                   key={item.id || `tactical-${index}`}
-                  onClick={() => handleUseItem(item.id)}
+                  onClick={() => void handleUseItem(item.id)}
                   disabled={!myTurn || selectingReviveTarget !== null}
                   className="group flex flex-col items-center justify-center p-2 bg-neutral-800/80 rounded-lg border border-white/5 hover:border-cyan-500 transition-all disabled:opacity-30 relative"
                 >
@@ -717,9 +720,10 @@ export const BattlePage = () => {
               key={c.id || `bench-${index}`}
               onClick={() => {
                 if (selectingReviveTarget) {
-                  if (c.hp === 0) handleUseItem(selectingReviveTarget, c.id);
+                  if (c.hp === 0)
+                    void handleUseItem(selectingReviveTarget, c.id);
                 } else {
-                  handleSwap(c.id);
+                  void handleSwap(c.id);
                 }
               }}
               disabled={

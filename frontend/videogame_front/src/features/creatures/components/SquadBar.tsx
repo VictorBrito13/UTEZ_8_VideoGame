@@ -77,7 +77,7 @@ export const SquadBar = ({
     try {
       const ids = activeTeam.map((m) => m.id);
       await apiClient.post("/api/team/set_team/", {
-        creature_ids_encrypted: encryptCreatureIds(ids),
+        creature_ids_encrypted: await encryptCreatureIds(ids),
       });
       onSaveSuccess();
     } catch {

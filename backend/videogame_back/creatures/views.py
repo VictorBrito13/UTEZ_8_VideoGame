@@ -1,13 +1,14 @@
-from rest_framework import viewsets, status, permissions
-from rest_framework.response import Response
+from core.payload_crypto import decrypt_json
+from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import NotFound, PermissionDenied
+from rest_framework.response import Response
+from user_profile.models import Team, TeamCreature, UserCreature
+from user_profile.serializers import UserCreatureSerializer
 
+from .creature_security import CreatureAccessError, CreatureSecurityService
 from .models import Creature
 from .serializers import CreatureSerializer
-from .creature_security import CreatureSecurityService, CreatureAccessError
-from user_profile.models import UserCreature, Team, TeamCreature
-from user_profile.serializers import UserCreatureSerializer
 
 
 class CreatureViewSet(viewsets.ReadOnlyModelViewSet):
@@ -28,34 +29,34 @@ class CreatureViewSet(viewsets.ReadOnlyModelViewSet):
     try:
       # Validate creature ID and access
       creature = CreatureSecurityService.validate_public_creature_access(
-        request.user, 
+        request.user,
         int(pk)
       )
-      
+
       # Return the creature data
       serializer = self.get_serializer(creature)
       return Response(serializer.data)
-      
+
     except (CreatureAccessError, ValueError) as e:
       return Response(
-        {'error': str(e), 'detail': 'Invalid creature ID or access denied'}, 
+        {'error': str(e), 'detail': 'Invalid creature ID or access denied'},
         status=status.HTTP_400_BAD_REQUEST
       )
     except NotFound as e:
       return Response(
-        {'error': str(e), 'detail': 'Creature not found'}, 
+        {'error': str(e), 'detail': 'Creature not found'},
         status=status.HTTP_404_NOT_FOUND
       )
     except PermissionDenied as e:
       return Response(
-        {'error': str(e), 'detail': 'Access denied'}, 
+        {'error': str(e), 'detail': 'Access denied'},
         status=status.HTTP_403_FORBIDDEN
       )
     except Exception as e:
       from utils.log import logger
       logger.error(f"Unexpected error in creature retrieve: {e}")
       return Response(
-        {'error': 'Internal server error'}, 
+        {'error': 'Internal server error'},
         status=status.HTTP_500_INTERNAL_SERVER_ERROR
       )
 
@@ -69,7 +70,7 @@ class CreatureViewSet(viewsets.ReadOnlyModelViewSet):
     if CreatureSecurityService.detect_suspicious_access_pattern(request.user, creature_ids):
       from utils.log import logger
       logger.warning(f"Suspicious pokedex access pattern: {request.user.username}")
-    
+
     return super().list(request)
 
 
@@ -93,34 +94,34 @@ class UserCreatureViewSet(viewsets.ModelViewSet):
     try:
       # Validate creature ID and ownership
       user_creature = CreatureSecurityService.validate_private_creature_access(
-        request.user, 
+        request.user,
         int(pk)
       )
-      
+
       # Return the creature data
       serializer = self.get_serializer(user_creature)
       return Response(serializer.data)
-      
+
     except (CreatureAccessError, ValueError) as e:
       return Response(
-        {'error': str(e), 'detail': 'Invalid creature ID or access denied'}, 
+        {'error': str(e), 'detail': 'Invalid creature ID or access denied'},
         status=status.HTTP_400_BAD_REQUEST
       )
     except NotFound as e:
       return Response(
-        {'error': str(e), 'detail': 'Creature not found or access denied'}, 
+        {'error': str(e), 'detail': 'Creature not found or access denied'},
         status=status.HTTP_404_NOT_FOUND
       )
     except PermissionDenied as e:
       return Response(
-        {'error': str(e), 'detail': 'Access denied'}, 
+        {'error': str(e), 'detail': 'Access denied'},
         status=status.HTTP_403_FORBIDDEN
       )
     except Exception as e:
       from utils.log import logger
       logger.error(f"Unexpected error in user creature retrieve: {e}")
       return Response(
-        {'error': 'Internal server error'}, 
+        {'error': 'Internal server error'},
         status=status.HTTP_500_INTERNAL_SERVER_ERROR
       )
 
@@ -130,21 +131,21 @@ class UserCreatureViewSet(viewsets.ModelViewSet):
     """
     try:
       queryset = self.get_queryset()
-      
+
       # Detect suspicious access patterns
       creature_ids = [creature.id for creature in queryset]
       if CreatureSecurityService.detect_suspicious_access_pattern(request.user, creature_ids):
         from utils.log import logger
         logger.warning(f"Suspicious user creature access pattern: {request.user.username}")
-      
+
       serializer = self.get_serializer(queryset, many=True)
       return Response(serializer.data)
-      
+
     except Exception as e:
       from utils.log import logger
       logger.error(f"Error in user creature list: {e}")
       return Response(
-        {'error': 'Failed to load creatures'}, 
+        {'error': 'Failed to load creatures'},
         status=status.HTTP_500_INTERNAL_SERVER_ERROR
       )
 
@@ -153,6 +154,25 @@ class UserCreatureViewSet(viewsets.ModelViewSet):
     """
     Add or remove a creature from the active team (limit 3).
     """
+    if request.data.get("user_creature_id_encrypted"):
+      try:
+        raw = decrypt_json(request.data["user_creature_id_encrypted"])
+      except ValueError:
+        return Response(
+          {"error": "Invalid user_creature_id_encrypted"},
+          status=status.HTTP_400_BAD_REQUEST,
+        )
+      if isinstance(raw, int):
+        resolved_pk = raw
+      elif isinstance(raw, dict) and "user_creature_id" in raw:
+        resolved_pk = raw["user_creature_id"]
+      else:
+        return Response(
+          {"error": "Invalid user_creature_id_encrypted"},
+          status=status.HTTP_400_BAD_REQUEST,
+        )
+      self.kwargs["pk"] = str(resolved_pk)
+
     user_creature = self.get_object()
     team, _ = Team.objects.get_or_create(user=request.user)
 

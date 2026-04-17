@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getMatchmakingWebSocketUrl } from "../../../api/apiClient";
+import { encryptJson } from "../../../common/utils/payloadCrypto";
 import type {
   MatchmakingFoundPayload,
   MatchmakingPhase,
@@ -25,8 +26,14 @@ export function useMatchmaking() {
   const wsRef = useRef<WebSocket | null>(null);
   const unmountingRef = useRef(false);
 
-  const sendJoin = useCallback((ws: WebSocket) => {
-    ws.send(JSON.stringify({ type: "matchmaking.join" }));
+  const sendJoin = useCallback(async (ws: WebSocket) => {
+    const join_context_encrypted = await encryptJson({});
+    ws.send(
+      JSON.stringify({
+        type: "matchmaking.join",
+        join_context_encrypted,
+      }),
+    );
   }, []);
 
   const cancelSearch = useCallback(() => {
@@ -44,7 +51,7 @@ export function useMatchmaking() {
 
     ws.onopen = () => {
       setState((s) => ({ ...s, phase: "connecting", errorMessage: null }));
-      sendJoin(ws);
+      void sendJoin(ws);
     };
 
     ws.onmessage = (event) => {

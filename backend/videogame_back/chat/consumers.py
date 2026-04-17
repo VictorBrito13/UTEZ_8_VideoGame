@@ -3,6 +3,7 @@ import json
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
 from combat.models import Battle
+from core.payload_crypto import decrypt_json
 from django.core.cache import cache
 from utils.log import logger
 
@@ -86,7 +87,26 @@ class ChatConsumer(AsyncWebsocketConsumer):
       )
       return
 
-    message = payload.get("message", "")
+    if payload.get("message_encrypted"):
+      try:
+        decrypted = decrypt_json(payload["message_encrypted"])
+      except ValueError:
+        await self.send(
+          text_data=json.dumps(
+            {"type": "error", "message": "Invalid message_encrypted payload"}
+          )
+        )
+        return
+      if not isinstance(decrypted, str):
+        await self.send(
+          text_data=json.dumps(
+            {"type": "error", "message": "Invalid message_encrypted payload"}
+          )
+        )
+        return
+      message = decrypted
+    else:
+      message = payload.get("message", "")
     if not isinstance(message, str) or not message.strip():
       return
 
