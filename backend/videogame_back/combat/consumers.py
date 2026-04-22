@@ -50,6 +50,47 @@ def _get_username_sync(user_id: int) -> str:
 
 
 @sync_to_async
+def _get_user_matchmaking_info(user_id: int) -> dict[str, Any]:
+  from django.contrib.auth.models import User
+  from user_profile.models import Profile, Team, Ranking
+
+  info = {
+    "username": f"User {user_id}",
+    "trainer_sprite": "",
+    "wins": 0,
+    "first_pokemon_sprite": ""
+  }
+  
+  try:
+    user = User.objects.get(id=user_id)
+    info["username"] = user.username
+  except User.DoesNotExist:
+    pass
+
+  try:
+    profile = Profile.objects.get(user_id=user_id)
+    info["trainer_sprite"] = profile.trainer_sprite
+  except Profile.DoesNotExist:
+    pass
+    
+  try:
+    ranking = Ranking.objects.get(user_id=user_id)
+    info["wins"] = ranking.wins
+  except Ranking.DoesNotExist:
+    pass
+
+  try:
+    team = Team.objects.get(user_id=user_id)
+    first_creature = team.team_creatures.first()
+    if first_creature:
+      info["first_pokemon_sprite"] = first_creature.user_creature.creature.front_sprite
+  except Exception:
+    pass
+
+  return info
+
+
+@sync_to_async
 def _create_battle(player1_id: int, player2_id: int) -> int:
   battle = Battle.objects.create(
     player1_id=player1_id,
@@ -226,15 +267,18 @@ class MatchmakingConsumer(AsyncWebsocketConsumer):
     await self.send_json({"type": "matchmaking.cancelled"})
 
   async def match_found(self, event: dict[str, Any]) -> None:
-    username = await _get_username_sync(event["opponent_user_id"])
+    info = await _get_user_matchmaking_info(event["opponent_user_id"])
     await self.send_json(
       {
         "type": "matchmaking.found",
         "battleId": event["battle_id"],
         "opponent": {
           "userId": event["opponent_user_id"],
-          "username": username,
+          "username": info["username"],
           "elo": event["opponent_elo"],
+          "trainer_sprite": info["trainer_sprite"],
+          "wins": info["wins"],
+          "first_pokemon_sprite": info["first_pokemon_sprite"]
         },
       }
     )

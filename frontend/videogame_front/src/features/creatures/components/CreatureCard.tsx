@@ -1,5 +1,4 @@
 import { motion } from "framer-motion";
-import { Shield, Sword, Zap, Heart } from "lucide-react";
 
 interface CreatureCardProps {
   creature: {
@@ -17,28 +16,49 @@ interface CreatureCardProps {
 }
 
 const typeColors: Record<string, string> = {
-  FIRE: "from-orange-500 to-red-600",
-  WATER: "from-blue-400 to-blue-600",
-  GRASS: "from-green-500 to-green-700",
-  ELECTRIC: "from-yellow-300 to-yellow-500",
-  NORMAL: "from-gray-400 to-gray-500",
-  FLYING: "from-indigo-300 to-indigo-500",
-  POISON: "from-purple-400 to-purple-600",
-  GROUND: "from-amber-600 to-amber-800",
-  ROCK: "from-stone-500 to-stone-700",
-  BUG: "from-lime-500 to-lime-700",
-  GHOST: "from-violet-700 to-purple-900",
-  STEEL: "from-slate-400 to-slate-600",
-  PSYCHIC: "from-pink-400 to-pink-600",
-  ICE: "from-cyan-200 to-cyan-400",
-  DRAGON: "from-indigo-600 to-violet-800",
-  DARK: "from-gray-700 to-black",
-  FAIRY: "from-rose-300 to-rose-500",
+  FIRE: "bg-orange-500",
+  WATER: "bg-blue-500",
+  GRASS: "bg-green-500",
+  ELECTRIC: "bg-yellow-400",
+  NORMAL: "bg-gray-400",
+  FLYING: "bg-indigo-400",
+  POISON: "bg-purple-500",
+  GROUND: "bg-amber-600",
+  ROCK: "bg-stone-500",
+  BUG: "bg-lime-500",
+  GHOST: "bg-violet-700",
+  STEEL: "bg-slate-400",
+  PSYCHIC: "bg-pink-400",
+  ICE: "bg-cyan-300",
+  DRAGON: "bg-indigo-600",
+  DARK: "bg-gray-700",
+  FAIRY: "bg-rose-400",
+};
+
+const typeIcons: Record<string, string> = {
+  FIRE: "local_fire_department",
+  WATER: "water_drop",
+  GRASS: "eco",
+  ELECTRIC: "bolt",
+  ICE: "ac_unit",
+  POISON: "coronavirus",
+  ROCK: "terrain",
+  GROUND: "terrain",
+  FLYING: "air",
+  PSYCHIC: "visibility",
+  BUG: "bug_report",
+  GHOST: "cruelty_free",
+  DRAGON: "local_fire_department",
+  DARK: "dark_mode",
+  FAIRY: "auto_awesome",
+  STEEL: "hardware",
+  FIGHTING: "sports_martial_arts",
+  NORMAL: "star",
 };
 
 export const CreatureCard = ({ creature, index }: CreatureCardProps) => {
   const primaryType = (creature.type_1_name || "NORMAL").toUpperCase().trim();
-  const colorGradient = typeColors[primaryType] || "from-gray-400 to-gray-600";
+  const colorBg = typeColors[primaryType] || "bg-gray-400";
 
   return (
     <motion.div
@@ -51,51 +71,48 @@ export const CreatureCard = ({ creature, index }: CreatureCardProps) => {
         stiffness: 100,
       }}
       whileHover={{
-        y: -10,
-        scale: 1.05,
-        rotateY: 5,
+        y: -5,
+        scale: 1.02,
         transition: { duration: 0.2 },
       }}
-      className="relative group perspective-1000"
+      className="relative group perspective-1000 w-full h-full"
     >
-      {/* Glow Effect on Hover */}
-      <div
-        className={`absolute -inset-0.5 bg-gradient-to-r ${colorGradient} rounded-2xl blur opacity-25 group-hover:opacity-75 transition duration-1000 group-hover:duration-200`}
-      ></div>
-
-      <div className="relative bg-neutral-900 border border-white/10 rounded-2xl overflow-hidden shadow-2xl backdrop-blur-xl">
+      <div className="relative bg-[#0B1326] border-2 border-[#2d3449] rounded-sm overflow-hidden shadow-[8px_8px_0px_0px_rgba(0,0,0,0.5)] hover:border-primary transition-colors h-full flex flex-col">
         {/* Header with ID and Name */}
-        <div
-          className={`h-24 bg-gradient-to-br ${colorGradient} p-4 flex justify-between items-start text-white`}
-        >
+        <div className={`h-20 ${colorBg} border-b-2 border-[#0B1326] p-4 flex justify-between items-start text-black shadow-[inset_0px_-4px_0px_rgba(0,0,0,0.2)]`}>
           <div>
-            <span className="text-xs font-bold opacity-75">
-              #{(creature.pokedex_id || 0).toString().padStart(3, "0")}
+            <span className="text-[10px] font-headline font-black uppercase tracking-widest opacity-80 block">
+              NO. {(creature.pokedex_id || 0).toString().padStart(3, "0")}
             </span>
-            <h3 className="text-xl font-bold tracking-tight">
+            <h3 className="text-xl font-headline font-black tracking-widest uppercase">
               {creature.name}
             </h3>
           </div>
-          <div className="flex gap-1">
+          <div className="flex gap-1 flex-col items-end">
             {creature.type_1_name && (
-              <span className="px-2 py-0.5 bg-white/20 rounded-full text-[10px] font-bold uppercase">
-                {creature.type_1_name}
-              </span>
+              <div title={creature.type_1_name} className="w-6 h-6 bg-black/20 border border-black/30 rounded flex items-center justify-center shadow-[2px_2px_0_rgba(0,0,0,0.2)]">
+                <span className="material-symbols-outlined text-[14px] text-white" style={{ fontVariationSettings: "'FILL' 1" }}>
+                  {typeIcons[creature.type_1_name.toUpperCase()] || 'star'}
+                </span>
+              </div>
             )}
             {creature.type_2_name && (
-              <span className="px-2 py-0.5 bg-white/20 rounded-full text-[10px] font-bold uppercase">
-                {creature.type_2_name}
-              </span>
+              <div title={creature.type_2_name} className="w-6 h-6 bg-black/20 border border-black/30 rounded flex items-center justify-center shadow-[2px_2px_0_rgba(0,0,0,0.2)] mt-1">
+                <span className="material-symbols-outlined text-[14px] text-white" style={{ fontVariationSettings: "'FILL' 1" }}>
+                  {typeIcons[creature.type_2_name.toUpperCase()] || 'star'}
+                </span>
+              </div>
             )}
           </div>
         </div>
 
         {/* Sprite Container */}
-        <div className="relative -mt-12 flex justify-center h-32 items-center">
+        <div className="relative -mt-8 flex justify-center h-28 items-center z-10">
+          <div className="w-20 h-20 bg-black/20 rounded-full absolute bottom-2 blur-md"></div>
           <motion.img
             src={creature.front_sprite}
             alt={creature.name}
-            className="w-24 h-24 object-contain drop-shadow-[0_10px_10px_rgba(0,0,0,0.5)] group-hover:drop-shadow-[0_20px_20px_rgba(255,255,255,0.2)]"
+            className="w-24 h-24 object-contain image-rendering-pixelated drop-shadow-[4px_4px_0_rgba(0,0,0,0.3)] z-10"
             animate={{
               y: [0, -5, 0],
             }}
@@ -108,82 +125,63 @@ export const CreatureCard = ({ creature, index }: CreatureCardProps) => {
         </div>
 
         {/* Stats Grid */}
-        <div className="p-4 grid grid-cols-2 gap-3 text-neutral-400">
-          <div className="flex items-center gap-2">
-            <Heart size={14} className="text-red-500" />
-            <div className="flex-1">
-              <div className="flex justify-between text-[10px] uppercase font-bold mb-1">
-                <span>HP</span>
-                <span>{creature.hp}</span>
-              </div>
-              <div className="h-1 bg-neutral-800 rounded-full overflow-hidden">
-                <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: `${(creature.hp / 200) * 100}%` }}
-                  className="h-full bg-red-500"
-                />
-              </div>
+        <div className="p-4 grid grid-cols-2 gap-x-4 gap-y-3 text-outline mt-auto bg-surface-container-low border-t-2 border-[#2d3449]">
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center justify-between text-[10px] font-headline font-black uppercase tracking-widest">
+              <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[12px] text-error" style={{ fontVariationSettings: "'FILL' 1" }}>favorite</span> HP</span>
+              <span className="text-white">{creature.hp}</span>
+            </div>
+            <div className="h-2 border border-[#2d3449] bg-[#0B1326] w-full p-0.5">
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${Math.min(100, (creature.hp / 200) * 100)}%` }}
+                className="h-full bg-error"
+              />
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <Sword size={14} className="text-orange-500" />
-            <div className="flex-1">
-              <div className="flex justify-between text-[10px] uppercase font-bold mb-1">
-                <span>ATK</span>
-                <span>{creature.attack}</span>
-              </div>
-              <div
-                className={`h-1 bg-neutral-800 rounded-full overflow-hidden`}
-              >
-                <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: `${(creature.attack / 200) * 100}%` }}
-                  className="h-full bg-orange-500"
-                />
-              </div>
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center justify-between text-[10px] font-headline font-black uppercase tracking-widest">
+              <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[12px] text-orange-500" style={{ fontVariationSettings: "'FILL' 1" }}>swords</span> ATK</span>
+              <span className="text-white">{creature.attack}</span>
+            </div>
+            <div className="h-2 border border-[#2d3449] bg-[#0B1326] w-full p-0.5">
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${Math.min(100, (creature.attack / 200) * 100)}%` }}
+                className="h-full bg-orange-500"
+              />
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <Shield size={14} className="text-blue-500" />
-            <div className="flex-1">
-              <div className="flex justify-between text-[10px] uppercase font-bold mb-1">
-                <span>DEF</span>
-                <span>{creature.defense}</span>
-              </div>
-              <div className="h-1 bg-neutral-800 rounded-full overflow-hidden">
-                <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: `${(creature.defense / 200) * 100}%` }}
-                  className="h-full bg-blue-500"
-                />
-              </div>
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center justify-between text-[10px] font-headline font-black uppercase tracking-widest">
+              <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[12px] text-blue-500" style={{ fontVariationSettings: "'FILL' 1" }}>shield</span> DEF</span>
+              <span className="text-white">{creature.defense}</span>
+            </div>
+            <div className="h-2 border border-[#2d3449] bg-[#0B1326] w-full p-0.5">
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${Math.min(100, (creature.defense / 200) * 100)}%` }}
+                className="h-full bg-blue-500"
+              />
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <Zap size={14} className="text-yellow-500" />
-            <div className="flex-1">
-              <div className="flex justify-between text-[10px] uppercase font-bold mb-1">
-                <span>SPD</span>
-                <span>{creature.speed}</span>
-              </div>
-              <div className="h-1 bg-neutral-800 rounded-full overflow-hidden">
-                <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: `${(creature.speed / 200) * 100}%` }}
-                  className="h-full bg-yellow-500"
-                />
-              </div>
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center justify-between text-[10px] font-headline font-black uppercase tracking-widest">
+              <span className="flex items-center gap-1"><span className="material-symbols-outlined text-[12px] text-yellow-400" style={{ fontVariationSettings: "'FILL' 1" }}>bolt</span> SPD</span>
+              <span className="text-white">{creature.speed}</span>
+            </div>
+            <div className="h-2 border border-[#2d3449] bg-[#0B1326] w-full p-0.5">
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${Math.min(100, (creature.speed / 200) * 100)}%` }}
+                className="h-full bg-yellow-400"
+              />
             </div>
           </div>
         </div>
-
-        {/* Footer Glow */}
-        <div
-          className={`h-1 w-full bg-gradient-to-r ${colorGradient} opacity-30`}
-        ></div>
       </div>
     </motion.div>
   );

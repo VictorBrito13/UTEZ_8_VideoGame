@@ -1,10 +1,10 @@
 import React from "react";
-import { Link, Navigate } from "react-router-dom";
+import { Navigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, Medal, Trophy } from "lucide-react";
 import { Container } from "../../../common/ui/Container";
 import { Heading } from "../../../common/ui/Heading";
 import { Text } from "../../../common/ui/Text";
+import { BackButton } from "../../../common/ui/BackButton";
 import { useLeaderboard } from "../hooks/useLeaderboard";
 
 const LeaderboardPage: React.FC = () => {
@@ -20,107 +20,102 @@ const LeaderboardPage: React.FC = () => {
       <motion.div
         initial={{ opacity: 0, y: -12 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full px-4 md:px-12"
+        className="w-full max-w-5xl mx-auto px-4 relative z-10"
       >
-        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mb-8 flex flex-col md:flex-row items-center gap-6">
+          <BackButton />
           <div>
-            <Link
-              to="/"
-              className="mb-4 inline-flex items-center gap-2 text-xs font-black uppercase tracking-widest text-cyan-400 hover:text-cyan-300"
-            >
-              <ArrowLeft size={14} />
-              Dashboard
-            </Link>
-            <div className="flex items-center gap-3">
-              <Trophy className="h-8 w-8 text-amber-400" />
-              <Heading
-                level={1}
-                className="text-3xl font-black uppercase italic tracking-tighter text-white md:text-4xl"
-              >
-                Leaderboard
+            <div className="flex items-center gap-4 mb-2">
+              <span className="material-symbols-outlined text-tertiary text-4xl shadow-[2px_2px_0_rgba(0,0,0,0.5)]" style={{ fontVariationSettings: "'FILL' 1" }}>emoji_events</span>
+              <Heading level={1} className="terminal-glow text-tertiary">
+                LEADERBOARD
               </Heading>
             </div>
-            <Text variant="secondary" className="mt-2 text-neutral-500">
-              Top players by ELO (highest first).
+            <Text variant="secondary">
+              TOP PLAYERS BY ELO (HIGHEST FIRST).
             </Text>
           </div>
         </div>
 
-        <div className="overflow-hidden rounded-[2rem] border border-white/10 bg-neutral-950 shadow-2xl">
+        <div className="bg-surface-container-low beveled-border shadow-[12px_12px_0_rgba(0,0,0,0.5)] overflow-hidden">
           {loading && (
             <div className="flex justify-center py-20">
-              <div className="h-10 w-10 animate-spin rounded-full border-2 border-cyan-500 border-t-transparent" />
+              <span className="material-symbols-outlined animate-spin text-tertiary text-6xl">autorenew</span>
             </div>
           )}
 
           {error && !loading && (
-            <p className="p-8 text-center text-sm font-bold text-red-400">
+            <p className="p-8 text-center font-headline font-bold uppercase tracking-widest text-error">
               {error}
             </p>
           )}
 
           {!loading && !error && entries.length === 0 && (
-            <p className="p-8 text-center text-sm text-neutral-500">
-              No rankings yet.
-            </p>
+            <div className="p-16 text-center">
+              <span className="material-symbols-outlined text-outline text-6xl mb-4" style={{ fontVariationSettings: "'FILL' 1" }}>search_off</span>
+              <p className="text-outline font-headline font-bold uppercase tracking-widest text-sm">
+                NO RANKINGS YET.
+              </p>
+            </div>
           )}
 
           {!loading && !error && entries.length > 0 && (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[520px] text-left text-sm">
+              <table className="w-full min-w-[520px] text-left">
                 <thead>
-                  <tr className="border-b border-white/10 bg-neutral-900/80 text-[10px] font-black uppercase tracking-widest text-neutral-500">
-                    <th className="px-6 py-4">#</th>
-                    <th className="px-6 py-4">Player</th>
-                    <th className="px-6 py-4 text-right">ELO</th>
-                    <th className="px-6 py-4 text-right">W</th>
-                    <th className="px-6 py-4 text-right">L</th>
+                  <tr className="border-b-2 border-[#2d3449] bg-[#0B1326] text-[10px] font-headline font-black uppercase tracking-widest text-outline shadow-[inset_4px_4px_8px_rgba(0,0,0,0.5)]">
+                    <th className="px-6 py-4 w-16">#</th>
+                    <th className="px-6 py-4">PLAYER</th>
+                    <th className="px-6 py-4 text-right text-tertiary">ELO</th>
+                    <th className="px-6 py-4 text-right text-primary">W</th>
+                    <th className="px-6 py-4 text-right text-error">L</th>
                   </tr>
                 </thead>
                 <tbody>
                   {entries.map((row, index) => {
                     const rank = index + 1;
                     
-                    let medal = "text-neutral-600";
-                    if (rank === 1) medal = "text-amber-400";
-                    else if (rank === 2) medal = "text-neutral-300";
-                    else if (rank === 3) medal = "text-amber-700";
+                    let medalClass = "text-outline";
+                    let medalIcon = "";
+                    if (rank === 1) { medalClass = "text-tertiary"; medalIcon = "military_tech"; }
+                    else if (rank === 2) { medalClass = "text-slate-300"; medalIcon = "military_tech"; }
+                    else if (rank === 3) { medalClass = "text-amber-700"; medalIcon = "military_tech"; }
 
-                    let avatarContent = <div className="text-neutral-500 font-black text-xs uppercase">{row.username.charAt(0)}</div>;
+                    let avatarContent = <div className="text-on-surface font-headline font-black text-xs uppercase">{row.username.charAt(0)}</div>;
                     if (row.fotoBase64) {
                       avatarContent = <img src={row.fotoBase64} alt={row.username} className="h-full w-full object-cover" />;
                     } else if (row.trainerSprite) {
-                      avatarContent = <img src={row.trainerSprite} alt={row.username} className="h-7 w-7 object-contain" style={{ imageRendering: "pixelated" }} />;
+                      avatarContent = <img src={row.trainerSprite} alt={row.username} className="h-full w-full object-contain image-rendering-pixelated p-1" />;
                     }
 
                     return (
                       <tr
                         key={row.userId}
-                        className="border-b border-white/5 transition-colors hover:bg-white/[0.03]"
+                        className="border-b-2 border-[#2d3449] transition-colors hover:bg-white/[0.02]"
                       >
-                        <td className="px-6 py-4 font-mono text-neutral-400">
+                        <td className="px-6 py-4 font-headline font-black text-outline">
                           <span className="inline-flex items-center gap-2">
                             {rank <= 3 && (
-                              <Medal className={`h-4 w-4 ${medal}`} />
+                              <span className={`material-symbols-outlined ${medalClass} drop-shadow-[2px_2px_0_rgba(0,0,0,0.8)]`} style={{ fontVariationSettings: "'FILL' 1" }}>{medalIcon}</span>
                             )}
                             {rank}
                           </span>
                         </td>
-                        <td className="px-6 py-4 font-bold text-white">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 overflow-hidden rounded-full border border-white/10 bg-neutral-800 flex shrink-0 items-center justify-center">
+                        <td className="px-6 py-4 font-headline font-bold text-white uppercase tracking-widest text-sm">
+                          <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 overflow-hidden border-2 border-[#2d3449] bg-[#0B1326] flex shrink-0 items-center justify-center rounded-sm shadow-[inset_2px_2px_4px_rgba(0,0,0,0.5)]">
                               {avatarContent}
                             </div>
                             {row.username}
                           </div>
                         </td>
-                        <td className="px-6 py-4 text-right font-mono text-cyan-400">
+                        <td className="px-6 py-4 text-right font-headline font-black text-tertiary text-lg terminal-glow">
                           {row.elo}
                         </td>
-                        <td className="px-6 py-4 text-right text-emerald-400/90">
+                        <td className="px-6 py-4 text-right font-headline font-black text-primary">
                           {row.wins}
                         </td>
-                        <td className="px-6 py-4 text-right text-red-400/80">
+                        <td className="px-6 py-4 text-right font-headline font-black text-error">
                           {row.losses}
                         </td>
                       </tr>

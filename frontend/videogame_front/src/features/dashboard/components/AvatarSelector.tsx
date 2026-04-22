@@ -1,7 +1,5 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Check, User as UserIcon } from "lucide-react";
-import apiClient from "../../../api/apiClient";
 
 interface AvatarSelectorProps {
   isOpen: boolean;
@@ -13,43 +11,43 @@ interface AvatarSelectorProps {
 const TRAINER_AVATARS = [
   {
     id: 1,
-    name: "Red",
-    url: "https://cdn.jsdelivr.net/npm/pokeapi-sprites/sprites/trainers/1.png",
+    name: "Red",  
+    url: "https://play.pokemonshowdown.com/sprites/trainers/red.png",
   },
   {
     id: 2,
     name: "Blue",
-    url: "https://cdn.jsdelivr.net/npm/pokeapi-sprites/sprites/trainers/2.png",
+    url: "https://play.pokemonshowdown.com/sprites/trainers/blue.png",
   },
   {
     id: 3,
-    name: "Leaf",
-    url: "https://cdn.jsdelivr.net/npm/pokeapi-sprites/sprites/trainers/10.png",
+    name: "Dawn",
+    url: "https://play.pokemonshowdown.com/sprites/trainers/dawn.png",
   },
   {
     id: 4,
     name: "Ethan",
-    url: "https://cdn.jsdelivr.net/npm/pokeapi-sprites/sprites/trainers/3.png",
+    url: "https://play.pokemonshowdown.com/sprites/trainers/ethan.png",
   },
   {
     id: 5,
-    name: "Kris",
-    url: "https://cdn.jsdelivr.net/npm/pokeapi-sprites/sprites/trainers/5.png",
+    name: "Lyra",
+    url: "https://play.pokemonshowdown.com/sprites/trainers/lyra.png",
   },
   {
     id: 6,
-    name: "Lyra",
-    url: "https://cdn.jsdelivr.net/npm/pokeapi-sprites/sprites/trainers/12.png",
+    name: "Brendan",
+    url: "https://play.pokemonshowdown.com/sprites/trainers/brendan.png",
   },
   {
     id: 7,
-    name: "Brendan",
-    url: "https://cdn.jsdelivr.net/npm/pokeapi-sprites/sprites/trainers/7.png",
+    name: "May",
+    url: "https://play.pokemonshowdown.com/sprites/trainers/may.png",
   },
   {
     id: 8,
-    name: "May",
-    url: "https://cdn.jsdelivr.net/npm/pokeapi-sprites/sprites/trainers/13.png",
+    name: "Silver",
+    url: "https://play.pokemonshowdown.com/sprites/trainers/silver.png",
   },
 ];
 
@@ -59,27 +57,17 @@ export const AvatarSelector = ({
   currentAvatar,
   onAvatarSelect,
 }: AvatarSelectorProps) => {
-  const [loading, setLoading] = useState(false);
+  const [loading, ] = useState(false);
 
-  const handleSelect = async (url: string) => {
-    setLoading(true);
-    try {
-      await apiClient.patch("/api/profile/update_profile/", {
-        trainer_sprite: url,
-      });
-      onAvatarSelect(url);
-      onClose();
-    } catch {
-      // Selection modal stays open; user can retry.
-    } finally {
-      setLoading(false);
-    }
+  const handleSelect = (url: string) => {
+    onAvatarSelect(url);
+    onClose();
   };
 
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
           {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
@@ -94,25 +82,23 @@ export const AvatarSelector = ({
             initial={{ scale: 0.9, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.9, opacity: 0, y: 20 }}
-            className="relative bg-neutral-950 border border-white/10 rounded-[3rem] p-8 max-w-2xl w-full shadow-2xl overflow-hidden"
+            className="relative bg-[#0B1326] border-2 border-[#2d3449] rounded-sm p-8 max-w-2xl w-full shadow-[8px_8px_0_rgba(0,0,0,0.5)] overflow-hidden"
           >
-            {/* Neon Glow */}
-            <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 rounded-full blur-[100px] pointer-events-none" />
-
-            <div className="flex justify-between items-center mb-8">
+            <div className="flex justify-between items-start mb-8 border-b-2 border-[#2d3449] pb-4">
               <div>
-                <h2 className="text-3xl font-black italic tracking-tighter text-white uppercase">
-                  Identity_Terminal
+                <h2 className="text-3xl font-headline font-black tracking-widest text-primary uppercase terminal-glow flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[32px]" style={{ fontVariationSettings: "'FILL' 1" }}>account_circle</span>
+                  IDENTITY_TERMINAL
                 </h2>
-                <p className="text-xs text-neutral-500 font-bold uppercase tracking-widest">
-                  Select_Trainer_Avatar // Pixel_Sync
+                <p className="text-xs text-outline font-headline font-bold uppercase tracking-widest mt-1">
+                  SELECT_TRAINER_AVATAR // PIXEL_SYNC
                 </p>
               </div>
               <button
                 onClick={onClose}
-                className="p-2 bg-neutral-900 border border-white/10 rounded-xl hover:bg-white/10 transition-colors"
+                className="p-1 bg-surface-container-low border-2 border-[#2d3449] text-outline hover:text-error hover:border-error hover:bg-error/10 transition-colors rounded-sm shadow-[2px_2px_0_rgba(0,0,0,0.5)]"
               >
-                <X size={20} />
+                <span className="material-symbols-outlined text-[24px]">close</span>
               </button>
             </div>
 
@@ -125,28 +111,24 @@ export const AvatarSelector = ({
                     whileHover={{ y: -5 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => handleSelect(avatar.url)}
-                    className={`relative aspect-square rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-center overflow-hidden bg-neutral-900/50 ${
+                    className={`relative aspect-square rounded-sm border-2 transition-all cursor-pointer flex flex-col items-center justify-center bg-surface-container-low shadow-[4px_4px_0_rgba(0,0,0,0.5)] overflow-hidden beveled-button ${
                       isSelected
-                        ? "border-emerald-500 bg-emerald-500/10 shadow-[0_0_20px_rgba(16,185,129,0.2)]"
-                        : "border-white/5 hover:border-white/20"
+                        ? "border-primary bg-primary/10"
+                        : "border-[#2d3449] hover:border-white/40"
                     }`}
                   >
                     <img
                       src={avatar.url}
                       alt={avatar.name}
-                      className={`w-32 h-32 object-contain filter ${isSelected ? "drop-shadow-[0_0_8px_rgba(16,185,129,0.5)]" : ""}`}
+                      className={`w-24 h-24 object-contain image-rendering-pixelated mb-4 ${isSelected ? "drop-shadow-[2px_2px_0_rgba(16,185,129,0.8)]" : ""}`}
                     />
 
                     {isSelected && (
-                      <div className="absolute inset-0 bg-emerald-500/10 flex items-center justify-center">
-                        <div className="bg-emerald-500 p-1 rounded-full shadow-lg">
-                          <Check size={14} className="text-black" />
-                        </div>
-                      </div>
+                      <div className="absolute inset-0 ring-4 ring-inset ring-primary pointer-events-none" />
                     )}
 
-                    <div className="absolute bottom-2 left-0 right-0 text-center">
-                      <span className="text-[10px] font-black uppercase text-white/40 tracking-tighter">
+                    <div className="absolute bottom-0 left-0 right-0 bg-[#0B1326] border-t-2 border-[#2d3449] text-center py-1">
+                      <span className={`text-[10px] font-headline font-black uppercase tracking-widest ${isSelected ? "text-primary" : "text-outline"}`}>
                         {avatar.name}
                       </span>
                     </div>
@@ -155,12 +137,12 @@ export const AvatarSelector = ({
               })}
             </div>
 
-            <div className="mt-8 pt-8 border-t border-white/5 flex items-center gap-4 text-neutral-600">
-              <UserIcon size={16} />
-              <p className="text-[10px] font-bold uppercase tracking-widest">
+            <div className="mt-8 pt-4 flex items-center gap-2 text-outline">
+              <span className="material-symbols-outlined text-[16px]" style={{ fontVariationSettings: "'FILL' 1" }}>terminal</span>
+              <p className="text-[10px] font-headline font-bold uppercase tracking-widest">
                 {loading
-                  ? "Sychronizing Neural Identity..."
-                  : "Biometric Link Ready // Zone_Alpha"}
+                  ? "SYNCHRONIZING NEURAL IDENTITY..."
+                  : "BIOMETRIC LINK READY // ZONE_ALPHA"}
               </p>
             </div>
           </motion.div>

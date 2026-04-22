@@ -5,6 +5,9 @@ export interface CreatureData {
   max_hp: number;
   level: number;
   sprite: string;
+  back_sprite?: string;
+  type_1_name?: string;
+  type_2_name?: string;
   buffs?: {
     atk: number;
     def: number;
@@ -33,6 +36,7 @@ export interface InventoryItem {
     effect_type: string;
     vfx_type: string;
     effect_value: number;
+    sprite?: string;
   };
 }
 

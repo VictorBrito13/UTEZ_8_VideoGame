@@ -12,10 +12,10 @@ export const Text: React.FC<TextProps> = ({
   className = "",
 }) => {
   const variants = {
-    normal: "text-slate-200",
-    secondary: "text-sm text-slate-400",
+    normal: "font-body text-sm text-on-surface",
+    secondary: "font-body text-xs text-on-surface-variant uppercase tracking-wider",
     error:
-      "bg-red-500/10 border border-red-500/50 text-red-400 p-3 rounded-lg text-sm text-center",
+      "bg-error-container/80 border-2 border-on-error text-on-error-container p-3 text-sm text-center font-headline tracking-widest uppercase",
   };
 
   return (
