@@ -9,10 +9,12 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 from core.payload_crypto import decrypt_json
 from django.contrib.auth.models import User
 from django.core.cache import cache
+from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 from inventory.reward_service import award_battle_rewards
 from utils.log import logger
 
+from creatures.models import Ability, CreatureAbility, SpecialAbility
 from .models import Battle
 
 
@@ -394,7 +396,7 @@ class BattleConsumer(AsyncWebsocketConsumer):
       action = payload.get("action")
 
       if action == "attack":
-        await self._handle_attack_action()
+        await self._handle_attack_action(payload)
         return
 
       if action == "use_item":
@@ -416,42 +418,88 @@ class BattleConsumer(AsyncWebsocketConsumer):
         {"type": "error", "message": "Failed to process action"}
       )
 
-  async def _handle_attack_action(self) -> None:
+  async def _handle_attack_action(self, payload: dict) -> None:
     attacker = self._user
-    defender = await self._get_next_player()
+    if not await self._is_current_turn(attacker):
+      await self.send_json({"type": "error", "message": "Not your turn"})
+      return
 
-    result = await self._apply_damage(attacker, defender)
-    if result and result.get("success"):
+    ability_id = payload.get("data", {}).get("ability_id")
+    if not ability_id:
+      await self.send_json(
+        {"type": "error", "message": "Missing ability_id for attack"}
+      )
+      return
+
+    selected = await self._cache_selected_ability(attacker, ability_id)
+    if not selected:
+      await self.send_json(
+        {
+          "type": "error",
+          "message": "Ability is invalid for your active Pokémon",
+        }
+      )
+      return
+
+    opponent = await self._get_next_player()
+    await self.channel_layer.group_send(
+      f"battle_{self._battle_id}",
+      {
+        "type": "battle_action",
+        "action": "attack_selected",
+        "player_id": attacker.id,
+        "data": {"ability_id": ability_id},
+      },
+    )
+
+    if await self._has_selected_attack(opponent):
+      result = await self._resolve_pending_attacks()
+      if not result.get("success"):
+        await self.send_json(
+          {
+            "type": "error",
+            "message": "Attack resolution failed: " + result.get("error", "Unknown"),
+          }
+        )
+      return
+
+    await self._set_current_turn(opponent)
+    await self.channel_layer.group_send(
+      f"battle_{self._battle_id}",
+      {
+        "type": "turn_changed",
+        "next_player_id": opponent.id,
+        "turn_number": self._battle.turn_number,
+      },
+    )
+
+  async def _handle_swap_action(self, payload: dict) -> None:
+    creature_id = payload.get("data", {}).get("creature_id")
+    if not creature_id:
+      await self.send_json(
+        {"type": "error", "message": "Missing creature_id for swap"}
+      )
+      return
+
+    # This is crucial: update server cache of who is active
+    success = await self._cache_active_creature(self._user, creature_id)
+    if success:
       await self.channel_layer.group_send(
         f"battle_{self._battle_id}",
         {
           "type": "battle_action",
-          "action": "attack",
+          "action": "swap",
           "player_id": self._user.id,
-          "data": {
-            "damage": result["damage"],
-            "defender_active_id": result["defender_active_id"],
-            "defender_hp": result["defender_hp"],
-            "is_fainted": result["is_fainted"],
-            "defender_user_id": result["defender_user_id"],
-            "forced_switch": result["forced_switch"],
-            "new_defender_active_id": result["new_defender_active_id"],
-          },
+          "data": {"creature_id": creature_id},
         },
       )
-
-      if result.get("all_fainted"):
-        await self._award_victory_normal(attacker, defender)
-        return
-
-      # Automatically end turn
       await self._handle_end_turn()
       return
 
     await self.send_json(
       {
         "type": "error",
-        "message": "Attack failed: " + result.get("error", "Unknown"),
+        "message": "Swap failed: Creature does not belong to you or is fainted",
       }
     )
 
@@ -839,6 +887,319 @@ class BattleConsumer(AsyncWebsocketConsumer):
       return 1.0
 
     return multiplier
+
+  @sync_to_async
+  def _cache_selected_ability(self, user: User, ability_id: int) -> bool:
+    from user_profile.models import UserCreature
+
+    active_id = cache.get(f"battle_{self._battle_id}_p_{user.id}_active")
+    if not active_id:
+      return False
+
+    uc = UserCreature.objects.filter(id=active_id, user=user).select_related("creature").first()
+    if not uc or uc.current_hp <= 0:
+      return False
+
+    has_ability = CreatureAbility.objects.filter(
+      creature=uc.creature, ability_id=ability_id
+    ).exists()
+    if not has_ability:
+      return False
+
+    cache.set(
+      f"battle_{self._battle_id}_p_{user.id}_selected_ability",
+      ability_id,
+      timeout=3600,
+    )
+    return True
+
+  @sync_to_async
+  def _has_selected_attack(self, user: User) -> bool:
+    return cache.get(f"battle_{self._battle_id}_p_{user.id}_selected_ability") is not None
+
+  @sync_to_async
+  def _clear_selected_attacks(self) -> None:
+    cache.delete(
+      f"battle_{self._battle_id}_p_{self._battle.player1.id}_selected_ability"
+    )
+    cache.delete(
+      f"battle_{self._battle_id}_p_{self._battle.player2.id}_selected_ability"
+    )
+
+  @sync_to_async
+  def _get_active_selected_ability(self, user: User) -> tuple:
+    from user_profile.models import UserCreature
+
+    active_id = cache.get(f"battle_{self._battle_id}_p_{user.id}_active")
+    selected_id = cache.get(
+      f"battle_{self._battle_id}_p_{user.id}_selected_ability"
+    )
+    if not active_id or not selected_id:
+      return None, None
+
+    uc = UserCreature.objects.filter(id=active_id, user=user).select_related(
+      "creature"
+    ).first()
+    if not uc:
+      return None, None
+
+    try:
+      ability = Ability.objects.get(id=selected_id)
+    except Ability.DoesNotExist:
+      ability = None
+
+    return uc, ability
+
+  async def _resolve_pending_attacks(self) -> dict:
+    p1_uc, p1_ability = await self._get_active_selected_ability(
+      self._battle.player1
+    )
+    p2_uc, p2_ability = await self._get_active_selected_ability(
+      self._battle.player2
+    )
+
+    if not p1_uc or not p1_ability or not p2_uc or not p2_ability:
+      return {"success": False, "error": "Both players must select an attack"}
+
+    if p1_uc.current_hp <= 0 or p2_uc.current_hp <= 0:
+      return {"success": False, "error": "One of the active Pokémon has fainted"}
+
+    first, second = (self._battle.player1, p1_uc, p1_ability, self._battle.player2, p2_uc, p2_ability)
+    if p2_uc.creature.speed > p1_uc.creature.speed:
+      first, second = (self._battle.player2, p2_uc, p2_ability, self._battle.player1, p1_uc, p1_ability)
+
+    attacker_one, attacker_one_uc, ability_one, defender_one = (
+      first[0], first[1], first[2], second[0]
+    )
+    defender_one_uc = second[1]
+    ability_two = second[2]
+    attacker_two = second[0]
+    attacker_two_uc = second[1]
+    defender_two = first[0]
+    defender_two_uc = first[1]
+
+    result_one = await self._perform_ability_attack(
+      attacker_one,
+      defender_one,
+      attacker_one_uc,
+      defender_one_uc,
+      ability_one,
+    )
+    if not result_one.get("success"):
+      return result_one
+
+    await self.channel_layer.group_send(
+      f"battle_{self._battle_id}",
+      {
+        "type": "battle_action",
+        "action": "attack",
+        "player_id": attacker_one.id,
+        "data": {
+          "ability_id": result_one["ability_id"],
+          "damage": result_one["damage"],
+          "defender_active_id": result_one["defender_active_id"],
+          "defender_hp": result_one["defender_hp"],
+          "is_fainted": result_one["is_fainted"],
+          "defender_user_id": result_one["defender_user_id"],
+          "forced_switch": result_one["forced_switch"],
+          "new_defender_active_id": result_one["new_defender_active_id"],
+          "special_effect": result_one["special_effect"],
+        },
+      },
+    )
+
+    if result_one.get("all_fainted"):
+      await self._clear_selected_attacks()
+      return {"success": True}
+
+    result_two = await self._perform_ability_attack(
+      attacker_two,
+      defender_two,
+      attacker_two_uc,
+      defender_two_uc,
+      ability_two,
+    )
+    if not result_two.get("success"):
+      return result_two
+
+    await self.channel_layer.group_send(
+      f"battle_{self._battle_id}",
+      {
+        "type": "battle_action",
+        "action": "attack",
+        "player_id": attacker_two.id,
+        "data": {
+          "ability_id": result_two["ability_id"],
+          "damage": result_two["damage"],
+          "defender_active_id": result_two["defender_active_id"],
+          "defender_hp": result_two["defender_hp"],
+          "is_fainted": result_two["is_fainted"],
+          "defender_user_id": result_two["defender_user_id"],
+          "forced_switch": result_two["forced_switch"],
+          "new_defender_active_id": result_two["new_defender_active_id"],
+          "special_effect": result_two["special_effect"],
+        },
+      },
+    )
+
+    await self._clear_selected_attacks()
+
+    # Determine next turn after the phase: fastest remaining Pokémon starts next.
+    next_player = attacker_one
+    if attacker_one_uc.current_hp <= 0 and attacker_two_uc.current_hp > 0:
+      next_player = attacker_two
+    elif attacker_two_uc.current_hp <= 0 and attacker_one_uc.current_hp > 0:
+      next_player = attacker_one
+
+    await self._set_current_turn(next_player)
+    await self._increment_turn_number()
+    await self.channel_layer.group_send(
+      f"battle_{self._battle_id}",
+      {
+        "type": "turn_changed",
+        "next_player_id": next_player.id,
+        "turn_number": self._battle.turn_number,
+      },
+    )
+
+    return {"success": True}
+
+  @sync_to_async
+  def _perform_ability_attack(
+    self,
+    attacker: User,
+    defender: User,
+    atk_tc,
+    def_tc,
+    ability: Ability,
+  ) -> dict:
+    from user_profile.models import Team
+
+    if atk_tc.current_hp <= 0 or def_tc.current_hp <= 0:
+      return {
+        "success": False,
+        "error": "Cannot attack with or target a fainted creature",
+      }
+
+    defender_team = Team.objects.get(user=defender)
+
+    atk_buff = cache.get(
+      f"battle_{self._battle_id}_p_{attacker.id}_b_{atk_tc.id}_buff_atk",
+      1.0,
+    )
+    def_buff = cache.get(
+      f"battle_{self._battle_id}_p_{defender.id}_b_{def_tc.id}_buff_def",
+      1.0,
+    )
+    has_choice_band = cache.get(
+      f"battle_{self._battle_id}_p_{attacker.id}_b_{atk_tc.id}_choice_band"
+    )
+
+    atk_stat = atk_tc.creature.attack * atk_buff
+    if has_choice_band:
+      atk_stat *= 1.5
+    burned = cache.get(
+      f"battle_{self._battle_id}_p_{attacker.id}_b_{atk_tc.id}_burned"
+    )
+    if burned:
+      atk_stat *= 0.8
+
+    def_stat = def_tc.creature.defense * def_buff
+    total_attack = ability.base_damage + atk_stat
+    attack_before_defense = max(
+      1, int(total_attack * ability.damage_multiplier) - def_stat
+    )
+
+    move_type = (
+      [ability.ability_type.name]
+      if ability.ability_type
+      else [atk_tc.creature.type_1.name]
+    )
+    def_types = [def_tc.creature.type_1.name]
+    if def_tc.creature.type_2:
+      def_types.append(def_tc.creature.type_2.name)
+
+    multiplier = self._calculate_type_multiplier_sync(move_type, def_types)
+    damage = max(1, int(attack_before_defense * multiplier))
+
+    new_hp = def_tc.current_hp - damage
+    new_hp = self._apply_focus_band_sync(defender, def_tc.id, new_hp)
+    def_tc.current_hp = max(0, new_hp)
+    self._apply_oran_berry_sync(defender, def_tc.id, def_tc)
+    def_tc.save()
+
+    all_fainted = not defender_team.team_creatures.filter(
+      user_creature__current_hp__gt=0
+    ).exists()
+
+    forced_switch, new_defender_active_id = self._resolve_forced_switch_sync(
+      defender_team,
+      defender,
+      def_tc,
+      all_fainted,
+    )
+
+    special_effect = self._maybe_trigger_special_ability(
+      atk_tc, def_tc, attacker, defender
+    )
+
+    return {
+      "success": True,
+      "damage": damage,
+      "all_fainted": all_fainted,
+      "defender_active_id": def_tc.id,
+      "defender_hp": def_tc.current_hp,
+      "is_fainted": def_tc.current_hp <= 0,
+      "defender_user_id": defender.id,
+      "forced_switch": forced_switch,
+      "new_defender_active_id": new_defender_active_id,
+      "special_effect": special_effect,
+      "ability_id": ability.id,
+    }
+
+  def _maybe_trigger_special_ability(
+    self, atk_tc, def_tc, attacker: User, defender: User
+  ) -> dict | None:
+    special = atk_tc.creature.special_ability
+    if not special:
+      return None
+
+    import random
+
+    if random.random() > float(special.trigger_probability):
+      return None
+
+    effect = special.effect_type
+    if effect == "PARALYZE":
+      cache.set(
+        f"battle_{self._battle_id}_p_{defender.id}_skip_turn",
+        True,
+        timeout=3600,
+      )
+      return {"type": "PARALYZE", "message": "El rival ha sido paralizado."}
+    if effect == "BURN":
+      cache.set(
+        f"battle_{self._battle_id}_p_{defender.id}_b_{def_tc.id}_burned",
+        True,
+        timeout=3600,
+      )
+      return {"type": "BURN", "message": "El rival ha sido quemado."}
+    if effect == "FREEZE":
+      cache.set(
+        f"battle_{self._battle_id}_p_{defender.id}_skip_turn",
+        True,
+        timeout=3600,
+      )
+      return {"type": "FREEZE", "message": "El rival ha quedado congelado."}
+    if effect == "POISON":
+      cache.set(
+        f"battle_{self._battle_id}_p_{defender.id}_poisoned",
+        True,
+        timeout=3600,
+      )
+      return {"type": "POISON", "message": "El rival ha sido envenenado."}
+
+    return {"type": effect, "message": special.description}
 
   @sync_to_async
   def _apply_damage(self, attacker: User, defender: User) -> dict:

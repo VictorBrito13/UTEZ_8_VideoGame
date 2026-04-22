@@ -8,18 +8,46 @@ from .models import Battle
 
 
 class CreatureType(models.Model):
-  """Creature types for damage calculation"""
+  """Creature types for damage calculation - Pokemon standard 18 types"""
 
+  NORMAL = "normal"
   FIRE = "fire"
   WATER = "water"
-  EARTH = "earth"
-  AIR = "air"
+  GRASS = "grass"
+  ELECTRIC = "electric"
+  ICE = "ice"
+  FIGHTING = "fighting"
+  POISON = "poison"
+  GROUND = "ground"
+  FLYING = "flying"
+  PSYCHIC = "psychic"
+  BUG = "bug"
+  ROCK = "rock"
+  GHOST = "ghost"
+  DRAGON = "dragon"
+  DARK = "dark"
+  STEEL = "steel"
+  FAIRY = "fairy"
 
   TYPE_CHOICES = [
+    (NORMAL, "Normal"),
     (FIRE, "Fire"),
     (WATER, "Water"),
-    (EARTH, "Earth"),
-    (AIR, "Air"),
+    (GRASS, "Grass"),
+    (ELECTRIC, "Electric"),
+    (ICE, "Ice"),
+    (FIGHTING, "Fighting"),
+    (POISON, "Poison"),
+    (GROUND, "Ground"),
+    (FLYING, "Flying"),
+    (PSYCHIC, "Psychic"),
+    (BUG, "Bug"),
+    (ROCK, "Rock"),
+    (GHOST, "Ghost"),
+    (DRAGON, "Dragon"),
+    (DARK, "Dark"),
+    (STEEL, "Steel"),
+    (FAIRY, "Fairy"),
   ]
 
   name = models.CharField(max_length=20, choices=TYPE_CHOICES, unique=True)
@@ -56,7 +84,7 @@ class TypeEffectiveness(models.Model):
 
 
 class DamageCalculation(models.Model):
-  """Deterministic damage calculation records"""
+  """Deterministic damage calculation records with detailed stats"""
 
   battle = models.ForeignKey(
     Battle, on_delete=models.CASCADE, related_name="damage_calculations"
@@ -69,6 +97,18 @@ class DamageCalculation(models.Model):
   defending_type = models.ForeignKey(
     CreatureType, on_delete=models.PROTECT, related_name="damage_received"
   )
+  
+  # New detailed damage calculation fields
+  ability_base_damage = models.PositiveIntegerField(
+    help_text="Base damage of the move"
+  )
+  attacker_attack = models.PositiveIntegerField(
+    help_text="Attacking creature's attack stat"
+  )
+  defender_defense = models.PositiveIntegerField(
+    help_text="Defending creature's defense stat"
+  )
+  
   base_damage = models.PositiveIntegerField()
   type_multiplier = models.DecimalField(max_digits=3, decimal_places=2)
   final_damage = models.PositiveIntegerField()
@@ -86,30 +126,38 @@ class DamageCalculation(models.Model):
     defender_id,
     attacking_type,
     defending_type,
-    base_damage,
+    ability_base_damage,
+    attacker_attack,
+    defender_defense,
     turn_number,
   ):
     """
-    Calculate damage using deterministic formula:
-    Damage_final = Damage_base +/- Damage_base*factor_type
+    Calculate damage using enhanced formula:
+    total_attack = ability_base_damage + attacker_attack
+    defense_factor = max(1, total_attack - defender_defense)
+    Damage_final = defense_factor * type_multiplier
     """
     with transaction.atomic():
-      # Get factor_type from effectiveness table
+      # Get type effectiveness
       effectiveness = TypeEffectiveness.objects.get(
         attacking_type=attacking_type, defending_type=defending_type
       )
-      factor_type = effectiveness.multiplier
+      type_multiplier = effectiveness.multiplier
 
-      # Apply formula: Damage_final = Damage_base +/- Damage_base*factor_type
-      damage_with_modifier = Decimal(base_damage) + (
-        Decimal(base_damage) * factor_type
-      )
+      # Calculate total attack
+      total_attack = ability_base_damage + attacker_attack
+      
+      # Calculate base damage considering defense
+      damage_before_type = max(1, total_attack - defender_defense)
+      
+      # Apply type multiplier
+      damage_with_modifier = Decimal(damage_before_type) * type_multiplier
 
       # Deterministic rounding (always round down)
       final_damage = int(
         damage_with_modifier.to_integral_value(rounding="ROUND_DOWN")
       )
-      final_damage = max(0, final_damage)  # Ensure non-negative
+      final_damage = max(1, final_damage)  # Ensure at least 1 damage
 
       # Record calculation
       return cls.objects.create(
@@ -118,8 +166,12 @@ class DamageCalculation(models.Model):
         defender_id=defender_id,
         attacking_type=attacking_type,
         defending_type=defending_type,
-        base_damage=base_damage,
-        type_multiplier=factor_type,
+        ability_base_damage=ability_base_damage,
+        attacker_attack=attacker_attack,
+        defender_defense=defender_defense,
+        base_damage=damage_before_type,
+        type_multiplier=type_multiplier,
         final_damage=final_damage,
         turn_number=turn_number,
       )
+

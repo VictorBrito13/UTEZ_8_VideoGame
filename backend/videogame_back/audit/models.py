@@ -9,14 +9,14 @@ class AuditLog(models.Model):
 
   action = models.CharField(max_length=10)  # CREATE, UPDATE, DELETE
 
-  field_name = models.CharField(max_length=100, blank=True)
-  old_value = models.TextField(blank=True)
-  new_value = models.TextField(blank=True)
+  field_name = models.CharField(max_length=100, blank=True, null=True)
+  old_value = models.TextField(blank=True, null=True)
+  new_value = models.TextField(blank=True, null=True)
 
   timestamp = models.DateTimeField(auto_now_add=True)
 
   user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
-  host = models.CharField(max_length=100, blank=True)
+  host = models.CharField(max_length=100, blank=True, null=True)
 
   def save(self, *args, **kwargs):
     if not self.user:
