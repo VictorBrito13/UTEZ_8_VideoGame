@@ -206,10 +206,9 @@ const RegisterPage: React.FC = () => {
           <button
             type="submit"
             disabled={loading || !isFormValid}
-            className="w-full group relative overflow-hidden bg-primary text-on-primary font-headline font-black py-5 rounded-sm uppercase tracking-[0.3em] beveled-button hover:translate-y-[-2px] active:translate-y-[2px] transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full relative overflow-hidden bg-primary text-on-primary font-headline font-black py-5 rounded-sm uppercase tracking-[0.3em] beveled-button hover:bg-red-500 active:translate-y-[2px] transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <span className="relative z-10">{loading ? "FORGING ACCOUNT..." : "INITIALIZE HERO"}</span>
-            <span className="material-symbols-outlined relative z-10 text-xl group-hover:rotate-180 transition-transform duration-500" style={{ fontVariationSettings: "'FILL' 1" }}>catching_pokemon</span>
+            <span className="relative z-10">{loading ? "FORGING ACCOUNT..." : "REGISTER"}</span>
             <div className="absolute top-0 left-0 w-full h-1/2 bg-white/10"></div>
           </button>
         </form>

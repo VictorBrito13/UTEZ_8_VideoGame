@@ -191,7 +191,7 @@ export const MatchmakingPage = () => {
       <div className="w-full max-w-6xl z-10 p-4 md:p-8 mt-10">
         <div className="text-center mb-12">
           <h2 className="text-4xl md:text-6xl font-black uppercase tracking-tighter mb-4 font-headline text-white flex items-center justify-center gap-4 drop-shadow-[0_0_15px_rgba(255,180,168,0.5)]">
-            {status === "searching" ? "BUSCANDO" : status === "found" ? "OPONENTE" : "ARENA"} <span className="text-primary italic">{status === "searching" ? "OPONENTE" : status === "found" ? "ENCONTRADO" : "RANKED"}</span>
+            {status === "searching" ? "SEARCHING" : status === "found" ? "OPPONENT" : "BATTLE"} <span className="text-primary italic">{status === "searching" ? "OPPONENT" : status === "found" ? "FOUND" : "RANKED"}</span>
           </h2>
           <div className="flex items-center justify-center space-x-4">
             <span className="h-px w-12 bg-outline-variant opacity-30"></span>
@@ -245,14 +245,14 @@ export const MatchmakingPage = () => {
                 )}
               </div>
               
-              <div className="grid grid-cols-2 gap-3 mt-4 z-10 relative">
-                <div className="bg-[#0B1326] border-2 border-[#2d3449] p-3 rounded-sm text-center shadow-[inset_2px_2px_4px_rgba(0,0,0,0.5)]">
-                  <div className="text-[9px] text-on-surface-variant font-bold tracking-widest uppercase">WINS</div>
-                  <div className="text-lg font-black text-white font-headline">{profile?.wins || 0}</div>
+              <div className="grid grid-cols-2 gap-6 mt-auto px-6 pb-6 z-10 relative">
+                <div className="bg-[#0B1326] border-2 border-[#2d3449] p-4 rounded-sm text-center shadow-[inset_2px_2px_4px_rgba(0,0,0,0.5)]">
+                  <div className="text-[9px] text-on-surface-variant font-bold tracking-widest uppercase mb-1">WINS</div>
+                  <div className="text-xl font-black text-white font-headline">{profile?.wins || 0}</div>
                 </div>
-                <div className="bg-[#0B1326] border-2 border-[#2d3449] p-3 rounded-sm text-center shadow-[inset_2px_2px_4px_rgba(0,0,0,0.5)]">
-                  <div className="text-[9px] text-on-surface-variant font-bold tracking-widest uppercase">TIER</div>
-                  <div className="text-lg font-black text-tertiary font-headline">S1</div>
+                <div className="bg-[#0B1326] border-2 border-[#2d3449] p-4 rounded-sm text-center shadow-[inset_2px_2px_4px_rgba(0,0,0,0.5)]">
+                  <div className="text-[9px] text-on-surface-variant font-bold tracking-widest uppercase mb-1">TIER</div>
+                  <div className="text-xl font-black text-tertiary font-headline">S1</div>
                 </div>
               </div>
             </div>
@@ -306,24 +306,24 @@ export const MatchmakingPage = () => {
                 )}
               </div>
               
-              <div className="space-y-4 z-10 relative">
+              <div className="space-y-4 z-10 relative px-6 pb-6 mt-auto">
                 {status === "found" && opponent ? (
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-[#0B1326] border-2 border-error/30 p-3 rounded-sm text-center shadow-[inset_2px_2px_4px_rgba(0,0,0,0.5)]">
-                      <div className="text-[9px] text-on-surface-variant font-bold tracking-widest uppercase">WINS</div>
-                      <div className="text-lg font-black text-white font-headline">{opponent.wins || "?"}</div>
+                  <div className="grid grid-cols-2 gap-6 mt-2">
+                    <div className="bg-[#0B1326] border-2 border-error/30 p-4 rounded-sm text-center shadow-[inset_2px_2px_4px_rgba(0,0,0,0.5)]">
+                      <div className="text-[9px] text-on-surface-variant font-bold tracking-widest uppercase mb-1">WINS</div>
+                      <div className="text-xl font-black text-white font-headline">{opponent.wins || "?"}</div>
                     </div>
-                    <div className="bg-[#0B1326] border-2 border-error/30 p-3 rounded-sm text-center shadow-[inset_2px_2px_4px_rgba(0,0,0,0.5)]">
-                      <div className="text-[9px] text-on-surface-variant font-bold tracking-widest uppercase">STATUS</div>
-                      <div className="text-lg font-black text-error font-headline animate-pulse">READY</div>
+                    <div className="bg-[#0B1326] border-2 border-error/30 p-4 rounded-sm text-center shadow-[inset_2px_2px_4px_rgba(0,0,0,0.5)]">
+                      <div className="text-[9px] text-on-surface-variant font-bold tracking-widest uppercase mb-1">STATUS</div>
+                      <div className="text-xl font-black text-error font-headline animate-pulse">READY</div>
                     </div>
                   </div>
                 ) : (
                   <>
-                    <div className="h-8 bg-[#0B1326] border-2 border-[#2d3449] rounded-sm animate-pulse w-full"></div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="h-14 bg-[#0B1326] border-2 border-[#2d3449] rounded-sm animate-pulse"></div>
-                      <div className="h-14 bg-[#0B1326] border-2 border-[#2d3449] rounded-sm animate-pulse"></div>
+                    <div className="h-10 bg-[#0B1326] border-2 border-[#2d3449] rounded-sm animate-pulse w-full"></div>
+                    <div className="grid grid-cols-2 gap-6">
+                      <div className="h-16 bg-[#0B1326] border-2 border-[#2d3449] rounded-sm animate-pulse"></div>
+                      <div className="h-16 bg-[#0B1326] border-2 border-[#2d3449] rounded-sm animate-pulse"></div>
                     </div>
                   </>
                 )}

@@ -1700,6 +1700,8 @@ class BattleConsumer(AsyncWebsocketConsumer):
             "max_hp": c.creature.hp,
             "level": c.level,
             "sprite": c.creature.front_sprite,
+            "type_1_name": c.creature.type_1.name if c.creature.type_1 else None,
+            "type_2_name": c.creature.type_2.name if c.creature.type_2 else None,
             "buffs": {
               "atk": cache.get(
                 f"battle_{self._battle_id}_p_{user.id}_b_{c.id}_buff_atk", 1.0
