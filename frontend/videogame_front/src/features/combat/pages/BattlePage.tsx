@@ -13,6 +13,7 @@ import type {
   PlayerData,
 } from "../types";
 import { Zap } from "lucide-react";
+import { ElementalVfx } from "../components/ElementalVfx";
 
 const typeColors: Record<string, string> = {
   FIRE: "bg-orange-500",
@@ -32,6 +33,27 @@ const typeColors: Record<string, string> = {
   DRAGON: "bg-indigo-600",
   DARK: "bg-gray-700",
   FAIRY: "bg-rose-400",
+};
+
+const typeIcons: Record<string, string> = {
+  FIRE: "local_fire_department",
+  WATER: "water_drop",
+  GRASS: "eco",
+  ELECTRIC: "bolt",
+  ICE: "ac_unit",
+  POISON: "coronavirus",
+  ROCK: "terrain",
+  GROUND: "terrain",
+  FLYING: "air",
+  PSYCHIC: "visibility",
+  BUG: "bug_report",
+  GHOST: "cruelty_free",
+  DRAGON: "local_fire_department",
+  DARK: "dark_mode",
+  FAIRY: "auto_awesome",
+  STEEL: "hardware",
+  FIGHTING: "sports_martial_arts",
+  NORMAL: "star",
 };
 
 export const BattlePage = () => {
@@ -278,6 +300,19 @@ export const BattlePage = () => {
   const oppActive = getActive(opponent);
   const meActive = getActive(me);
 
+  const getAttackerType = () => {
+    const myTag = isPlayer1 ? "p1" : "p2";
+    const oppTag = isPlayer1 ? "p2" : "p1";
+    
+    if (isAttacking === myTag || isHit === oppTag) {
+      return meActive?.type_1_name || "NORMAL";
+    }
+    if (isAttacking === oppTag || isHit === myTag) {
+      return oppActive?.type_1_name || "NORMAL";
+    }
+    return "NORMAL";
+  };
+
   const getVfxIcon = (type: string) => {
     switch (type) {
       case "HEAL":
@@ -312,13 +347,22 @@ export const BattlePage = () => {
     const targetTag = isPlayer1 ? "p2" : "p1";
     if (isHit === targetTag) {
       return {
-        x: [-10, 10, -10, 10, 0],
-        filter: "sepia(1) saturate(10)",
-        scale: [1, 1.05, 1],
+        x: [-25, 25, -20, 20, -10, 10, 0],
+        filter: [
+          "brightness(1) sepia(0)", 
+          "brightness(3) sepia(1) hue-rotate(-50deg) saturate(5)", 
+          "brightness(1) sepia(0)"
+        ],
+        scale: [1, 1.1, 0.9, 1],
       };
     }
     if (isAttacking === targetTag) {
-      return { x: -80 };
+      return { 
+        x: [0, 40, -180, 0], 
+        y: [0, -40, 20, 0],
+        scale: [1, 1.05, 1.2, 1],
+        rotate: [0, 15, -10, 0]
+      };
     }
     const hasAtkBuff = (oppActive?.buffs?.atk || 1) > 1.4;
     return {
@@ -334,13 +378,22 @@ export const BattlePage = () => {
     const targetTag = isPlayer1 ? "p1" : "p2";
     if (isHit === targetTag) {
       return {
-        x: [-10, 10, -10, 10, 0],
-        filter: "sepia(1) saturate(10)",
-        scale: [1, 1.05, 1],
+        x: [-25, 25, -20, 20, -10, 10, 0],
+        filter: [
+          "brightness(1) sepia(0)", 
+          "brightness(3) sepia(1) hue-rotate(-50deg) saturate(5)", 
+          "brightness(1) sepia(0)"
+        ],
+        scale: [1, 1.1, 0.9, 1],
       };
     }
     if (isAttacking === targetTag) {
-      return { x: 80 };
+      return { 
+        x: [0, -40, 180, 0], 
+        y: [0, -40, 20, 0],
+        scale: [1, 1.05, 1.2, 1],
+        rotate: [0, -15, 10, 0]
+      };
     }
     const hasAtkBuff = (meActive?.buffs?.atk || 1) > 1.4;
     return {
@@ -378,13 +431,17 @@ export const BattlePage = () => {
               <span className="font-black text-slate-100 text-lg uppercase tracking-tight leading-none drop-shadow-md">{meActive?.name || "???"}</span>
               <div className="flex gap-1">
                 {meActive?.type_1_name && (
-                  <span className={`${typeColors[meActive.type_1_name.toUpperCase()] || 'bg-slate-500'} text-white text-[8px] font-black px-1.5 py-0.5 rounded shadow-sm uppercase`}>
-                    {meActive.type_1_name}
+                  <span title={meActive.type_1_name} className={`${typeColors[meActive.type_1_name.toUpperCase()] || 'bg-slate-500'} text-white p-1 rounded shadow-sm flex items-center justify-center`}>
+                    <span className="material-symbols-outlined text-[10px]" style={{ fontVariationSettings: "'FILL' 1" }}>
+                      {typeIcons[meActive.type_1_name.toUpperCase()] || 'star'}
+                    </span>
                   </span>
                 )}
                 {meActive?.type_2_name && (
-                  <span className={`${typeColors[meActive.type_2_name.toUpperCase()] || 'bg-slate-500'} text-white text-[8px] font-black px-1.5 py-0.5 rounded shadow-sm uppercase`}>
-                    {meActive.type_2_name}
+                  <span title={meActive.type_2_name} className={`${typeColors[meActive.type_2_name.toUpperCase()] || 'bg-slate-500'} text-white p-1 rounded shadow-sm flex items-center justify-center`}>
+                    <span className="material-symbols-outlined text-[10px]" style={{ fontVariationSettings: "'FILL' 1" }}>
+                      {typeIcons[meActive.type_2_name.toUpperCase()] || 'star'}
+                    </span>
                   </span>
                 )}
               </div>
@@ -420,13 +477,17 @@ export const BattlePage = () => {
               <span className="font-black text-slate-100 text-lg uppercase tracking-tight leading-none drop-shadow-md">{oppActive?.name || "???"}</span>
               <div className="flex gap-1 flex-row-reverse">
                 {oppActive?.type_1_name && (
-                  <span className={`${typeColors[oppActive.type_1_name.toUpperCase()] || 'bg-slate-500'} text-white text-[8px] font-black px-1.5 py-0.5 rounded shadow-sm uppercase`}>
-                    {oppActive.type_1_name}
+                  <span title={oppActive.type_1_name} className={`${typeColors[oppActive.type_1_name.toUpperCase()] || 'bg-slate-500'} text-white p-1 rounded shadow-sm flex items-center justify-center`}>
+                    <span className="material-symbols-outlined text-[10px]" style={{ fontVariationSettings: "'FILL' 1" }}>
+                      {typeIcons[oppActive.type_1_name.toUpperCase()] || 'star'}
+                    </span>
                   </span>
                 )}
                 {oppActive?.type_2_name && (
-                  <span className={`${typeColors[oppActive.type_2_name.toUpperCase()] || 'bg-slate-500'} text-white text-[8px] font-black px-1.5 py-0.5 rounded shadow-sm uppercase`}>
-                    {oppActive.type_2_name}
+                  <span title={oppActive.type_2_name} className={`${typeColors[oppActive.type_2_name.toUpperCase()] || 'bg-slate-500'} text-white p-1 rounded shadow-sm flex items-center justify-center`}>
+                    <span className="material-symbols-outlined text-[10px]" style={{ fontVariationSettings: "'FILL' 1" }}>
+                      {typeIcons[oppActive.type_2_name.toUpperCase()] || 'star'}
+                    </span>
                   </span>
                 )}
               </div>
@@ -487,14 +548,10 @@ export const BattlePage = () => {
           <div className="relative">
              <AnimatePresence>
                 {isAttacking === (isPlayer1 ? "p2" : "p1") && (
-                  <motion.div
-                    initial={{ scale: 0, opacity: 0 }}
-                    animate={{ scale: 2, opacity: 1 }}
-                    exit={{ scale: 2.5, opacity: 0 }}
-                    className="absolute inset-0 z-20 flex items-center justify-center"
-                  >
-                    <Zap className="text-yellow-400 w-24 h-24 drop-shadow-[0_0_20px_rgba(250,204,21,0.9)]" />
-                  </motion.div>
+                  <ElementalVfx type={getAttackerType()} phase="CHARGE" direction="DOWN" />
+                )}
+                {isHit === (isPlayer1 ? "p2" : "p1") && (
+                  <ElementalVfx type={getAttackerType()} phase="IMPACT" />
                 )}
                 {floatingDamage?.target === (isPlayer1 ? "p2" : "p1") && (
                   <motion.div
@@ -538,6 +595,12 @@ export const BattlePage = () => {
         <div className="absolute bottom-[12%] left-[50%] -translate-x-1/2 z-30 scale-125 origin-bottom">
            <div className="relative">
               <AnimatePresence>
+                {isAttacking === (isPlayer1 ? "p1" : "p2") && (
+                  <ElementalVfx type={getAttackerType()} phase="CHARGE" direction="UP" />
+                )}
+                {isHit === (isPlayer1 ? "p1" : "p2") && (
+                  <ElementalVfx type={getAttackerType()} phase="IMPACT" />
+                )}
                 {floatingDamage?.target === (isPlayer1 ? "p1" : "p2") && (
                   <motion.div
                     initial={{ opacity: 0, y: 0, scale: 0.5 }}

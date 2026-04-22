@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import apiClient from "../../../api/apiClient";
 
 interface AvatarSelectorProps {
   isOpen: boolean;
@@ -12,7 +11,7 @@ interface AvatarSelectorProps {
 const TRAINER_AVATARS = [
   {
     id: 1,
-    name: "Red",
+    name: "Red",  
     url: "https://play.pokemonshowdown.com/sprites/trainers/red.png",
   },
   {
@@ -58,7 +57,7 @@ export const AvatarSelector = ({
   currentAvatar,
   onAvatarSelect,
 }: AvatarSelectorProps) => {
-  const [loading, setLoading] = useState(false);
+  const [loading, ] = useState(false);
 
   const handleSelect = (url: string) => {
     onAvatarSelect(url);

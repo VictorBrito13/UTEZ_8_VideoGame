@@ -35,6 +35,27 @@ const typeColors: Record<string, string> = {
   FAIRY: "bg-rose-400",
 };
 
+const typeIcons: Record<string, string> = {
+  FIRE: "local_fire_department",
+  WATER: "water_drop",
+  GRASS: "eco",
+  ELECTRIC: "bolt",
+  ICE: "ac_unit",
+  POISON: "coronavirus",
+  ROCK: "terrain",
+  GROUND: "terrain",
+  FLYING: "air",
+  PSYCHIC: "visibility",
+  BUG: "bug_report",
+  GHOST: "cruelty_free",
+  DRAGON: "local_fire_department",
+  DARK: "dark_mode",
+  FAIRY: "auto_awesome",
+  STEEL: "hardware",
+  FIGHTING: "sports_martial_arts",
+  NORMAL: "star",
+};
+
 export const CreatureCard = ({ creature, index }: CreatureCardProps) => {
   const primaryType = (creature.type_1_name || "NORMAL").toUpperCase().trim();
   const colorBg = typeColors[primaryType] || "bg-gray-400";
@@ -69,14 +90,18 @@ export const CreatureCard = ({ creature, index }: CreatureCardProps) => {
           </div>
           <div className="flex gap-1 flex-col items-end">
             {creature.type_1_name && (
-              <span className="px-2 py-0.5 bg-black/20 border border-black/30 text-[9px] font-headline font-black uppercase tracking-widest shadow-[2px_2px_0_rgba(0,0,0,0.2)]">
-                {creature.type_1_name}
-              </span>
+              <div title={creature.type_1_name} className="w-6 h-6 bg-black/20 border border-black/30 rounded flex items-center justify-center shadow-[2px_2px_0_rgba(0,0,0,0.2)]">
+                <span className="material-symbols-outlined text-[14px] text-white" style={{ fontVariationSettings: "'FILL' 1" }}>
+                  {typeIcons[creature.type_1_name.toUpperCase()] || 'star'}
+                </span>
+              </div>
             )}
             {creature.type_2_name && (
-              <span className="px-2 py-0.5 bg-black/20 border border-black/30 text-[9px] font-headline font-black uppercase tracking-widest shadow-[2px_2px_0_rgba(0,0,0,0.2)] mt-1">
-                {creature.type_2_name}
-              </span>
+              <div title={creature.type_2_name} className="w-6 h-6 bg-black/20 border border-black/30 rounded flex items-center justify-center shadow-[2px_2px_0_rgba(0,0,0,0.2)] mt-1">
+                <span className="material-symbols-outlined text-[14px] text-white" style={{ fontVariationSettings: "'FILL' 1" }}>
+                  {typeIcons[creature.type_2_name.toUpperCase()] || 'star'}
+                </span>
+              </div>
             )}
           </div>
         </div>
