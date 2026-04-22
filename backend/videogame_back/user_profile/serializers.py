@@ -11,14 +11,14 @@ from .models import Profile, Ranking, Team, TeamCreature, UserCreature
 
 VALID_TRAINER_SPRITES = [
     "trainer_red.png",
-    "https://cdn.jsdelivr.net/npm/pokeapi-sprites/sprites/trainers/1.png",
-    "https://cdn.jsdelivr.net/npm/pokeapi-sprites/sprites/trainers/2.png",
-    "https://cdn.jsdelivr.net/npm/pokeapi-sprites/sprites/trainers/10.png",
-    "https://cdn.jsdelivr.net/npm/pokeapi-sprites/sprites/trainers/3.png",
-    "https://cdn.jsdelivr.net/npm/pokeapi-sprites/sprites/trainers/5.png",
-    "https://cdn.jsdelivr.net/npm/pokeapi-sprites/sprites/trainers/12.png",
-    "https://cdn.jsdelivr.net/npm/pokeapi-sprites/sprites/trainers/7.png",
-    "https://cdn.jsdelivr.net/npm/pokeapi-sprites/sprites/trainers/13.png",
+    "https://play.pokemonshowdown.com/sprites/trainers/red.png",
+    "https://play.pokemonshowdown.com/sprites/trainers/blue.png",
+    "https://play.pokemonshowdown.com/sprites/trainers/dawn.png",
+    "https://play.pokemonshowdown.com/sprites/trainers/ethan.png",
+    "https://play.pokemonshowdown.com/sprites/trainers/lyra.png",
+    "https://play.pokemonshowdown.com/sprites/trainers/brendan.png",
+    "https://play.pokemonshowdown.com/sprites/trainers/may.png",
+    "https://play.pokemonshowdown.com/sprites/trainers/silver.png",
 ]
 
 BASE64_PREFIX = "base64,"

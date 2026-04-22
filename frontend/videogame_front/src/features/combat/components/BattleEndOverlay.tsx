@@ -1,5 +1,4 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { Activity } from "lucide-react";
 
 type BattleEndOverlayProps = {
   show: boolean;
@@ -22,41 +21,46 @@ export const BattleEndOverlay = ({
         <motion.div
           initial={{ scale: 0.8, opacity: 0, y: 20 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
-          className="bg-neutral-900 border border-white/10 p-12 rounded-3xl shadow-[0_0_100px_rgba(0,0,0,0.5)] flex flex-col items-center gap-8 max-w-md w-full text-center"
+          className="bg-[#0B1326] border-2 border-[#2d3449] p-12 rounded-sm shadow-[8px_8px_0_rgba(0,0,0,0.5)] flex flex-col items-center gap-8 max-w-md w-full text-center relative overflow-hidden"
         >
+          <div className={`absolute top-0 left-0 w-full h-2 ${won ? "bg-primary" : "bg-error"}`} />
           <div
-            className={`w-24 h-24 rounded-full flex items-center justify-center ${
+            className={`w-24 h-24 rounded-full flex items-center justify-center border-4 ${
               won
-                ? "bg-emerald-500 shadow-[0_0_40px_rgba(16,185,129,0.4)]"
-                : "bg-red-500 shadow-[0_0_40px_rgba(239,68,68,0.4)]"
+                ? "bg-surface-container-low border-primary shadow-[0_0_40px_rgba(16,185,129,0.4)]"
+                : "bg-surface-container-low border-error shadow-[0_0_40px_rgba(239,68,68,0.4)]"
             }`}
           >
-            <Activity size={48} className="text-white" />
+            <span className={`material-symbols-outlined text-[48px] ${won ? "text-primary" : "text-error"}`} style={{ fontVariationSettings: "'FILL' 1" }}>
+              {won ? "emoji_events" : "sentiment_dissatisfied"}
+            </span>
           </div>
 
           <div>
             <h2
-              className={`text-5xl font-black italic tracking-tighter uppercase mb-2 ${
-                won ? "text-emerald-400" : "text-red-500"
+              className={`text-5xl font-headline font-black uppercase mb-2 terminal-glow ${
+                won ? "text-primary" : "text-error"
               }`}
             >
-              {won ? "You won" : "You lost"}
+              {won ? "YOU WON" : "YOU LOST"}
             </h2>
-            <p className="text-neutral-500 font-bold uppercase tracking-widest text-xs">
+            <p className="text-outline font-headline font-bold uppercase tracking-widest text-xs">
               {won
-                ? "You dominated the battle arena."
-                : "Better luck next time."}
+                ? "YOU DOMINATED THE BATTLE ARENA."
+                : "BETTER LUCK NEXT TIME."}
             </p>
           </div>
 
-          <div className="w-full h-px bg-white/5" />
+          <div className="w-full h-[2px] bg-[#2d3449]" />
 
           <button
             type="button"
             onClick={onReturn}
-            className="w-full py-4 bg-white text-black font-black uppercase tracking-widest rounded-xl hover:bg-emerald-400 transition-colors shadow-lg"
+            className={`w-full py-4 font-headline font-black uppercase tracking-widest border-2 transition-all shadow-[4px_4px_0_rgba(0,0,0,0.5)] hover:-translate-y-1 beveled-button ${
+              won ? "bg-primary border-primary text-on-primary hover:bg-primary/80" : "bg-error border-error text-white hover:bg-error/80"
+            }`}
           >
-            Back to menu
+            BACK TO MENU
           </button>
         </motion.div>
       </motion.div>

@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import apiClient from "../../../api/apiClient";
 import { motion, AnimatePresence } from "framer-motion";
-import { Save, Loader2, Sparkles, X, Swords } from "lucide-react";
 import { encryptCreatureIds } from "../../../common/utils/teamPayloadCipher";
 
 interface SquadMember {
@@ -20,23 +19,23 @@ interface SquadBarProps {
 }
 
 const typeColors: Record<string, string> = {
-  FIRE: "from-orange-500 to-red-600",
-  WATER: "from-blue-400 to-blue-600",
-  GRASS: "from-green-500 to-green-700",
-  ELECTRIC: "from-yellow-300 to-yellow-500",
-  NORMAL: "from-gray-400 to-gray-500",
-  FLYING: "from-indigo-300 to-indigo-500",
-  POISON: "from-purple-400 to-purple-600",
-  GROUND: "from-amber-600 to-amber-800",
-  ROCK: "from-stone-500 to-stone-700",
-  BUG: "from-lime-500 to-lime-700",
-  GHOST: "from-violet-700 to-purple-900",
-  STEEL: "from-slate-400 to-slate-600",
-  PSYCHIC: "from-pink-400 to-pink-600",
-  ICE: "from-cyan-200 to-cyan-400",
-  DRAGON: "from-indigo-600 to-violet-800",
-  DARK: "from-gray-700 to-black",
-  FAIRY: "from-rose-300 to-rose-500",
+  FIRE: "bg-orange-500",
+  WATER: "bg-blue-500",
+  GRASS: "bg-green-500",
+  ELECTRIC: "bg-yellow-400",
+  NORMAL: "bg-gray-400",
+  FLYING: "bg-indigo-400",
+  POISON: "bg-purple-500",
+  GROUND: "bg-amber-600",
+  ROCK: "bg-stone-500",
+  BUG: "bg-lime-500",
+  GHOST: "bg-violet-700",
+  STEEL: "bg-slate-400",
+  PSYCHIC: "bg-pink-400",
+  ICE: "bg-cyan-300",
+  DRAGON: "bg-indigo-600",
+  DARK: "bg-gray-700",
+  FAIRY: "bg-rose-400",
 };
 
 export const SquadBar = ({
@@ -58,7 +57,7 @@ export const SquadBar = ({
             creature_name: tc.user_creature.creature_name,
             sprite: tc.user_creature.sprite,
             current_hp: tc.user_creature.current_hp,
-            type_1: tc.user_creature.type_1_name, // Make sure this is in the response
+            type_1: tc.user_creature.type_1_name, 
           }));
           setInternalTeam(teamMembers);
         } catch {
@@ -87,29 +86,29 @@ export const SquadBar = ({
     }
   };
 
-  let buttonIcon = <Swords size={16} />;
-  if (saving) buttonIcon = <Loader2 size={16} className="animate-spin" />;
-  else if (activeTeam.length === 3) buttonIcon = <Save size={16} />;
+  let buttonIcon = "swords";
+  if (saving) buttonIcon = "autorenew";
+  else if (activeTeam.length === 3) buttonIcon = "save";
 
-  let buttonText = `[ ${activeTeam.length}/3 ] Required`;
-  if (saving) buttonText = "Synchronizing...";
-  else if (activeTeam.length === 3) buttonText = "Confirm_Changes";
+  let buttonText = `[ ${activeTeam.length}/3 ] REQUIRED`;
+  if (saving) buttonText = "SYNCHRONIZING...";
+  else if (activeTeam.length === 3) buttonText = "CONFIRM CHANGES";
 
   return (
-    <div className="w-full mb-16 py-12 bg-neutral-950/40 border-y border-white/5 rounded-[3rem]">
+    <div className="w-full mb-16 py-12 bg-surface-container-low border-2 border-[#2d3449] beveled-border shadow-[12px_12px_0px_0px_rgba(0,0,0,0.5)]">
       <div className="max-w-6xl mx-auto px-6">
         {/* Header Section */}
-        <div className="flex items-center justify-between mb-10">
+        <div className="flex items-center justify-between mb-10 border-b-2 border-[#2d3449] pb-6">
           <div className="flex items-center gap-4">
-            <div className="p-3 bg-red-500/10 rounded-2xl border border-red-500/20">
-              <Swords size={24} className="text-red-500 animate-pulse" />
+            <div className="p-3 bg-error-container/20 rounded-sm border-2 border-on-error">
+              <span className="material-symbols-outlined text-error text-3xl animate-pulse" style={{ fontVariationSettings: "'FILL' 1" }}>swords</span>
             </div>
             <div>
-              <h2 className="text-2xl font-black italic tracking-tighter text-white uppercase">
-                Active_Battle_Squad
+              <h2 className="text-2xl font-headline font-black tracking-widest text-white uppercase terminal-glow">
+                ACTIVE BATTLE SQUAD
               </h2>
-              <p className="text-xs text-neutral-500 font-bold uppercase tracking-widest">
-                Zone_Alpha Deployment
+              <p className="text-[10px] text-outline font-headline font-bold uppercase tracking-widest mt-1">
+                ZONE ALPHA DEPLOYMENT
               </p>
             </div>
           </div>
@@ -122,14 +121,15 @@ export const SquadBar = ({
                 exit={{ opacity: 0, scale: 0.9, x: 20 }}
                 onClick={handleSaveTeam}
                 disabled={saving || activeTeam.length !== 3}
-                className={`group relative flex items-center gap-3 px-8 py-4 rounded-2xl font-black text-xs uppercase tracking-tighter transition-all shadow-xl ${
+                className={`group relative flex items-center gap-3 px-8 py-4 beveled-button font-headline font-black text-xs uppercase tracking-[0.2em] transition-all ${
                   activeTeam.length === 3
-                    ? "bg-white text-black hover:bg-emerald-500 hover:shadow-emerald-500/20 shadow-white/10"
-                    : "bg-red-500/20 text-red-500 border border-red-500/30 cursor-not-allowed opacity-80"
+                    ? "bg-tertiary text-on-tertiary shadow-[8px_8px_0_rgba(0,0,0,0.5)] hover:translate-y-[-2px] active:translate-y-[2px]"
+                    : "bg-error-container text-on-error-container cursor-not-allowed opacity-80"
                 }`}
               >
-                {buttonIcon}
+                <span className={`material-symbols-outlined ${saving ? 'animate-spin' : ''}`} style={{ fontVariationSettings: "'FILL' 1" }}>{buttonIcon}</span>
                 {buttonText}
+                {activeTeam.length === 3 && <div className="absolute top-0 left-0 w-full h-1/2 bg-white/20 pointer-events-none"></div>}
               </motion.button>
             )}
           </AnimatePresence>
@@ -140,8 +140,7 @@ export const SquadBar = ({
           {[0, 1, 2].map((index) => {
             const member = activeTeam[index];
             const primaryType = (member?.type_1 || "NORMAL").toUpperCase();
-            const colorGradient =
-              typeColors[primaryType] || "from-neutral-800 to-neutral-900";
+            const colorBg = typeColors[primaryType] || "bg-neutral-800";
 
             return (
               <AnimatePresence mode="wait" key={index}>
@@ -151,15 +150,12 @@ export const SquadBar = ({
                     initial={{ opacity: 0, scale: 0.8, y: 30 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.8, y: -20 }}
-                    className="relative aspect-[3/4] bg-neutral-900 rounded-[2rem] border border-white/10 overflow-hidden group shadow-2xl"
+                    className="relative aspect-[3/4] bg-[#0B1326] border-4 border-[#2d3449] rounded-sm overflow-hidden group shadow-[inset_4px_4px_8px_rgba(0,0,0,0.5)]"
                   >
-                    {/* Background Type Glow */}
-                    <div
-                      className={`absolute inset-0 bg-gradient-to-br ${colorGradient} opacity-20 group-hover:opacity-40 transition-opacity`}
-                    />
-
                     {/* Content */}
-                    <div className="relative h-full flex flex-col items-center justify-center p-8">
+                    <div className="relative h-full flex flex-col items-center justify-center p-8 z-10">
+                      <div className="absolute inset-0 top-1/2 bottom-0 bg-gradient-to-t from-black/80 to-transparent z-0"></div>
+                      
                       <motion.div
                         animate={{ y: [0, -10, 0] }}
                         transition={{
@@ -167,23 +163,29 @@ export const SquadBar = ({
                           repeat: Infinity,
                           ease: "easeInOut",
                         }}
-                        className="w-48 h-48 md:w-56 md:h-56 mb-6 pointer-events-none"
+                        className="w-40 h-40 md:w-48 md:h-48 mb-6 pointer-events-none relative z-10"
                       >
+                        <div className={`w-32 h-32 ${colorBg} opacity-20 rounded-full absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 blur-2xl z-0`}></div>
                         <img
                           src={member.sprite}
                           alt={member.creature_name}
-                          className="w-full h-full object-contain drop-shadow-[0_10px_20px_rgba(0,0,0,0.5)]"
+                          className="w-full h-full object-contain image-rendering-pixelated drop-shadow-[4px_4px_0_rgba(0,0,0,0.6)] relative z-10"
                         />
                       </motion.div>
 
-                      <h3 className="text-2xl font-black italic tracking-tighter text-white uppercase text-center block w-full truncate">
-                        {member.creature_name}
-                      </h3>
-                      <div className="mt-4 w-full h-1.5 bg-neutral-800 rounded-full overflow-hidden opacity-50">
-                        <div
-                          className="h-full bg-emerald-500"
-                          style={{ width: `${member.current_hp}%` }}
-                        />
+                      <div className="relative z-10 w-full">
+                        <h3 className="text-xl font-headline font-black tracking-widest text-white uppercase text-center block w-full truncate mb-2">
+                          {member.creature_name}
+                        </h3>
+                        <div className="w-full p-1 bg-[#0B1326] border-2 border-[#2d3449]">
+                          <div
+                            className="h-2 bg-primary"
+                            style={{ width: `${member.current_hp}%` }}
+                          />
+                        </div>
+                        <span className="text-[9px] font-headline font-bold uppercase tracking-widest text-outline text-center block mt-2">
+                          HP {member.current_hp}%
+                        </span>
                       </div>
                     </div>
 
@@ -191,32 +193,31 @@ export const SquadBar = ({
                     <motion.div
                       initial={{ opacity: 0 }}
                       whileHover={{ opacity: 1 }}
-                      className="absolute inset-0 bg-red-600/90 flex flex-col items-center justify-center backdrop-blur-sm transition-all duration-300 pointer-events-none group-hover:pointer-events-auto"
+                      className="absolute inset-0 bg-error/90 flex flex-col items-center justify-center backdrop-blur-sm transition-all duration-300 pointer-events-none group-hover:pointer-events-auto z-20"
                     >
                       <motion.button
                         whileHover={{ scale: 1.1 }}
                         whileTap={{ scale: 0.95 }}
                         onClick={() => onRemoveMember?.(member.id)}
-                        className="p-6 bg-white text-red-600 rounded-full shadow-2xl"
+                        className="w-16 h-16 bg-[#0B1326] border-4 border-on-error text-white rounded-sm shadow-[8px_8px_0_rgba(0,0,0,0.5)] flex justify-center items-center"
                       >
-                        <X size={32} strokeWidth={3} />
+                        <span className="material-symbols-outlined text-4xl" style={{ fontVariationSettings: "'FILL' 1" }}>close</span>
                       </motion.button>
-                      <span className="mt-4 text-xs font-black uppercase tracking-widest text-white">
-                        Remove_From_Squad
+                      <span className="mt-4 text-[10px] font-headline font-black uppercase tracking-widest text-white px-4 py-1 bg-black/50 border border-white/20">
+                        REMOVE FROM SQUAD
                       </span>
                     </motion.div>
                   </motion.div>
                 ) : (
                   <motion.div
                     key={`empty-${index}`}
-                    className="relative aspect-[3/4] bg-neutral-900/30 border border-dashed border-white/5 rounded-[2rem] flex flex-col items-center justify-center group overflow-hidden"
+                    className="relative aspect-[3/4] bg-[#0B1326]/50 border-4 border-dashed border-[#2d3449] rounded-sm flex flex-col items-center justify-center group overflow-hidden"
                   >
-                    <div className="w-32 h-32 bg-white/5 rounded-full blur-3xl absolute opacity-0 group-hover:opacity-100 transition-opacity" />
-                    <div className="relative opacity-10 grayscale group-hover:opacity-20 transition-all duration-500">
-                      <Swords size={80} strokeWidth={1} />
+                    <div className="relative opacity-20 grayscale group-hover:opacity-40 group-hover:text-primary transition-all duration-500">
+                      <span className="material-symbols-outlined text-6xl" style={{ fontVariationSettings: "'FILL' 1" }}>swords</span>
                     </div>
-                    <span className="mt-6 text-[10px] font-black uppercase tracking-[0.4em] text-neutral-700 group-hover:text-neutral-500 transition-colors">
-                      Slot_Empty
+                    <span className="mt-6 text-[10px] font-headline font-black uppercase tracking-[0.4em] text-outline group-hover:text-primary transition-colors">
+                      SLOT EMPTY
                     </span>
                   </motion.div>
                 )}
@@ -230,13 +231,13 @@ export const SquadBar = ({
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="mt-12 flex justify-center items-center gap-4 py-3 px-6 bg-emerald-500/5 rounded-2xl border border-emerald-500/10 w-fit mx-auto"
+            className="mt-12 flex justify-center items-center gap-4 py-3 px-6 bg-tertiary-container border-2 border-tertiary w-fit mx-auto shadow-[4px_4px_0_rgba(0,0,0,0.5)]"
           >
-            <div className="w-2 h-2 bg-emerald-500 rounded-full animate-ping" />
-            <span className="text-[10px] font-black uppercase tracking-widest text-emerald-500 italic">
-              Squad_Synchronized_Zone_Alpha
+            <div className="w-2 h-2 bg-on-tertiary-container rounded-full animate-ping" />
+            <span className="text-[10px] font-headline font-black uppercase tracking-widest text-on-tertiary-container">
+              SQUAD SYNCHRONIZED : ZONE ALPHA
             </span>
-            <Sparkles size={12} className="text-emerald-500" />
+            <span className="material-symbols-outlined text-[14px] text-on-tertiary-container" style={{ fontVariationSettings: "'FILL' 1" }}>cloud_sync</span>
           </motion.div>
         )}
       </div>

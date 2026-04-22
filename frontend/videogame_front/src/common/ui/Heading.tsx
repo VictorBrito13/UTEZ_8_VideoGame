@@ -14,10 +14,10 @@ export const Heading: React.FC<HeadingProps> = ({
   const Tag = `h${level}` as any;
 
   const baseStyles: Record<number, string> = {
-    1: "text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-blue-500",
-    2: "text-3xl font-extrabold text-white",
-    3: "text-xl font-bold text-slate-100",
-    4: "text-lg font-semibold text-slate-200",
+    1: "font-headline text-3xl font-black uppercase tracking-tighter text-white",
+    2: "font-headline text-lg font-bold uppercase tracking-[0.2em] text-on-surface terminal-glow",
+    3: "font-headline text-base font-bold uppercase tracking-widest text-secondary",
+    4: "font-headline text-sm font-semibold uppercase tracking-wider text-on-surface-variant",
   };
 
   return (

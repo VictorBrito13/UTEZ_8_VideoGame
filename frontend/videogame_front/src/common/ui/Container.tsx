@@ -12,8 +12,8 @@ export const Container: React.FC<ContainerProps> = ({
   className = "",
 }) => {
   const variants = {
-    page: "flex justify-center items-center min-h-screen bg-slate-900 px-4",
-    card: "w-full max-w-md p-8 space-y-6 bg-slate-800 rounded-2xl shadow-xl shadow-cyan-500/10 border border-slate-700",
+    page: "w-full flex-grow flex flex-col justify-center items-center px-4",
+    card: "w-full max-w-lg p-8 space-y-6 bg-surface-container-low beveled-border shadow-[24px_24px_0px_0px_rgba(0,0,0,0.5)] relative overflow-hidden",
   };
 
   return (

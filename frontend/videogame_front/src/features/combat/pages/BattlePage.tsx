@@ -1,15 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  Swords,
-  Zap,
-  Activity,
-  Heart,
-  Shield,
-  ArrowUp,
-  Star,
-} from "lucide-react";
 import apiClient from "../../../api/apiClient";
 import { encryptJson } from "../../../common/utils/payloadCrypto";
 import { BattleEndOverlay } from "../components/BattleEndOverlay";
@@ -21,6 +12,7 @@ import type {
   InventoryItem,
   PlayerData,
 } from "../types";
+import { Zap } from "lucide-react";
 
 export const BattlePage = () => {
   const { battleId } = useParams();
@@ -243,8 +235,8 @@ export const BattlePage = () => {
   // Early return check - AFTER all hooks
   if (!battleState || !myId) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center text-red-500 font-bold uppercase tracking-widest">
-        Initializing Arena...
+      <div className="min-h-screen bg-[#0B1326] flex items-center justify-center font-headline text-error font-bold uppercase tracking-widest terminal-glow">
+        INITIALIZING ARENA...
       </div>
     );
   }
@@ -268,27 +260,27 @@ export const BattlePage = () => {
       case "HEAL":
       case "REVIVE":
         return (
-          <Heart className="text-red-500 w-24 h-24 drop-shadow-[0_0_20px_rgba(239,68,68,0.9)]" />
+          <span className="material-symbols-outlined text-error text-[96px] drop-shadow-[0_0_20px_rgba(239,68,68,0.9)]" style={{ fontVariationSettings: "'FILL' 1" }}>favorite</span>
         );
       case "BUFF_ATK":
         return (
-          <Swords className="text-orange-500 w-24 h-24 drop-shadow-[0_0_20px_rgba(249,115,22,0.9)]" />
+          <span className="material-symbols-outlined text-primary text-[96px] drop-shadow-[0_0_20px_rgba(249,115,22,0.9)]" style={{ fontVariationSettings: "'FILL' 1" }}>swords</span>
         );
       case "BUFF_DEF":
         return (
-          <Shield className="text-blue-500 w-24 h-24 drop-shadow-[0_0_20px_rgba(59,130,246,0.9)]" />
+          <span className="material-symbols-outlined text-secondary text-[96px] drop-shadow-[0_0_20px_rgba(59,130,246,0.9)]" style={{ fontVariationSettings: "'FILL' 1" }}>shield</span>
         );
       case "BUFF_SPEED":
         return (
-          <Zap className="text-yellow-400 w-24 h-24 drop-shadow-[0_0_20px_rgba(250,204,21,0.9)]" />
+          <span className="material-symbols-outlined text-tertiary text-[96px] drop-shadow-[0_0_20px_rgba(250,204,21,0.9)]" style={{ fontVariationSettings: "'FILL' 1" }}>bolt</span>
         );
       case "EQUIP":
         return (
-          <ArrowUp className="text-purple-500 w-24 h-24 drop-shadow-[0_0_20px_rgba(168,85,247,0.9)]" />
+          <span className="material-symbols-outlined text-purple-500 text-[96px] drop-shadow-[0_0_20px_rgba(168,85,247,0.9)]" style={{ fontVariationSettings: "'FILL' 1" }}>arrow_upward</span>
         );
       default:
         return (
-          <Star className="text-white w-24 h-24 drop-shadow-[0_0_20px_rgba(255,255,255,0.9)]" />
+          <span className="material-symbols-outlined text-white text-[96px] drop-shadow-[0_0_20px_rgba(255,255,255,0.9)]" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
         );
     }
   };
@@ -339,14 +331,14 @@ export const BattlePage = () => {
 
   const getBenchButtonBorder = (c: any) => {
     if (c.id === me.active_creature_id)
-      return "border-amber-500 shadow-[0_0_20px_rgba(245,158,11,0.3)]";
+      return "border-tertiary shadow-[0_0_20px_rgba(245,158,11,0.3)]";
     if (selectingReviveTarget && c.hp === 0)
-      return "border-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.4)] animate-pulse";
-    return "border-white/10";
+      return "border-primary shadow-[0_0_15px_rgba(16,185,129,0.4)] animate-pulse";
+    return "border-[#2d3449]";
   };
 
   return (
-    <div className="h-screen bg-neutral-950 text-white font-sans relative flex flex-col overflow-hidden">
+    <div className="fixed inset-0 z-50 bg-[#0B1326] text-white font-sans flex flex-col overflow-hidden">
       <div className="absolute top-0 left-0 w-full h-1/2 bg-gradient-to-b from-red-900/20 to-transparent pointer-events-none" />
       <div className="absolute bottom-0 left-0 w-full h-1/2 bg-gradient-to-t from-blue-900/20 to-transparent pointer-events-none" />
 
@@ -356,29 +348,26 @@ export const BattlePage = () => {
           <h1 className="text-[10px] font-black italic tracking-[0.3em] text-neutral-500 uppercase">
             BATTLE_ARENA
           </h1>
-          <div className="h-3 w-px bg-white/10" />
-          <p className="text-[9px] text-neutral-600 font-bold uppercase tracking-widest">
+          <div className="h-4 w-px bg-[#2d3449]" />
+          <p className="text-[10px] text-tertiary font-headline font-bold uppercase tracking-widest">
             {battleState.status} | T_{battleState.turn_number}
           </p>
         </div>
         <div className="flex items-center gap-8">
           {myTurn && (
             <div className="flex items-center gap-2">
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
-              <div className="text-[11px] font-black text-emerald-400 tracking-[0.2em] uppercase">
-                Your Turn
+              <span className="material-symbols-outlined text-primary animate-ping" style={{ fontVariationSettings: "'FILL' 1" }}>swords</span>
+              <div className="text-[12px] font-headline font-black text-primary tracking-[0.2em] uppercase terminal-glow">
+                YOUR TURN
               </div>
             </div>
           )}
           <button
             onClick={handleSurrender}
-            className="text-[11px] uppercase font-black text-red-500/60 hover:text-red-500 transition-all flex items-center gap-2 group"
+            className="text-[10px] uppercase font-headline font-black text-error/80 hover:text-error transition-all flex items-center gap-2 group px-3 py-1 border-2 border-transparent hover:border-error beveled-button"
           >
-            <Swords
-              size={16}
-              className="group-hover:rotate-12 transition-transform"
-            />
-            Surrender
+            <span className="material-symbols-outlined text-sm group-hover:rotate-12 transition-transform" style={{ fontVariationSettings: "'FILL' 1" }}>flag</span>
+            SURRENDER
           </button>
         </div>
       </div>
@@ -389,32 +378,30 @@ export const BattlePage = () => {
         <div className="flex justify-end pr-10">
           <div className="flex items-center gap-12">
             {/* Opponent Status Box */}
-            <div className="bg-black/60 backdrop-blur-lg rounded-2xl p-5 border border-white/10 w-64 shadow-2xl relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-1 h-full bg-red-500/50" />
+            <div className="bg-[#0B1326] rounded-sm p-4 border-2 border-[#2d3449] w-64 shadow-[8px_8px_0_rgba(0,0,0,0.5)] relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-2 h-full bg-error" />
               <div className="flex justify-between items-center mb-3">
-                <span className="text-xs font-black text-red-400 uppercase tracking-[0.2em]">
+                <span className="text-[10px] font-headline font-black text-error uppercase tracking-[0.2em] terminal-glow">
                   {opponent.username}
                 </span>
-                <div className="flex gap-1.5">
-                  <div className="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.8)] animate-pulse" />
-                </div>
+                <span className="material-symbols-outlined text-error text-xs animate-pulse" style={{ fontVariationSettings: "'FILL' 1" }}>warning</span>
               </div>
               <div className="mb-4 flex justify-between items-end">
-                <h2 className="text-lg font-black text-white uppercase tracking-tighter leading-none">
-                  {oppActive?.name || "No Creature"}
+                <h2 className="text-lg font-headline font-black text-white uppercase tracking-tighter leading-none">
+                  {oppActive?.name || "NO CREATURE"}
                 </h2>
-                <span className="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded border border-white/5 uppercase tracking-widest">
-                  Lvl. {oppActive?.level || 0}
+                <span className="text-[9px] font-headline font-black text-outline bg-surface-container-low px-2 py-0.5 rounded-sm border-2 border-[#2d3449] uppercase tracking-widest">
+                  LVL {oppActive?.level || 0}
                 </span>
               </div>
               <div className="space-y-2.5">
-                <div className="h-2.5 bg-neutral-900 rounded-full overflow-hidden border border-white/5 p-[1px]">
+                <div className="h-3 bg-surface-container-low border-2 border-[#2d3449] rounded-sm overflow-hidden p-[2px]">
                   <motion.div
                     initial={{ width: 0 }}
                     animate={{
                       width: `${((oppActive?.hp || 0) / (oppActive?.max_hp || 1)) * 100}%`,
                     }}
-                    className="h-full bg-gradient-to-r from-red-600 to-orange-400 rounded-full shadow-[0_0_15px_rgba(248,113,113,0.5)]"
+                    className="h-full bg-error"
                   />
                 </div>
                 <div className="flex justify-between items-center px-1">
@@ -422,30 +409,30 @@ export const BattlePage = () => {
                     {Array.from({ length: 3 }).map((_, i) => (
                       <div
                         key={["opp_bar_1", "opp_bar_2", "opp_bar_3"][i]}
-                        className={`w-3 h-1 rounded-full ${i < opponent.team.filter((c) => c.hp > 0).length ? "bg-red-500" : "bg-neutral-800"}`}
+                        className={`w-3 h-1 rounded-sm ${i < opponent.team.filter((c) => c.hp > 0).length ? "bg-error" : "bg-outline"}`}
                       />
                     ))}
                   </div>
-                  <span className="text-[11px] font-mono text-neutral-400 font-black">
+                  <span className="text-[10px] font-headline text-outline font-black">
                     {oppActive?.hp || 0} / {oppActive?.max_hp || 0} HP
                   </span>
                 </div>
                 {oppActive?.buffs && (
                   <div className="flex gap-1.5 mt-2 justify-end">
                     {oppActive.buffs.atk > 1 && (
-                      <Swords className="w-3.5 h-3.5 text-orange-400 drop-shadow-[0_0_5px_rgba(251,146,60,0.8)]" />
+                      <span className="material-symbols-outlined text-primary text-[14px]" style={{ fontVariationSettings: "'FILL' 1" }}>swords</span>
                     )}
                     {oppActive.buffs.def > 1 && (
-                      <Shield className="w-3.5 h-3.5 text-blue-400 drop-shadow-[0_0_5px_rgba(96,165,250,0.8)]" />
+                      <span className="material-symbols-outlined text-secondary text-[14px]" style={{ fontVariationSettings: "'FILL' 1" }}>shield</span>
                     )}
                     {oppActive.buffs.has_choice && (
-                      <Star className="w-3.5 h-3.5 text-purple-400 drop-shadow-[0_0_5px_rgba(192,132,252,0.8)]" />
+                      <span className="material-symbols-outlined text-purple-400 text-[14px]" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
                     )}
                     {oppActive.buffs.has_focus && (
-                      <Activity className="w-3.5 h-3.5 text-emerald-400 drop-shadow-[0_0_5px_rgba(52,211,153,0.8)]" />
+                      <span className="material-symbols-outlined text-tertiary text-[14px]" style={{ fontVariationSettings: "'FILL' 1" }}>bolt</span>
                     )}
                     {oppActive.buffs.has_oran && (
-                      <Heart className="w-3.5 h-3.5 text-red-400 drop-shadow-[0_0_5px_rgba(248,113,113,0.8)]" />
+                      <span className="material-symbols-outlined text-error text-[14px]" style={{ fontVariationSettings: "'FILL' 1" }}>favorite</span>
                     )}
                   </div>
                 )}
@@ -556,32 +543,30 @@ export const BattlePage = () => {
             </div>
 
             {/* My Status Box */}
-            <div className="bg-black/60 backdrop-blur-lg rounded-2xl p-5 border border-white/10 w-64 shadow-2xl relative overflow-hidden group">
-              <div className="absolute top-0 left-0 w-1 h-full bg-blue-500/50" />
+            <div className="bg-[#0B1326] rounded-sm p-4 border-2 border-[#2d3449] w-64 shadow-[8px_8px_0_rgba(0,0,0,0.5)] relative overflow-hidden group">
+              <div className="absolute top-0 left-0 w-2 h-full bg-secondary" />
               <div className="flex justify-between items-center mb-3">
-                <span className="text-xs font-black text-blue-400 uppercase tracking-[0.2em]">
+                <span className="text-[10px] font-headline font-black text-secondary uppercase tracking-[0.2em] terminal-glow pl-2">
                   {me.username} (YOU)
                 </span>
-                <div className="flex gap-1.5">
-                  <div className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.8)] animate-pulse" />
-                </div>
+                <span className="material-symbols-outlined text-secondary text-xs animate-pulse" style={{ fontVariationSettings: "'FILL' 1" }}>person</span>
               </div>
               <div className="mb-4 flex justify-between items-end">
-                <h2 className="text-lg font-black text-white uppercase tracking-tighter leading-none">
-                  {meActive?.name || "No Creature"}
+                <h2 className="text-lg font-headline font-black text-white uppercase tracking-tighter leading-none pl-2">
+                  {meActive?.name || "NO CREATURE"}
                 </h2>
-                <span className="text-[10px] font-black text-white/40 bg-white/5 px-2 py-0.5 rounded border border-white/5 uppercase tracking-widest">
-                  Lvl. {meActive?.level || 0}
+                <span className="text-[9px] font-headline font-black text-outline bg-surface-container-low px-2 py-0.5 rounded-sm border-2 border-[#2d3449] uppercase tracking-widest">
+                  LVL {meActive?.level || 0}
                 </span>
               </div>
-              <div className="space-y-2.5">
-                <div className="h-2.5 bg-neutral-900 rounded-full overflow-hidden border border-white/5 p-[1px]">
+              <div className="space-y-2.5 pl-2">
+                <div className="h-3 bg-surface-container-low border-2 border-[#2d3449] rounded-sm overflow-hidden p-[2px]">
                   <motion.div
                     initial={{ width: 0 }}
                     animate={{
                       width: `${((meActive?.hp || 0) / (meActive?.max_hp || 1)) * 100}%`,
                     }}
-                    className="h-full bg-gradient-to-r from-blue-600 to-cyan-400 rounded-full shadow-[0_0_15px_rgba(34,211,238,0.5)]"
+                    className="h-full bg-secondary"
                   />
                 </div>
                 <div className="flex justify-between items-center px-1">
@@ -589,30 +574,30 @@ export const BattlePage = () => {
                     {Array.from({ length: 3 }).map((_, i) => (
                       <div
                         key={["my_bar_1", "my_bar_2", "my_bar_3"][i]}
-                        className={`w-3 h-1 rounded-full ${i < me.team.filter((c) => c.hp > 0).length ? "bg-blue-500" : "bg-neutral-800"}`}
+                        className={`w-3 h-1 rounded-sm ${i < me.team.filter((c) => c.hp > 0).length ? "bg-secondary" : "bg-outline"}`}
                       />
                     ))}
                   </div>
-                  <span className="text-[11px] font-mono text-neutral-400 font-black">
+                  <span className="text-[10px] font-headline text-outline font-black">
                     {meActive?.hp || 0} / {meActive?.max_hp || 0} HP
                   </span>
                 </div>
                 {meActive?.buffs && (
                   <div className="flex gap-1.5 mt-2">
                     {meActive.buffs.atk > 1 && (
-                      <Swords className="w-3.5 h-3.5 text-orange-400 drop-shadow-[0_0_5px_rgba(251,146,60,0.8)]" />
+                      <span className="material-symbols-outlined text-primary text-[14px]" style={{ fontVariationSettings: "'FILL' 1" }}>swords</span>
                     )}
                     {meActive.buffs.def > 1 && (
-                      <Shield className="w-3.5 h-3.5 text-blue-400 drop-shadow-[0_0_5px_rgba(96,165,250,0.8)]" />
+                      <span className="material-symbols-outlined text-secondary text-[14px]" style={{ fontVariationSettings: "'FILL' 1" }}>shield</span>
                     )}
                     {meActive.buffs.has_choice && (
-                      <Star className="w-3.5 h-3.5 text-purple-400 drop-shadow-[0_0_5px_rgba(192,132,252,0.8)]" />
+                      <span className="material-symbols-outlined text-purple-400 text-[14px]" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>
                     )}
                     {meActive.buffs.has_focus && (
-                      <Activity className="w-3.5 h-3.5 text-emerald-400 drop-shadow-[0_0_5px_rgba(52,211,153,0.8)]" />
+                      <span className="material-symbols-outlined text-tertiary text-[14px]" style={{ fontVariationSettings: "'FILL' 1" }}>bolt</span>
                     )}
                     {meActive.buffs.has_oran && (
-                      <Heart className="w-3.5 h-3.5 text-red-400 drop-shadow-[0_0_5px_rgba(248,113,113,0.8)]" />
+                      <span className="material-symbols-outlined text-error text-[14px]" style={{ fontVariationSettings: "'FILL' 1" }}>favorite</span>
                     )}
                   </div>
                 )}
@@ -623,36 +608,36 @@ export const BattlePage = () => {
       </div>
 
       {/* Control Panel (LARGE CENTERED BALANCE) */}
-      <div className="bg-neutral-950/90 border-t border-white/5 px-3 md:px-6 lg:px-10 py-2 md:py-3 relative z-10 flex flex-wrap lg:flex-nowrap items-stretch lg:items-end justify-center gap-3 md:gap-4 lg:gap-6 backdrop-blur-lg shrink-0 overflow-hidden">
+      <div className="bg-surface-container-low border-t-2 border-[#2d3449] px-3 md:px-6 lg:px-10 py-4 relative z-10 flex flex-wrap lg:flex-nowrap items-stretch justify-center gap-4 lg:gap-6 shrink-0 shadow-[0_-4px_0_rgba(0,0,0,0.5)]">
         {/* Battle Chat */}
-        <div className="bg-black/50 rounded-xl p-3 border border-white/10 h-[24vh] min-h-[150px] max-h-[240px] lg:h-[220px] lg:max-h-[220px] w-full lg:w-[24%] shadow-inner flex flex-col">
-          <div className="text-[10px] font-black text-neutral-500 uppercase tracking-widest border-b border-white/5 pb-1">
-            Chat de Combate
+        <div className="bg-[#0B1326] rounded-sm p-3 border-2 border-[#2d3449] h-[24vh] min-h-[150px] max-h-[240px] lg:h-[220px] lg:max-h-[220px] w-full lg:w-[24%] shadow-[inset_4px_4px_8px_rgba(0,0,0,0.5)] flex flex-col">
+          <div className="text-[10px] font-headline font-black text-outline uppercase tracking-widest border-b-2 border-[#2d3449] pb-2 flex items-center gap-2">
+            <span className="material-symbols-outlined text-[14px]" style={{ fontVariationSettings: "'FILL' 1" }}>chat</span> BATTLE CHAT
           </div>
           <div
             ref={chatListRef}
-            className="flex-1 min-h-0 overflow-y-auto bg-neutral-900/70 rounded-xl p-2 mt-2 space-y-1.5 border border-white/10"
+            className="flex-1 min-h-0 overflow-y-auto mt-2 space-y-2 pr-2"
           >
             {chatMessages.length > 0 ? (
               chatMessages.map((message, index) => (
                 <div
                   key={message.id || `chat-${index}`}
-                  className="text-xs leading-snug"
+                  className="text-[10px] leading-snug font-headline font-bold uppercase tracking-widest"
                 >
-                  <span className="font-bold text-white">
-                    {message.senderId === myId ? "Tú" : message.senderName}:
+                  <span className="text-tertiary">
+                    {message.senderId === myId ? "YOU" : message.senderName}:
                   </span>{" "}
-                  <span className="text-neutral-300">{message.text}</span>
+                  <span className="text-white">{message.text}</span>
                 </div>
               ))
             ) : (
-              <p className="text-[10px] text-neutral-500">
-                No hay mensajes aún.
+              <p className="text-[9px] font-headline font-bold uppercase text-outline mt-2">
+                NO MESSAGES YET.
               </p>
             )}
           </div>
 
-          <div className="mt-2 flex gap-2">
+          <div className="mt-2 flex gap-2 border-t-2 border-[#2d3449] pt-2">
             <input
               value={chatInput}
               onChange={(e) => setChatInput(e.target.value)}
@@ -662,32 +647,32 @@ export const BattlePage = () => {
                   handleSendChat();
                 }
               }}
-              placeholder="Escribe un mensaje..."
-              className="flex-1 rounded-xl border border-white/10 bg-neutral-950/90 px-2.5 py-1.5 text-xs text-white outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20"
+              placeholder="TYPE MESSAGE..."
+              className="flex-1 rounded-sm border-2 border-[#2d3449] bg-surface-container-low px-2 py-1 text-[10px] font-headline font-bold uppercase text-white outline-none focus:border-tertiary"
             />
             <button
               onClick={handleSendChat}
               disabled={!chatInput.trim() || !chatConnected}
-              className={`rounded-xl px-3 py-1.5 text-[10px] font-black uppercase tracking-widest transition-all ${
+              className={`rounded-sm px-3 py-1 text-[10px] font-headline font-black uppercase tracking-widest border-2 transition-all ${
                 chatInput.trim() && chatConnected
-                  ? "bg-cyan-500 text-neutral-950 hover:bg-cyan-400"
-                  : "bg-neutral-800 text-neutral-500 cursor-not-allowed"
+                  ? "bg-tertiary border-tertiary text-on-tertiary hover:bg-tertiary/80 beveled-button"
+                  : "bg-surface-container-low border-[#2d3449] text-outline cursor-not-allowed"
               }`}
             >
-              Enviar
+              <span className="material-symbols-outlined text-[14px]" style={{ fontVariationSettings: "'FILL' 1" }}>send</span>
             </button>
           </div>
           {chatStatus && (
-            <div className="mt-2 text-[10px] text-neutral-500">
+            <div className="mt-1 text-[8px] font-headline font-bold uppercase text-outline">
               {chatStatus}
             </div>
           )}
         </div>
 
         {/* Tactical Items */}
-        <div className="bg-neutral-900/40 rounded-xl p-3 md:p-4 border border-white/10 h-[18vh] min-h-[110px] max-h-[180px] lg:h-[180px] lg:max-h-[180px] w-full lg:w-[33%] flex flex-col shadow-inner">
-          <div className="text-[10px] font-black text-neutral-500 mb-2 uppercase tracking-widest text-center border-b border-white/5 pb-1">
-            Recursos Tácticos
+        <div className="bg-[#0B1326] rounded-sm p-3 border-2 border-[#2d3449] h-[18vh] min-h-[110px] max-h-[180px] lg:h-[180px] lg:max-h-[180px] w-full lg:w-[33%] flex flex-col shadow-[inset_4px_4px_8px_rgba(0,0,0,0.5)]">
+          <div className="text-[10px] font-headline font-black text-outline uppercase tracking-widest border-b-2 border-[#2d3449] pb-2 flex items-center gap-2 justify-center">
+            <span className="material-symbols-outlined text-[14px]" style={{ fontVariationSettings: "'FILL' 1" }}>backpack</span> TACTICAL ITEMS
           </div>
           <div className="flex-1 overflow-y-auto pt-2">
             <div className="grid grid-cols-4 gap-2">
@@ -696,16 +681,27 @@ export const BattlePage = () => {
                   key={item.id || `tactical-${index}`}
                   onClick={() => void handleUseItem(item.id)}
                   disabled={!myTurn || selectingReviveTarget !== null}
-                  className="group flex flex-col items-center justify-center p-2 bg-neutral-800/80 rounded-lg border border-white/5 hover:border-cyan-500 transition-all disabled:opacity-30 relative"
+                  className="group flex flex-col items-center justify-center p-2 bg-surface-container-low rounded-sm border-2 border-[#2d3449] hover:border-tertiary hover:bg-tertiary/10 transition-all disabled:opacity-30 relative beveled-button gap-1"
                 >
-                  <span className="text-xs font-black text-cyan-400">
+                  <span className="absolute top-1 left-1 text-[10px] font-headline font-black text-tertiary">
                     x{item.quantity}
                   </span>
-                  <span className="text-[8px] font-bold text-neutral-500 uppercase truncate w-full text-center">
+                  
+                  <div className="w-10 h-10 flex items-center justify-center mb-1">
+                    {item.object.sprite ? (
+                      <img src={item.object.sprite} alt={item.object.name} className="w-8 h-8 object-contain image-rendering-pixelated group-hover:scale-110 transition-transform" />
+                    ) : (
+                      <div className="scale-50 opacity-80 group-hover:opacity-100 group-hover:scale-75 transition-all flex items-center justify-center">
+                         {getVfxIcon(item.object.vfx_type)}
+                      </div>
+                    )}
+                  </div>
+
+                  <span className="text-[8px] font-headline font-bold text-outline uppercase truncate w-full text-center group-hover:text-white transition-colors">
                     {item.object.name}
                   </span>
                   {selectingReviveTarget === item.id && (
-                    <div className="absolute inset-0 ring-2 ring-emerald-500 rounded-lg animate-pulse pointer-events-none" />
+                    <div className="absolute inset-0 ring-2 ring-primary rounded-sm animate-pulse pointer-events-none" />
                   )}
                 </button>
               ))}
@@ -714,7 +710,7 @@ export const BattlePage = () => {
         </div>
 
         {/* Bench (Horizontal) */}
-        <div className="flex gap-2 shrink-0 w-full lg:w-auto overflow-x-auto pb-1 max-w-full">
+        <div className="flex gap-3 shrink-0 w-full lg:w-auto overflow-x-auto pb-2 max-w-full items-center">
           {me.team.map((c, index) => (
             <button
               key={c.id || `bench-${index}`}
@@ -732,19 +728,19 @@ export const BattlePage = () => {
                   (c.hp === 0 || c.id === me.active_creature_id)) ||
                 (selectingReviveTarget !== null && c.hp > 0)
               }
-              className={`relative w-20 h-20 lg:w-24 lg:h-24 rounded-2xl bg-neutral-900/80 border-2 ${getBenchButtonBorder(c)} hover:border-white transition-all overflow-hidden p-2 ${c.hp === 0 && !selectingReviveTarget ? "opacity-30 grayscale cursor-not-allowed" : "hover:scale-105"}`}
+              className={`relative w-20 h-20 lg:w-24 lg:h-24 rounded-sm bg-[#0B1326] border-4 ${getBenchButtonBorder(c)} hover:border-white transition-all overflow-hidden p-2 beveled-button shadow-[4px_4px_0_rgba(0,0,0,0.5)] ${c.hp === 0 && !selectingReviveTarget ? "opacity-30 grayscale cursor-not-allowed" : "hover:-translate-y-1"}`}
             >
               <img
                 src={c.sprite}
                 alt={c.name}
-                className="w-full h-full object-contain mb-2"
+                className="w-full h-full object-contain mb-2 image-rendering-pixelated"
               />
-              <div className="absolute top-1 left-2 text-[10px] font-black uppercase text-white/40">
+              <div className="absolute top-1 left-2 text-[8px] font-headline font-black uppercase text-outline bg-surface-container-low px-1 rounded-sm border border-[#2d3449]">
                 {c.name}
               </div>
-              <div className="absolute bottom-0 left-0 w-full h-1.5 bg-neutral-800">
+              <div className="absolute bottom-0 left-0 w-full h-2 bg-surface-container-low border-t-2 border-[#2d3449]">
                 <div
-                  className="h-full bg-green-500 transition-all duration-500"
+                  className="h-full bg-secondary transition-all duration-500"
                   style={{ width: `${(c.hp / c.max_hp) * 100}%` }}
                 />
               </div>
@@ -753,19 +749,19 @@ export const BattlePage = () => {
         </div>
 
         {/* Attack Button */}
-        <div className="h-auto lg:h-32 flex items-center justify-center shrink-0 w-full lg:w-auto">
+        <div className="h-auto lg:h-[180px] flex items-center justify-center shrink-0 w-full lg:w-auto">
           {battleState.status === "playing" && (
             <button
               onClick={handleAttack}
               disabled={!myTurn || meActive?.hp === 0}
-              className={`w-32 h-20 flex flex-col items-center justify-center gap-1.5 rounded-xl font-black uppercase tracking-widest transition-all ${
+              className={`w-32 lg:w-40 h-20 lg:h-24 flex flex-col items-center justify-center gap-2 rounded-sm font-headline font-black uppercase tracking-widest transition-all border-2 ${
                 myTurn && meActive?.hp !== 0
-                  ? "bg-red-600 text-white hover:bg-red-500 shadow-lg shadow-red-900/20"
-                  : "bg-neutral-800 text-neutral-500 cursor-not-allowed border border-white/5 opacity-50"
+                  ? "bg-primary border-primary text-on-primary hover:bg-primary/90 shadow-[8px_8px_0_rgba(0,0,0,0.5)] beveled-button hover:-translate-y-1"
+                  : "bg-surface-container-low border-[#2d3449] text-outline cursor-not-allowed shadow-[4px_4px_0_rgba(0,0,0,0.5)] opacity-80"
               }`}
             >
-              <Activity size={20} className={myTurn ? "animate-pulse" : ""} />
-              <span className="text-[9px]">Attack</span>
+              <span className={`material-symbols-outlined text-[32px] ${myTurn ? "animate-pulse" : ""}`} style={{ fontVariationSettings: "'FILL' 1" }}>swords</span>
+              <span className="text-sm">ATTACK</span>
             </button>
           )}
         </div>

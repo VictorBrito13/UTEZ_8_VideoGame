@@ -1,6 +1,5 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { UserPlus, Mail, Lock, User, Check, Swords } from "lucide-react";
 import { useRegister } from "../hooks/useRegister";
 import { Container } from "../../../common/ui/Container";
 import { Heading } from "../../../common/ui/Heading";
@@ -12,42 +11,42 @@ const HERO_AVATARS = [
   {
     id: 1,
     name: "RED_HERO",
-    url: "https://cdn.jsdelivr.net/npm/pokeapi-sprites/sprites/trainers/1.png",
+    url: "https://play.pokemonshowdown.com/sprites/trainers/red.png",
   },
   {
     id: 2,
     name: "BLUE_RIVAL",
-    url: "https://cdn.jsdelivr.net/npm/pokeapi-sprites/sprites/trainers/2.png",
+    url: "https://play.pokemonshowdown.com/sprites/trainers/blue.png",
   },
   {
     id: 3,
     name: "DAWN",
-    url: "https://cdn.jsdelivr.net/npm/pokeapi-sprites/sprites/trainers/3.png",
+    url: "https://play.pokemonshowdown.com/sprites/trainers/dawn.png",
   },
   {
     id: 4,
     name: "ETHAN_SOUL",
-    url: "https://cdn.jsdelivr.net/npm/pokeapi-sprites/sprites/trainers/5.png",
+    url: "https://play.pokemonshowdown.com/sprites/trainers/ethan.png",
   },
   {
     id: 5,
     name: "LYRA_HEART",
-    url: "https://cdn.jsdelivr.net/npm/pokeapi-sprites/sprites/trainers/7.png",
+    url: "https://play.pokemonshowdown.com/sprites/trainers/lyra.png",
   },
   {
     id: 6,
     name: "BRENDAN_RUBY",
-    url: "https://cdn.jsdelivr.net/npm/pokeapi-sprites/sprites/trainers/10.png",
+    url: "https://play.pokemonshowdown.com/sprites/trainers/brendan.png",
   },
   {
     id: 7,
     name: "MAY_SAPPHIRE",
-    url: "https://cdn.jsdelivr.net/npm/pokeapi-sprites/sprites/trainers/12.png",
+    url: "https://play.pokemonshowdown.com/sprites/trainers/may.png",
   },
   {
     id: 8,
     name: "SILVER",
-    url: "https://cdn.jsdelivr.net/npm/pokeapi-sprites/sprites/trainers/13.png",
+    url: "https://play.pokemonshowdown.com/sprites/trainers/silver.png",
   },
 ];
 
@@ -72,196 +71,161 @@ const RegisterPage: React.FC = () => {
     formData.trainer_sprite;
 
   return (
-    <Container variant="page" className="min-h-screen py-20">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="max-w-2xl mx-auto"
-      >
-        <Container
-          variant="card"
-          className="p-10 border border-white/10 bg-neutral-900/50 backdrop-blur-3xl rounded-[3rem] shadow-2xl relative overflow-hidden"
-        >
-          {/* Decorative Glow */}
-          <div className="absolute -top-24 -right-24 w-64 h-64 bg-cyan-500/10 rounded-full blur-[100px] pointer-events-none" />
-
-          <div className="text-center mb-10">
-            <div className="bg-cyan-500/10 w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-6 border border-cyan-500/20">
-              <UserPlus className="h-10 w-10 text-cyan-400" />
-            </div>
-            <Heading
-              level={1}
-              className="text-5xl font-black italic tracking-tighter uppercase"
-            >
-              DEEPLOY_IDENTITY
+    <Container variant="page">
+      <Container variant="card">
+        {/* Scanline effect */}
+        <div className="absolute inset-0 pointer-events-none opacity-[0.03]" style={{ background: "repeating-linear-gradient(0deg, #fff, #fff 1px, transparent 1px, transparent 2px)", backgroundSize: "100% 4px" }}></div>
+        
+        <header className="flex flex-col items-center pb-4">
+          <div className="flex items-center gap-4 mb-6">
+            <div className="w-8 h-8 bg-primary shadow-[2px_2px_0_rgba(0,0,0,0.5)]"></div>
+            <Heading level={1}>
+              POKÉDEX ARCHIVE
             </Heading>
-            <Text
-              variant="secondary"
-              className="mt-2 text-neutral-500 font-bold uppercase tracking-widest text-[10px]"
-            >
-              FORGE YOUR ACCOUNT // SELECT BATTLE_HERO
-            </Text>
+            <div className="w-8 h-8 bg-white shadow-[2px_2px_0_rgba(0,0,0,0.5)]"></div>
+          </div>
+          <div className="w-full flex items-center justify-between">
+            <Heading level={2}>ENLIST NEW TRAINER</Heading>
+            <div className="font-headline text-[10px] text-primary font-bold opacity-80">STATION_001_REG</div>
+          </div>
+          <div className="h-1 w-full bg-[#2d3449] mt-3 relative">
+            <div className="absolute left-0 top-0 h-full w-1/4 bg-primary shadow-[2px_0_4px_rgba(255,31,31,0.5)]"></div>
+          </div>
+        </header>
+
+        {error ? (
+          <Text variant="error">
+            {typeof error === "string" ? error : "Registration failed."}
+          </Text>
+        ) : null}
+
+        <form onSubmit={handleRegister} className="space-y-6">
+          {/* HERO SELECTION GRID */}
+          <div className="space-y-4">
+            <label className="font-headline text-[10px] uppercase tracking-[0.2em] text-outline font-bold block ml-1">Select Avatar</label>
+            <div className="grid grid-cols-4 gap-2">
+              {HERO_AVATARS.map((hero) => {
+                const isSelected = formData.trainer_sprite === hero.url;
+                return (
+                  <div
+                    key={hero.id}
+                    onClick={() => setAvatar(hero.url)}
+                    className={`relative aspect-square border-2 transition-all cursor-pointer flex items-center justify-center overflow-hidden bg-[#0B1326] ${
+                      isSelected
+                        ? "border-primary shadow-[inset_2px_2px_4px_rgba(255,31,31,0.2)]"
+                        : "border-[#2d3449] hover:border-primary/50"
+                    }`}
+                  >
+                    <img
+                      src={hero.url}
+                      alt={hero.name}
+                      className={`w-12 h-12 object-contain image-rendering-pixelated ${isSelected ? "" : "opacity-50 grayscale"}`}
+                    />
+                    {isSelected && (
+                      <div className="absolute top-1 right-1">
+                        <span className="material-symbols-outlined text-[10px] text-primary" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
-          {error ? (
-            <motion.div
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="mb-8 p-4 bg-red-500/10 border border-red-500/30 rounded-2xl text-red-400 text-xs font-semibold text-center leading-relaxed"
-            >
-              {typeof error === "string" ? error : "Registration failed."}
-            </motion.div>
-          ) : null}
-
-          <form onSubmit={handleRegister} className="space-y-10">
-            {/* HERO SELECTION GRID */}
-            <div className="space-y-6">
-              <div className="flex items-center gap-3 mb-2">
-                <Swords size={14} className="text-cyan-400" />
-                <span className="text-[10px] font-black text-neutral-400 uppercase tracking-[0.4em]">
-                  Choose_Battle_Hero_Avatar
-                </span>
+          {/* FORM INPUTS */}
+          <div className="space-y-4">
+            <div className="relative group">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <span className="material-symbols-outlined text-primary text-lg" style={{ fontVariationSettings: "'FILL' 1" }}>person</span>
               </div>
-              <div className="grid grid-cols-4 gap-4">
-                {HERO_AVATARS.map((hero) => {
-                  const isSelected = formData.trainer_sprite === hero.url;
-                  return (
-                    <motion.div
-                      key={hero.id}
-                      whileHover={{ scale: 1.05, y: -5 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => setAvatar(hero.url)}
-                      className={`relative aspect-square rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-center overflow-hidden bg-neutral-950/50 ${
-                        isSelected
-                          ? "border-cyan-500 bg-cyan-500/10 shadow-[0_0_25px_rgba(34,211,238,0.2)]"
-                          : "border-white/5 hover:border-white/20"
-                      }`}
-                    >
-                      <img
-                        src={hero.url}
-                        alt={hero.name}
-                        className={`w-16 h-16 object-contain render-pixelated ${isSelected ? "drop-shadow-[0_0_8px_rgba(34,211,238,0.5)]" : "opacity-40 hover:opacity-100 transition-opacity"}`}
-                      />
-
-                      {isSelected && (
-                        <div className="absolute top-2 right-2 flex items-center justify-center">
-                          <div className="bg-cyan-500 p-0.5 rounded-full shadow-lg">
-                            <Check size={10} className="text-black" />
-                          </div>
-                        </div>
-                      )}
-
-                      <div
-                        className={`absolute bottom-0 left-0 right-0 py-1 text-center bg-black/50 overflow-hidden transition-all ${isSelected ? "translate-y-0" : "translate-y-full"}`}
-                      >
-                        <span className="text-[7px] font-black uppercase text-white tracking-widest">
-                          {hero.name}
-                        </span>
-                      </div>
-                    </motion.div>
-                  );
-                })}
-              </div>
+              <input
+                id="username"
+                name="username"
+                type="text"
+                required
+                value={formData.username}
+                onChange={handleChange}
+                className="w-full bg-[#0B1326] border-2 border-[#2d3449] rounded-sm py-4 pl-12 pr-4 text-sm font-headline tracking-widest focus:ring-0 focus:border-primary placeholder:text-outline/40 text-on-surface transition-all shadow-[inset_2px_2px_4px_rgba(0,0,0,0.5)]"
+                placeholder="TRAINER NAME"
+              />
             </div>
 
-            {/* FORM INPUTS */}
-            <div className="space-y-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="relative md:col-span-2">
-                <User className="absolute left-4 top-4 h-5 w-5 text-neutral-600" />
-                <input
-                  id="username"
-                  name="username"
-                  type="text"
-                  required
-                  value={formData.username}
-                  onChange={handleChange}
-                  className="w-full pl-12 pr-4 py-4 bg-neutral-950 border border-white/5 rounded-2xl text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 transition-all placeholder-neutral-700 font-bold text-sm"
-                  placeholder="USERNAME"
-                />
+            <div className="relative group">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <span className="material-symbols-outlined text-primary text-lg" style={{ fontVariationSettings: "'FILL' 1" }}>mail</span>
               </div>
-
-              <div className="relative">
-                <Mail className="absolute left-4 top-4 h-5 w-5 text-neutral-600" />
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  required
-                  value={formData.email}
-                  onChange={handleChange}
-                  className="w-full pl-12 pr-4 py-4 bg-neutral-950 border border-white/5 rounded-2xl text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 transition-all placeholder-neutral-700 font-bold text-sm"
-                  placeholder="EMAIL_ADDR"
-                />
-              </div>
-
-              <div className="relative">
-                <Lock className="absolute left-4 top-4 h-5 w-5 text-neutral-600" />
-                <input
-                  id="password"
-                  name="password"
-                  type="password"
-                  required
-                  value={formData.password}
-                  onChange={handleChange}
-                  className="w-full pl-12 pr-4 py-4 bg-neutral-950 border border-white/5 rounded-2xl text-white focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 transition-all placeholder-neutral-700 font-bold text-sm"
-                  placeholder="PASSWORD"
-                />
-              </div>
-
-              {/* Password Requirements Checklist */}
-              <div className="md:col-span-2 p-4 bg-white/5 rounded-2xl border border-white/5 grid grid-cols-2 gap-2">
-                {[
-                  { key: "length", label: "8+ CHARACTERS" },
-                  { key: "upper", label: "UPPERCASE" },
-                  { key: "lower", label: "LOWERCASE" },
-                  { key: "number", label: "NUMBER" },
-                  { key: "special", label: "SYMBOL" },
-                ].map((req) => (
-                  <div key={req.key} className="flex items-center gap-2">
-                    <div className={`w-3 h-3 rounded-full flex items-center justify-center ${passwordValidation[req.key as keyof typeof passwordValidation] ? "bg-cyan-500" : "bg-neutral-800"}`}>
-                      {passwordValidation[req.key as keyof typeof passwordValidation] && <Check size={8} className="text-black" />}
-                    </div>
-                    <span className={`text-[8px] font-black tracking-widest ${passwordValidation[req.key as keyof typeof passwordValidation] ? "text-cyan-400" : "text-neutral-600"}`}>
-                      {req.label}
-                    </span>
-                  </div>
-                ))}
-              </div>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                required
+                value={formData.email}
+                onChange={handleChange}
+                className="w-full bg-[#0B1326] border-2 border-[#2d3449] rounded-sm py-4 pl-12 pr-4 text-sm font-headline tracking-widest focus:ring-0 focus:border-primary placeholder:text-outline/40 text-on-surface transition-all shadow-[inset_2px_2px_4px_rgba(0,0,0,0.5)]"
+                placeholder="EMAIL_ADDR"
+              />
             </div>
 
-            <button
-              type="submit"
-              disabled={loading || !isFormValid}
-              className={`w-full py-5 px-6 rounded-2xl shadow-2xl text-sm font-black uppercase tracking-widest transition-all ${
-                isFormValid
-                  ? "bg-cyan-500 text-black hover:bg-cyan-400 hover:scale-[1.02] active:scale-95"
-                  : "bg-white/5 text-neutral-600 cursor-not-allowed border border-white/5"
-              }`}
-            >
-              {loading ? (
-                "Forging Account..."
-              ) : (
-                <span className="flex items-center justify-center gap-2">
-                  <Check size={18} /> INITIALIZE_HERO
-                </span>
-              )}
-            </button>
-          </form>
+            <div className="relative group">
+              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <span className="material-symbols-outlined text-primary text-lg" style={{ fontVariationSettings: "'FILL' 1" }}>key</span>
+              </div>
+              <input
+                id="password"
+                name="password"
+                type="password"
+                required
+                value={formData.password}
+                onChange={handleChange}
+                className="w-full bg-[#0B1326] border-2 border-[#2d3449] rounded-sm py-4 pl-12 pr-4 text-sm font-headline tracking-widest focus:ring-0 focus:border-primary placeholder:text-outline/40 text-on-surface transition-all shadow-[inset_2px_2px_4px_rgba(0,0,0,0.5)]"
+                placeholder="PASSWORD"
+              />
+            </div>
 
-          <Text
-            variant="secondary"
-            className="text-center mt-10 text-[10px] font-bold uppercase tracking-[0.3em] text-neutral-600"
+            {/* Password Requirements Checklist */}
+            <div className="p-4 bg-[#0B1326] border-2 border-[#2d3449] grid grid-cols-2 gap-2 text-[8px] font-headline tracking-widest uppercase">
+              {[
+                { key: "length", label: "8+ CHARS" },
+                { key: "upper", label: "UPPERCASE" },
+                { key: "lower", label: "LOWERCASE" },
+                { key: "number", label: "NUMBER" },
+                { key: "special", label: "SYMBOL" },
+              ].map((req) => (
+                <div key={req.key} className="flex items-center gap-2">
+                  <span className={`material-symbols-outlined text-[10px] ${passwordValidation[req.key as keyof typeof passwordValidation] ? "text-primary" : "text-outline"}`} style={{ fontVariationSettings: "'FILL' 1" }}>
+                    {passwordValidation[req.key as keyof typeof passwordValidation] ? "check_circle" : "radio_button_unchecked"}
+                  </span>
+                  <span className={`${passwordValidation[req.key as keyof typeof passwordValidation] ? "text-on-surface" : "text-outline"}`}>
+                    {req.label}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading || !isFormValid}
+            className="w-full group relative overflow-hidden bg-primary text-on-primary font-headline font-black py-5 rounded-sm uppercase tracking-[0.3em] beveled-button hover:translate-y-[-2px] active:translate-y-[2px] transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
           >
+            <span className="relative z-10">{loading ? "FORGING ACCOUNT..." : "INITIALIZE HERO"}</span>
+            <span className="material-symbols-outlined relative z-10 text-xl group-hover:rotate-180 transition-transform duration-500" style={{ fontVariationSettings: "'FILL' 1" }}>catching_pokemon</span>
+            <div className="absolute top-0 left-0 w-full h-1/2 bg-white/10"></div>
+          </button>
+        </form>
+
+        <div className="mt-8 text-center">
+          <p className="font-body text-xs text-on-surface-variant uppercase tracking-wider">
             Already have a hero?{" "}
             <Link
               to="/login"
-              className="text-cyan-400 hover:text-cyan-300 transition-colors underline decoration-cyan-400/20"
+              className="text-primary font-bold font-headline uppercase tracking-widest ml-1 hover:text-white transition-colors underline decoration-2 underline-offset-4"
             >
               Access_Terminal
             </Link>
-          </Text>
-        </Container>
-      </motion.div>
+          </p>
+        </div>
+      </Container>
     </Container>
   );
 };

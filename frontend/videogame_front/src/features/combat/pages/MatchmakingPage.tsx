@@ -2,8 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
-import { Swords, Search, XCircle } from "lucide-react";
 import { BackButton } from "../../../common/ui/BackButton";
+import { Container } from "../../../common/ui/Container";
 import { BASE_URL } from "../../../common/utils/url";
 
 function processMatchmakingMessage(
@@ -19,19 +19,19 @@ function processMatchmakingMessage(
     const data = JSON.parse(event.data);
     switch (data.type) {
       case "matchmaking.queued":
-        setMessage(`In queue. Your ELO: ${data.elo}. Broadening search...`);
+        setMessage(`IN QUEUE. YOUR ELO: ${data.elo}. BROADENING SEARCH...`);
         break;
       case "matchmaking.cancelled":
         searchingRef.current = false;
         setStatus("idle");
-        setMessage("Search cancelled.");
+        setMessage("SEARCH CANCELLED.");
         navigate("/");
         break;
       case "matchmaking.found":
         searchingRef.current = false;
         setStatus("found");
         setOpponent(data.opponent);
-        setMessage("Opponent found! Connecting to battle arena...");
+        setMessage("OPPONENT FOUND! CONNECTING TO BATTLE ARENA...");
         setTimeout(() => {
           navigate(`/battle/${data.battleId}`);
           ws.close();
@@ -43,7 +43,7 @@ function processMatchmakingMessage(
         const errText =
           typeof data.message === "string" && data.message.length > 0
             ? data.message
-            : "An error occurred";
+            : "AN ERROR OCCURRED";
         toast.error(errText);
         setStatus("idle");
         setMessage("");
@@ -68,7 +68,7 @@ export const MatchmakingPage = () => {
   const handleStartSearch = () => {
     setStatus("searching");
     searchingRef.current = true;
-    setMessage("Searching for opponent...");
+    setMessage("SEARCHING FOR OPPONENT...");
 
     const token = localStorage.getItem("access_token") || "";
     const wsUrl = BASE_URL.replace("http://", "ws://").replace("https://", "wss://");
@@ -96,7 +96,7 @@ export const MatchmakingPage = () => {
       if (searchingRef.current) {
         searchingRef.current = false;
         setStatus("idle");
-        setMessage("Search cancelled.");
+        setMessage("SEARCH CANCELLED.");
         navigate("/");
       }
     };
@@ -109,7 +109,7 @@ export const MatchmakingPage = () => {
       wsRef.current.close();
     }
     setStatus("idle");
-    setMessage("Search cancelled.");
+    setMessage("SEARCH CANCELLED.");
     setOpponent(null);
     navigate("/");
   };
@@ -128,13 +128,10 @@ export const MatchmakingPage = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center relative overflow-hidden">
+    <Container variant="page" className="flex-col min-h-screen justify-center items-center relative overflow-hidden">
       <div className="absolute top-0 left-0 w-full p-6 z-10">
         <BackButton />
       </div>
-
-      {/* Decorative background elements */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-red-900/10 blur-[120px] rounded-full pointer-events-none" />
 
       <div className="z-10 w-full max-w-lg mx-auto text-center px-6">
         <motion.div
@@ -142,22 +139,22 @@ export const MatchmakingPage = () => {
           animate={{ opacity: 1, y: 0 }}
           className="mb-12"
         >
-          <h1 className="text-6xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-orange-500 uppercase">
-            Arena_Ranked
+          <h1 className="text-6xl font-headline font-black tracking-widest text-primary uppercase terminal-glow">
+            ARENA RANKED
           </h1>
-          <p className="text-neutral-500 font-bold tracking-widest mt-2 uppercase text-sm">
-            Global Matchmaking System
+          <p className="text-outline font-headline font-bold tracking-widest mt-2 uppercase text-sm">
+            GLOBAL MATCHMAKING SYSTEM
           </p>
         </motion.div>
 
         <AnimatePresence mode="wait">
           {status === "idle" && (
-            <div className="flex flex-col items-center gap-8">
-              <div className="w-32 h-32 rounded-full border border-white/10 bg-neutral-900/50 flex items-center justify-center">
-                <Swords size={48} className="text-neutral-500 animate-pulse" />
+            <div className="flex flex-col items-center gap-8 bg-surface-container-low beveled-border p-8 shadow-[12px_12px_0_rgba(0,0,0,0.5)]">
+              <div className="w-32 h-32 rounded-sm border-4 border-[#2d3449] bg-[#0B1326] flex items-center justify-center shadow-[inset_4px_4px_8px_rgba(0,0,0,0.5)]">
+                <span className="material-symbols-outlined text-outline text-6xl animate-pulse" style={{ fontVariationSettings: "'FILL' 1" }}>swords</span>
               </div>
-              <p className="text-neutral-500 font-bold uppercase tracking-widest text-xs">
-                Initializing Neural Link...
+              <p className="text-outline font-headline font-black uppercase tracking-widest text-xs">
+                INITIALIZING NEURAL LINK...
               </p>
             </div>
           )}
@@ -168,30 +165,29 @@ export const MatchmakingPage = () => {
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
-              className="flex flex-col items-center gap-8"
+              className="flex flex-col items-center gap-8 bg-surface-container-low beveled-border p-8 shadow-[12px_12px_0_rgba(0,0,0,0.5)]"
             >
-              <div className="relative w-32 h-32 flex items-center justify-center">
-                <div className="absolute inset-0 rounded-full border-2 border-red-500/20" />
+              <div className="relative w-32 h-32 flex items-center justify-center bg-[#0B1326] border-4 border-[#2d3449] rounded-sm shadow-[inset_4px_4px_8px_rgba(0,0,0,0.5)]">
                 <motion.div
                   animate={{ rotate: 360 }}
                   transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
-                  className="absolute inset-0 rounded-full border-t-2 border-red-500"
+                  className="absolute inset-0 rounded-full border-[6px] border-transparent border-t-primary m-4"
                 />
-                <Search size={32} className="text-red-500 animate-pulse" />
+                <span className="material-symbols-outlined text-primary text-4xl animate-pulse" style={{ fontVariationSettings: "'FILL' 1" }}>radar</span>
               </div>
 
               <div>
-                <h3 className="text-xl font-bold">{message}</h3>
-                <p className="text-neutral-500 text-sm mt-2">
-                  Connecting to players with similar skill levels...
+                <h3 className="text-xl font-headline font-black tracking-widest uppercase text-white terminal-glow">{message}</h3>
+                <p className="text-outline font-headline font-bold uppercase tracking-widest text-xs mt-2">
+                  CONNECTING TO PLAYERS WITH SIMILAR SKILL LEVELS...
                 </p>
               </div>
 
               <button
                 onClick={handleCancelSearch}
-                className="flex items-center gap-2 px-6 py-3 rounded-full border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-colors font-bold uppercase tracking-widest text-sm mt-4"
+                className="flex items-center gap-2 px-8 py-4 beveled-button bg-[#0B1326] border-2 border-[#2d3449] hover:bg-error-container hover:text-on-error-container transition-colors font-headline font-black uppercase tracking-widest text-sm mt-4 text-error"
               >
-                <XCircle size={18} /> Cancel Search
+                <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>cancel</span> CANCEL SEARCH
               </button>
             </motion.div>
           )}
@@ -202,42 +198,42 @@ export const MatchmakingPage = () => {
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
-              className="flex flex-col items-center gap-8"
+              className="flex flex-col items-center gap-8 bg-surface-container-low beveled-border p-8 shadow-[12px_12px_0_rgba(0,0,0,0.5)]"
             >
-              <div className="flex items-center gap-12">
-                <div className="text-center">
-                  <div className="w-24 h-24 rounded-full border border-white/20 bg-neutral-900 flex items-center justify-center mb-4">
-                    <span className="text-2xl font-black">YOU</span>
+              <div className="flex items-center gap-8 md:gap-12 w-full justify-center">
+                <div className="text-center flex-1">
+                  <div className="w-20 h-20 md:w-24 md:h-24 mx-auto rounded-sm border-4 border-secondary bg-secondary-container flex items-center justify-center mb-4 shadow-[4px_4px_0_rgba(0,0,0,0.5)]">
+                    <span className="text-xl md:text-2xl font-headline font-black text-on-secondary-container">YOU</span>
                   </div>
                 </div>
 
-                <div className="flex flex-col items-center">
+                <div className="flex flex-col items-center shrink-0">
                   <motion.div
                     animate={{ scale: [1, 1.2, 1] }}
                     transition={{ duration: 1, repeat: Infinity }}
                   >
-                    <Swords size={32} className="text-red-500" />
+                    <span className="material-symbols-outlined text-primary text-4xl" style={{ fontVariationSettings: "'FILL' 1" }}>swords</span>
                   </motion.div>
-                  <span className="text-xs font-black tracking-widest mt-2 uppercase text-red-500">
+                  <span className="text-xs font-headline font-black tracking-widest mt-2 uppercase text-primary">
                     VS
                   </span>
                 </div>
 
-                <div className="text-center">
-                  <div className="w-24 h-24 rounded-full border border-red-500/50 bg-red-900/20 flex items-center justify-center mb-4 relative overflow-hidden">
-                    <div className="absolute inset-0 bg-red-500/10 animate-pulse" />
-                    <span className="text-sm font-black uppercase px-2 z-10 break-all">
-                      {opponent.username || `User ${opponent.userId}`}
+                <div className="text-center flex-1">
+                  <div className="w-20 h-20 md:w-24 md:h-24 mx-auto rounded-sm border-4 border-error bg-error-container flex items-center justify-center mb-4 relative overflow-hidden shadow-[4px_4px_0_rgba(0,0,0,0.5)]">
+                    <div className="absolute inset-0 bg-error/20 animate-pulse" />
+                    <span className="text-xs md:text-sm font-headline font-black uppercase px-2 z-10 break-all text-on-error-container">
+                      {opponent.username || `USER ${opponent.userId}`}
                     </span>
                   </div>
-                  <span className="text-xs font-bold text-neutral-500">
+                  <span className="text-[10px] font-headline font-bold uppercase tracking-widest text-outline">
                     ELO: {opponent.elo}
                   </span>
                 </div>
               </div>
 
-              <div className="mt-8 text-center bg-emerald-500/10 border border-emerald-500/30 px-8 py-4 rounded-2xl w-full">
-                <p className="font-black text-emerald-400 uppercase tracking-widest">
+              <div className="mt-8 text-center bg-tertiary-container border-2 border-tertiary px-8 py-4 w-full shadow-[inset_4px_4px_0_rgba(0,0,0,0.2)]">
+                <p className="font-headline font-black text-on-tertiary-container uppercase tracking-widest text-sm">
                   {message}
                 </p>
               </div>
@@ -245,6 +241,6 @@ export const MatchmakingPage = () => {
           )}
         </AnimatePresence>
       </div>
-    </div>
+    </Container>
   );
 };

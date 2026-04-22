@@ -1,6 +1,5 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { LogIn, User, Lock } from "lucide-react";
 import { useLogin } from "../hooks/useLogin";
 import { Container } from "../../../common/ui/Container";
 import { Heading } from "../../../common/ui/Heading";
@@ -12,67 +11,93 @@ const LoginPage: React.FC = () => {
   return (
     <Container variant="page">
       <Container variant="card">
-        <div className="text-center">
-          <LogIn className="mx-auto h-12 w-12 text-cyan-400" />
-          <Heading level={2} className="mt-4">
-            Welcome Back
-          </Heading>
-          <Text variant="secondary" className="mt-2">
-            Enter your credentials to access your realm
-          </Text>
-        </div>
+        {/* Scanline effect */}
+        <div className="absolute inset-0 pointer-events-none opacity-[0.03]" style={{ background: "repeating-linear-gradient(0deg, #fff, #fff 1px, transparent 1px, transparent 2px)", backgroundSize: "100% 4px" }}></div>
+        
+        <header className="flex flex-col items-center pb-4">
+          <div className="flex items-center gap-4 mb-6">
+            <div className="w-8 h-8 bg-primary shadow-[2px_2px_0_rgba(0,0,0,0.5)]"></div>
+            <Heading level={1}>
+              POKÉDEX ARCHIVE
+            </Heading>
+            <div className="w-8 h-8 bg-white shadow-[2px_2px_0_rgba(0,0,0,0.5)]"></div>
+          </div>
+          <div className="w-full flex items-center justify-between">
+            <Heading level={2}>TRAINER LOGIN</Heading>
+            <div className="font-headline text-[10px] text-primary font-bold opacity-80">STATION_001_AUTH</div>
+          </div>
+          <div className="h-1 w-full bg-[#2d3449] mt-3 relative">
+            <div className="absolute left-0 top-0 h-full w-1/4 bg-primary shadow-[2px_0_4px_rgba(255,31,31,0.5)]"></div>
+          </div>
+        </header>
 
         {error && <Text variant="error">{error}</Text>}
 
-        <form onSubmit={handleLogin} className="mt-8 space-y-4">
+        <form onSubmit={handleLogin} className="space-y-6">
           <div className="space-y-4">
-            <div className="relative">
-              <User className="absolute left-3 top-3 h-5 w-5 text-slate-400" />
-              <input
-                id="username"
-                name="username"
-                type="text"
-                required
-                value={formData.username}
-                onChange={handleChange}
-                className="w-full pl-10 pr-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all placeholder-slate-500"
-                placeholder="Username"
-              />
+            <div className="space-y-2">
+              <label className="font-headline text-[10px] uppercase tracking-[0.2em] text-outline font-bold block ml-1">Archive Identity</label>
+              <div className="relative group">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <span className="material-symbols-outlined text-primary text-lg" style={{ fontVariationSettings: "'FILL' 1" }}>person</span>
+                </div>
+                <input
+                  id="username"
+                  name="username"
+                  type="text"
+                  required
+                  value={formData.username}
+                  onChange={handleChange}
+                  className="w-full bg-[#0B1326] border-2 border-[#2d3449] rounded-sm py-4 pl-12 pr-4 text-sm font-headline tracking-widest focus:ring-0 focus:border-primary placeholder:text-outline/40 text-on-surface transition-all shadow-[inset_2px_2px_4px_rgba(0,0,0,0.5)]"
+                  placeholder="TRAINER NAME"
+                />
+              </div>
             </div>
 
-            <div className="relative">
-              <Lock className="absolute left-3 top-3 h-5 w-5 text-slate-400" />
-              <input
-                id="password"
-                name="password"
-                type="password"
-                required
-                value={formData.password}
-                onChange={handleChange}
-                className="w-full pl-10 pr-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-200 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all placeholder-slate-500"
-                placeholder="Password"
-              />
+            <div className="space-y-2">
+              <div className="flex justify-between items-end">
+                <label className="font-headline text-[10px] uppercase tracking-[0.2em] text-outline font-bold block ml-1">Access Key</label>
+              </div>
+              <div className="relative group">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <span className="material-symbols-outlined text-primary text-lg" style={{ fontVariationSettings: "'FILL' 1" }}>key</span>
+                </div>
+                <input
+                  id="password"
+                  name="password"
+                  type="password"
+                  required
+                  value={formData.password}
+                  onChange={handleChange}
+                  className="w-full bg-[#0B1326] border-2 border-[#2d3449] rounded-sm py-4 pl-12 pr-4 text-sm font-headline tracking-widest focus:ring-0 focus:border-primary placeholder:text-outline/40 text-on-surface transition-all shadow-[inset_2px_2px_4px_rgba(0,0,0,0.5)]"
+                  placeholder="••••••••"
+                />
+              </div>
             </div>
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full flex justify-center py-3 px-4 rounded-lg shadow-lg text-sm font-semibold text-slate-900 bg-cyan-400 hover:bg-cyan-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 focus:ring-offset-slate-900 transition-all disabled:opacity-50"
+            className="w-full group relative overflow-hidden bg-primary text-on-primary font-headline font-black py-5 rounded-sm uppercase tracking-[0.3em] beveled-button hover:translate-y-[-2px] active:translate-y-[2px] transition-all flex items-center justify-center gap-3 disabled:opacity-50"
           >
-            {loading ? "Authenticating..." : "Sign in"}
+            <span className="relative z-10">{loading ? "AUTHENTICATING..." : "ENTER ARCHIVE"}</span>
+            <span className="material-symbols-outlined relative z-10 text-xl group-hover:rotate-180 transition-transform duration-500" style={{ fontVariationSettings: "'FILL' 1" }}>catching_pokemon</span>
+            <div className="absolute top-0 left-0 w-full h-1/2 bg-white/10"></div>
           </button>
         </form>
 
-        <Text variant="secondary" className="text-center mt-6">
-          Don&apos;t have an account yet?{" "}
-          <Link
-            to="/register"
-            className="font-semibold text-cyan-400 hover:text-cyan-300 transition-colors"
-          >
-            Register now
-          </Link>
-        </Text>
+        <div className="mt-8 text-center">
+          <p className="font-body text-xs text-on-surface-variant uppercase tracking-wider">
+            No credentials?{" "}
+            <Link
+              to="/register"
+              className="text-primary font-bold font-headline uppercase tracking-widest ml-1 hover:text-white transition-colors underline decoration-2 underline-offset-4"
+            >
+              Enlist Now
+            </Link>
+          </p>
+        </div>
       </Container>
     </Container>
   );

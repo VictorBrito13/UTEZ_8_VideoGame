@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import apiClient from "../../../api/apiClient";
 import { motion } from "framer-motion";
-import { Heart } from "lucide-react";
 
 interface TeamMember {
   id: number;
@@ -31,8 +30,9 @@ export const TeamWidget = () => {
 
   return (
     <div className="mt-12">
-      <h2 className="text-xl font-black italic tracking-widest text-neutral-500 mb-6 uppercase">
-        Active_Squad
+      <h2 className="text-[14px] font-headline font-black tracking-widest text-outline mb-6 uppercase flex items-center gap-2">
+        <span className="material-symbols-outlined text-primary text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>group</span>
+        ACTIVE_SQUAD
       </h2>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {team.map((member, i) => (
@@ -41,24 +41,24 @@ export const TeamWidget = () => {
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: i * 0.1 }}
-            className="flex items-center gap-4 p-4 bg-neutral-900/50 border border-white/5 rounded-2xl hover:bg-neutral-900 transition-colors"
+            className="flex items-center gap-4 p-4 bg-[#0B1326] border-2 border-[#2d3449] rounded-sm hover:border-primary transition-colors shadow-[4px_4px_0_rgba(0,0,0,0.5)] group"
           >
-            <div className="w-12 h-12 bg-neutral-800 rounded-lg p-1">
+            <div className="w-12 h-12 bg-surface-container-low border border-[#2d3449] rounded-sm p-1 shadow-[inset_2px_2px_4px_rgba(0,0,0,0.5)]">
               <img
                 src={member.user_creature.sprite}
                 alt={member.user_creature.creature_name}
-                className="w-full h-full object-contain"
+                className="w-full h-full object-contain image-rendering-pixelated group-hover:-translate-y-1 transition-transform"
               />
             </div>
             <div className="flex-1 min-w-0">
-              <h4 className="text-sm font-bold truncate">
+              <h4 className="text-[10px] font-headline font-black text-white uppercase truncate">
                 {member.user_creature.creature_name}
               </h4>
               <div className="mt-1 flex items-center gap-2">
-                <Heart size={10} className="text-red-500" />
-                <div className="h-1 flex-1 bg-neutral-800 rounded-full overflow-hidden">
+                <span className="material-symbols-outlined text-[10px] text-error" style={{ fontVariationSettings: "'FILL' 1" }}>favorite</span>
+                <div className="h-1.5 flex-1 bg-surface-container-low border border-[#2d3449] rounded-sm overflow-hidden p-[1px]">
                   <div
-                    className="h-full bg-red-500"
+                    className="h-full bg-error"
                     style={{
                       width: `${Math.min(100, member.user_creature.current_hp)}%`,
                     }}

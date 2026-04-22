@@ -33,6 +33,7 @@ export interface InventoryItem {
     effect_type: string;
     vfx_type: string;
     effect_value: number;
+    sprite?: string;
   };
 }
 
