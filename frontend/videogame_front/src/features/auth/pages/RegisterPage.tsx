@@ -4,7 +4,6 @@ import { useRegister } from "../hooks/useRegister";
 import { Container } from "../../../common/ui/Container";
 import { Heading } from "../../../common/ui/Heading";
 import { Text } from "../../../common/ui/Text";
-import { motion } from "framer-motion";
 
 /** Must match `VALID_TRAINER_SPRITES` on the backend (user_profile.serializers). */
 const HERO_AVATARS = [

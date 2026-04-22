@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { BackButton } from "../../../common/ui/BackButton";
 import { Container } from "../../../common/ui/Container";
@@ -60,7 +60,7 @@ function processMatchmakingMessage(
 
 export const MatchmakingPage = () => {
   const [status, setStatus] = useState<"idle" | "searching" | "found">("idle");
-  const [message, setMessage] = useState("");
+  const [, setMessage] = useState("");
   const [opponent, setOpponent] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
   const [team, setTeam] = useState<any[]>([]);
