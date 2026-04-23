@@ -9,9 +9,20 @@ class TypeSerializer(serializers.ModelSerializer):
 
 
 class AbilitySerializer(serializers.ModelSerializer):
+  move_type_name = serializers.ReadOnlyField(source="move_type.name")
+
   class Meta:
     model = Ability
-    fields = ["id", "name", "damage_multiplier", "effect", "effect_probability"]
+    fields = [
+      "id",
+      "name",
+      "base_power",
+      "move_type_name",
+      "damage_multiplier",
+      "effect",
+      "effect_probability",
+      "vfx_type",
+    ]
 
 
 class CreatureSerializer(serializers.ModelSerializer):
@@ -22,6 +33,11 @@ class CreatureSerializer(serializers.ModelSerializer):
   type_1_name = serializers.ReadOnlyField(source="type_1.name")
   type_2_name = serializers.ReadOnlyField(source="type_2.name")
   abilities = serializers.SerializerMethodField()
+
+  special_ability_name = serializers.ReadOnlyField()
+  special_ability_effect = serializers.ReadOnlyField()
+  special_ability_probability = serializers.ReadOnlyField()
+  moves = serializers.SerializerMethodField()
 
   class Meta:
     model = Creature
@@ -40,10 +56,22 @@ class CreatureSerializer(serializers.ModelSerializer):
       "front_sprite",
       "back_sprite",
       "abilities",
+      "moves",
+      "special_ability_name",
+      "special_ability_effect",
+      "special_ability_probability",
     ]
 
   def get_abilities(self, obj):
     creature_abilities = CreatureAbility.objects.filter(creature=obj)
+    return AbilitySerializer(
+      [ca.ability for ca in creature_abilities], many=True
+    ).data
+
+  def get_moves(self, obj):
+    creature_abilities = CreatureAbility.objects.filter(
+      creature=obj
+    ).select_related("ability__move_type")
     return AbilitySerializer(
       [ca.ability for ca in creature_abilities], many=True
     ).data

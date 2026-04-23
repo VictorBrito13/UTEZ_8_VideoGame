@@ -90,6 +90,13 @@ const processAttackAction = (ctx: ProcessActionContext) => {
           | number
           | null;
       }
+
+      const nextTurnId =
+        ctx.playerId === newState.player1.id
+          ? newState.player2.id
+          : newState.player1.id;
+      newState.current_turn = nextTurnId;
+
       return newState;
     });
 
