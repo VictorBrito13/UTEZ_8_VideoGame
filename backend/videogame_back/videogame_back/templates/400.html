@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Error 400 | Battle Arena</title>
+    <title>400 Error | Battle Arena</title>
     <style>
         :root {
             --bg: #050A14;
@@ -226,21 +226,21 @@
             <h1 class="code">{{ error_code|default:"400" }}</h1>
         </div>
 
-        <h2 class="title">{{ error_title|default:"Comando Invalido" }}</h2>
+        <h2 class="title">{{ error_title|default:"Invalid Command" }}</h2>
         <p class="message">
-            {{ error_message|default:"Tu accion no pudo ejecutarse porque los datos enviados al servidor no tienen el formato esperado. Revisa la solicitud y vuelve a intentarlo." }}
+            {{ error_message|default:"Your action could not be executed because the data sent to the server does not match the expected format. Review the request and try again." }}
         </p>
 
         <div class="battle-tip">
-            {{ error_tip|default:"Consejo tactico: valida campos obligatorios, tipos de datos y estructura JSON antes de reenviar." }}
+            {{ error_tip|default:"Tactical tip: validate required fields, data types, and JSON structure before resubmitting." }}
         </div>
 
         <div class="actions">
-            <a href="/" class="btn btn-primary">Volver al Centro Pokémon</a>
-            <button class="btn" type="button" onclick="history.back()">Regresar al combate</button>
+            <a href="/" class="btn btn-primary">Return to Pokemon Center</a>
+            <button class="btn" type="button" onclick="history.back()">Back to battle</button>
         </div>
 
-        <p class="footer">{{ error_footer|default:"Codigo de estado: 400 | Bad Request" }}</p>
+        <p class="footer">{{ error_footer|default:"Status code: 400 | Bad Request" }}</p>
     </main>
 </body>
 </html>

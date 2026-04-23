@@ -14,16 +14,16 @@ def bad_request_400(request, exception=None):
   context = {
     "error_code": 400,
     "error_label": "Battle System Alert",
-    "error_title": "Comando Inválido",
+    "error_title": "Invalid Command",
     "error_message": (
-      "Tu accion no pudo ejecutarse porque los datos enviados al servidor "
-      "no tienen el formato esperado. Revisa la solicitud y vuelve a intentarlo."
+      "Your action could not be executed because the data sent to the server "
+      "does not match the expected format. Review the request and try again."
     ),
     "error_tip": (
-      "Consejo tactico: valida campos obligatorios, tipos de datos "
-      "y estructura JSON antes de reenviar."
+      "Tactical tip: validate required fields, data types, "
+      "and JSON structure before resubmitting."
     ),
-    "error_footer": "Codigo de estado: 400 | Bad Request",
+    "error_footer": "Status code: 400 | Bad Request",
   }
   return render(request, '400.html', context=context, status=400)
 
@@ -33,16 +33,16 @@ def not_found_404(request, exception=None):
   context = {
     "error_code": 404,
     "error_label": "Battle Route Lost",
-    "error_title": "Ruta No Encontrada",
+    "error_title": "Route Not Found",
     "error_message": (
-      "La pagina que intentas abrir no existe o fue movida. "
-      "Verifica la ruta y vuelve al menu principal."
+      "The page you are trying to open does not exist or was moved. "
+      "Check the route and return to the main menu."
     ),
     "error_tip": (
-      "Consejo tactico: revisa la URL o navega desde el tablero "
-      "para encontrar una ruta valida."
+      "Tactical tip: check the URL or navigate from the dashboard "
+      "to find a valid route."
     ),
-    "error_footer": "Codigo de estado: 404 | Not Found",
+    "error_footer": "Status code: 404 | Not Found",
   }
   return render(request, '400.html', context=context, status=404)
 
