@@ -84,6 +84,7 @@ export const BattlePage = () => {
   const [chatInput, setChatInput] = useState("");
   const [selectedMoveId, setSelectedMoveId] = useState<number | null>(null);
   const [isActionSelected, setIsActionSelected] = useState(false);
+  const [showMoveMenu, setShowMoveMenu] = useState(false);
   const chatListRef = useRef<HTMLDivElement | null>(null);
   const [showConfirm, setShowConfirm] = useState<{
     isOpen: boolean;
@@ -233,6 +234,7 @@ export const BattlePage = () => {
     );
     setSelectedMoveId(null);
     setIsActionSelected(true);
+    setShowMoveMenu(false);
   };
 
   const handleSwap = async (creatureId: number) => {
@@ -780,54 +782,75 @@ export const BattlePage = () => {
 
           {/* Attack Button (Pokeball Style) */}
           <div className="flex items-center h-[150px] gap-3">
-            <div className="flex flex-col gap-2 w-[260px]">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">MOVES</span>
-              <div className="grid grid-cols-2 gap-2">
-                {(meActive?.moves && meActive.moves.length > 0 ? meActive.moves : Array.from({ length: 4 }, (_, index) => ({
-                  id: `placeholder-${index}`,
-                  name: "No move",
-                  base_power: 0,
-                  move_type_name: null,
-                  damage_multiplier: 1,
-                  effect: "",
-                  effect_probability: 0,
-                  vfx_type: "",
-                } as const))).map((move) => {
-                  const isRealMove = typeof move.id === "number";
-                  const isSelected = selectedMoveId === move.id;
+             <button
+               onClick={() => setShowMoveMenu(true)}
+               disabled={!myTurn || meActive?.hp === 0 || isActionSelected}
+               className="w-[260px] h-[120px] bg-red-600 hover:bg-red-500 disabled:bg-slate-800 disabled:opacity-50 text-white font-black text-3xl uppercase tracking-tighter rounded-2xl border-4 border-red-900 flex items-center justify-center gap-3 transition-all active:scale-95 shadow-[0_0_20px_rgba(220,38,38,0.3)] group"
+             >
+               <span className="material-symbols-outlined text-5xl group-hover:rotate-12 transition-transform">swords</span>
+               Fight
+             </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Choose Move Modal */}
+      <AnimatePresence>
+        {showMoveMenu && (
+          <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/70 backdrop-blur-md"
+              onClick={() => setShowMoveMenu(false)}
+            />
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="relative w-full max-w-2xl bg-[#0B1326] border-2 border-[#1E293B] rounded-[2.5rem] shadow-[0_0_80px_rgba(0,0,0,0.8)] overflow-hidden"
+            >
+              <div className="p-10 text-center border-b border-[#1E293B]">
+                <h2 className="text-5xl font-black text-white italic tracking-tighter uppercase mb-1">CHOOSE MOVE</h2>
+                <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">SELECT AN ACTION FOR {meActive?.name}</p>
+              </div>
+
+              <div className="p-10 grid grid-cols-2 gap-6">
+                {(meActive?.moves && meActive.moves.length > 0 ? meActive.moves : []).map((move) => {
+                  const typeName = move.move_type_name?.toUpperCase() || "NORMAL";
+                  const typeColorClass = typeColors[typeName] || "bg-slate-500";
+                  const typeIcon = typeIcons[typeName] || "help";
 
                   return (
                     <button
                       key={move.id}
-                      type="button"
-                      onClick={() => isRealMove && handleAttack(move.id as number)}
-                      disabled={!myTurn || meActive?.hp === 0 || !isRealMove}
-                      className={`text-left p-2 rounded-xl border transition-colors ${
-                        isSelected
-                          ? "border-yellow-400 bg-yellow-500/20 text-white"
-                          : "border-slate-700 bg-slate-900 text-slate-200 hover:border-blue-400"
-                      } ${!myTurn || meActive?.hp === 0 ? "opacity-50 cursor-not-allowed" : ""}`}
+                      onClick={() => handleAttack(move.id as number)}
+                      className={`relative group h-40 rounded-[2rem] overflow-hidden transition-all active:scale-95 ${typeColorClass} shadow-lg hover:brightness-110 hover:shadow-[0_0_20px_rgba(0,0,0,0.3)]`}
                     >
-                      <div className="font-semibold text-xs uppercase truncate">{move.name}</div>
-                      <div className="flex justify-between items-center gap-2">
-                        <span className="text-[10px] text-slate-400">{move.base_power > 0 ? `${move.base_power} power` : "No move"}</span>
-                        {move.move_type_name && (
-                          <span className="text-[8px] uppercase tracking-[.2em] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300">
-                            {move.move_type_name}
-                          </span>
-                        )}
+                      <div className="absolute top-4 left-4 flex items-center gap-2 bg-black/20 backdrop-blur-sm px-3 py-1 rounded-full">
+                        <span className="material-symbols-outlined text-white text-[14px]">{typeIcon}</span>
+                        <span className="text-[10px] font-black text-white uppercase tracking-wider">{typeName}</span>
+                      </div>
+                      
+                      <div className="flex flex-col h-full justify-center px-8 text-left mt-2">
+                        <div className="text-2xl font-black text-white uppercase tracking-tight mb-4">{move.name}</div>
+                        
+                        <div className="flex gap-6">
+                           <div>
+                              <div className="text-[9px] font-black text-white/70 uppercase tracking-tighter">Power</div>
+                              <div className="text-sm font-black text-white">{move.base_power}</div>
+                           </div>
+                        </div>
                       </div>
                     </button>
                   );
                 })}
               </div>
-            </div>
-            <div className="flex items-center h-full">
-              {/* Attack button removed - attacks are now triggered immediately upon move selection */}
-            </div>
+            </motion.div>
           </div>
-        </div>
-      </div>
+        )}
+      </AnimatePresence>
 
       <BattleEndOverlay
         show={battleState.status === "finished" && resolvedWinnerId !== null}
@@ -853,7 +876,7 @@ export const BattlePage = () => {
             >
               <div className="bg-[#1E293B] px-6 py-4 border-b border-[#334155] flex items-center gap-3">
                 <div className="w-10 h-10 rounded-lg bg-red-500/20 flex items-center justify-center">
-                  <span className="material-symbols-outlined text-red-500">warning</span>
+                   <span className="material-symbols-outlined text-red-500">warning</span>
                 </div>
                 <h3 className="font-black text-slate-100 tracking-wider uppercase">{showConfirm.title}</h3>
               </div>
