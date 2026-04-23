@@ -158,7 +158,6 @@ const processAttackAction = (ctx: ProcessActionContext) => {
           | number
           | null;
       }
-
       return newState;
     });
 

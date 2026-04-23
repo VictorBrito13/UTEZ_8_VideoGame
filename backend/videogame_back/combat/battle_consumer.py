@@ -1155,6 +1155,90 @@ class BattleConsumer(AsyncWebsocketConsumer):
       logger.error(f"Error applying damage: {e}")
       return {"success": False, "error": str(e)}
 
+  def _get_active_creatures_sync(self, attacker: User, defender: User) -> dict:
+    from user_profile.models import UserCreature
+
+    atk_id = cache.get(f"battle_{self._battle_id}_p_{attacker.id}_active")
+    def_id = cache.get(f"battle_{self._battle_id}_p_{defender.id}_active")
+
+    if not atk_id or not def_id:
+      return {"error": "Active creatures not set properly in cache"}
+
+    atk_tc = UserCreature.objects.filter(id=atk_id, user=attacker).first()
+    def_tc = UserCreature.objects.filter(id=def_id, user=defender).first()
+    if not atk_tc or not def_tc:
+      return {"error": "Active creatures not found in DB"}
+
+    return {
+      "atk_id": atk_id,
+      "def_id": def_id,
+      "atk_tc": atk_tc,
+      "def_tc": def_tc,
+    }
+
+  def _apply_focus_band_sync(
+    self,
+    defender: User,
+    def_id: int,
+    new_hp: int,
+  ) -> int:
+    has_focus_band = cache.get(
+      f"battle_{self._battle_id}_p_{defender.id}_b_{def_id}_focus_band"
+    )
+    if new_hp <= 0 and has_focus_band:
+      cache.delete(
+        f"battle_{self._battle_id}_p_{defender.id}_b_{def_id}_focus_band"
+      )
+      return 1
+    return new_hp
+
+  def _apply_oran_berry_sync(
+    self,
+    defender: User,
+    def_id: int,
+    def_tc,
+  ) -> None:
+    has_oran_berry = cache.get(
+      f"battle_{self._battle_id}_p_{defender.id}_b_{def_id}_oran_berry"
+    )
+    if (
+      def_tc.current_hp > 0
+      and def_tc.current_hp < (def_tc.creature.hp / 2)
+      and has_oran_berry
+    ):
+      def_tc.current_hp = min(def_tc.creature.hp, def_tc.current_hp + 10)
+      cache.delete(
+        f"battle_{self._battle_id}_p_{defender.id}_b_{def_id}_oran_berry"
+      )
+
+  def _resolve_forced_switch_sync(
+    self,
+    defender_team,
+    defender: User,
+    def_tc,
+    all_fainted: bool,
+  ) -> tuple[bool, int]:
+    forced_switch = False
+    new_defender_active_id = def_tc.id
+    if def_tc.current_hp > 0 or all_fainted:
+      return forced_switch, new_defender_active_id
+
+    for tc in defender_team.team_creatures.select_related(
+      "user_creature"
+    ).order_by("id"):
+      uc = tc.user_creature
+      if uc.current_hp > 0:
+        cache.set(
+          f"battle_{self._battle_id}_p_{defender.id}_active",
+          uc.id,
+          timeout=3600,
+        )
+        new_defender_active_id = uc.id
+        forced_switch = True
+        break
+
+    return forced_switch, new_defender_active_id
+
   @sync_to_async
   def _get_move_for_attack_sync(self, attacker: User, move_id: int | None):
     from creatures.models import CreatureAbility

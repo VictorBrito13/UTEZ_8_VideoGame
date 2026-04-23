@@ -10,42 +10,42 @@ const HERO_AVATARS = [
   {
     id: 1,
     name: "RED_HERO",
-    url: "https://play.pokemonshowdown.com/sprites/trainers/red.png",
+    url: "https://cdn.jsdelivr.net/npm/pokeapi-sprites/sprites/trainers/1.png",
   },
   {
     id: 2,
     name: "BLUE_RIVAL",
-    url: "https://play.pokemonshowdown.com/sprites/trainers/blue.png",
+    url: "https://cdn.jsdelivr.net/npm/pokeapi-sprites/sprites/trainers/2.png",
   },
   {
     id: 3,
     name: "DAWN",
-    url: "https://play.pokemonshowdown.com/sprites/trainers/dawn.png",
+    url: "https://cdn.jsdelivr.net/npm/pokeapi-sprites/sprites/trainers/3.png",
   },
   {
     id: 4,
     name: "ETHAN_SOUL",
-    url: "https://play.pokemonshowdown.com/sprites/trainers/ethan.png",
+    url: "https://cdn.jsdelivr.net/npm/pokeapi-sprites/sprites/trainers/5.png",
   },
   {
     id: 5,
     name: "LYRA_HEART",
-    url: "https://play.pokemonshowdown.com/sprites/trainers/lyra.png",
+    url: "https://cdn.jsdelivr.net/npm/pokeapi-sprites/sprites/trainers/7.png",
   },
   {
     id: 6,
     name: "BRENDAN_RUBY",
-    url: "https://play.pokemonshowdown.com/sprites/trainers/brendan.png",
+    url: "https://cdn.jsdelivr.net/npm/pokeapi-sprites/sprites/trainers/10.png",
   },
   {
     id: 7,
     name: "MAY_SAPPHIRE",
-    url: "https://play.pokemonshowdown.com/sprites/trainers/may.png",
+    url: "https://cdn.jsdelivr.net/npm/pokeapi-sprites/sprites/trainers/12.png",
   },
   {
     id: 8,
     name: "SILVER",
-    url: "https://play.pokemonshowdown.com/sprites/trainers/silver.png",
+    url: "https://cdn.jsdelivr.net/npm/pokeapi-sprites/sprites/trainers/13.png",
   },
 ];
 
@@ -193,10 +193,25 @@ const RegisterPage: React.FC = () => {
                 { key: "special", label: "SYMBOL" },
               ].map((req) => (
                 <div key={req.key} className="flex items-center gap-2">
-                  <span className={`material-symbols-outlined text-[10px] ${passwordValidation[req.key as keyof typeof passwordValidation] ? "text-primary" : "text-outline"}`} style={{ fontVariationSettings: "'FILL' 1" }}>
-                    {passwordValidation[req.key as keyof typeof passwordValidation] ? "check_circle" : "radio_button_unchecked"}
+                  <span
+                    className={`material-symbols-outlined text-[10px] ${
+                      passwordValidation[req.key as keyof typeof passwordValidation]
+                        ? "text-primary"
+                        : "text-outline"
+                    }`}
+                    style={{ fontVariationSettings: "'FILL' 1" }}
+                  >
+                    {passwordValidation[req.key as keyof typeof passwordValidation]
+                      ? "check_circle"
+                      : "radio_button_unchecked"}
                   </span>
-                  <span className={`${passwordValidation[req.key as keyof typeof passwordValidation] ? "text-on-surface" : "text-outline"}`}>
+                  <span
+                    className={`${
+                      passwordValidation[req.key as keyof typeof passwordValidation]
+                        ? "text-on-surface"
+                        : "text-outline"
+                    }`}
+                  >
                     {req.label}
                   </span>
                 </div>
@@ -207,21 +222,25 @@ const RegisterPage: React.FC = () => {
           <button
             type="submit"
             disabled={loading || !isFormValid}
-            className="w-full relative overflow-hidden bg-primary text-on-primary font-headline font-black py-5 rounded-sm uppercase tracking-[0.3em] beveled-button hover:bg-red-500 active:translate-y-[2px] transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+            className={`w-full relative overflow-hidden font-headline font-black py-5 rounded-sm uppercase tracking-[0.3em] beveled-button transition-all flex items-center justify-center gap-3 ${
+              isFormValid
+                ? "bg-primary text-on-primary hover:bg-red-500 active:translate-y-[2px]"
+                : "bg-[#2d3449] text-outline cursor-not-allowed"
+            }`}
           >
-            <span className="relative z-10">{loading ? "FORGING ACCOUNT..." : "REGISTER"}</span>
-            <div className="absolute top-0 left-0 w-full h-1/2 bg-white/10"></div>
+            <span className="relative z-10">{loading ? "INITIALIZING..." : "COMMENCE REGISTRATION"}</span>
+            {isFormValid && <div className="absolute top-0 left-0 w-full h-1/2 bg-white/10"></div>}
           </button>
         </form>
 
         <div className="mt-8 text-center">
           <p className="font-body text-xs text-on-surface-variant uppercase tracking-wider">
-            Already have a hero?{" "}
+            ALREADY REGISTERED?{" "}
             <Link
               to="/login"
               className="text-primary font-bold font-headline uppercase tracking-widest ml-1 hover:text-white transition-colors underline decoration-2 underline-offset-4"
             >
-              Access_Terminal
+              Access Archive
             </Link>
           </p>
         </div>

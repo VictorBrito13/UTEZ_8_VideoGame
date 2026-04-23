@@ -122,4 +122,3 @@ class JWTAuthMiddlewareTests(SimpleTestCase):
     self.assertIsInstance(scope["user"], AnonymousUser)
 
 
-
