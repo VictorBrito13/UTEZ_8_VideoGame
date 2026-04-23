@@ -124,9 +124,6 @@ export const PokedexPage = () => {
                 BATTLE POKEDEX
               </Heading>
             </div>
-            <Text variant="secondary">
-              Accessing Global Species Database // Deck_Builder_Mode
-            </Text>
           </div>
         </div>
 

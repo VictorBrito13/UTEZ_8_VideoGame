@@ -195,7 +195,7 @@ export const MatchmakingPage = () => {
           </h2>
           <div className="flex items-center justify-center space-x-4">
             <span className="h-px w-12 bg-outline-variant opacity-30"></span>
-            <p className="text-on-surface-variant font-headline uppercase tracking-[0.2em] text-[10px] md:text-xs font-bold">GLOBAL BATTLE NETWORK • REGION: KANTO-G04</p>
+            <p className="text-on-surface-variant font-headline uppercase tracking-[0.2em] text-[10px] md:text-xs font-bold">GLOBAL BATTLE NETWORK</p>
             <span className="h-px w-12 bg-outline-variant opacity-30"></span>
           </div>
         </div>

@@ -105,11 +105,8 @@ export const SquadBar = ({
             </div>
             <div>
               <h2 className="text-2xl font-headline font-black tracking-widest text-white uppercase terminal-glow">
-                ACTIVE BATTLE SQUAD
+                ACTIVE BATTLE TEAM
               </h2>
-              <p className="text-[10px] text-outline font-headline font-bold uppercase tracking-widest mt-1">
-                ZONE ALPHA DEPLOYMENT
-              </p>
             </div>
           </div>
 
@@ -235,9 +232,9 @@ export const SquadBar = ({
           >
             <div className="w-2 h-2 bg-on-tertiary-container rounded-full animate-ping" />
             <span className="text-[10px] font-headline font-black uppercase tracking-widest text-on-tertiary-container">
-              SQUAD SYNCHRONIZED : ZONE ALPHA
+              SQUAD SYNCHRONIZED
             </span>
-            <span className="material-symbols-outlined text-[14px] text-on-tertiary-container" style={{ fontVariationSettings: "'FILL' 1" }}>cloud_sync</span>
+
           </motion.div>
         )}
       </div>

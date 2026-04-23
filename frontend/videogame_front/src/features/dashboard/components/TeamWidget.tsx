@@ -32,7 +32,7 @@ export const TeamWidget = () => {
     <div className="mt-12">
       <h2 className="text-[14px] font-headline font-black tracking-widest text-outline mb-6 uppercase flex items-center gap-2">
         <span className="material-symbols-outlined text-primary text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>group</span>
-        ACTIVE_SQUAD
+        ACTIVE TEAM
       </h2>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {team.map((member, i) => (
