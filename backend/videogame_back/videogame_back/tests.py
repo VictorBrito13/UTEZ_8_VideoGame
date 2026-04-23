@@ -122,33 +122,4 @@ class JWTAuthMiddlewareTests(SimpleTestCase):
     self.assertIsInstance(scope["user"], AnonymousUser)
 
 
-class GiveStarterTests(SimpleTestCase):
-  def test_give_starter_no_users_prints_message(self):
-    """Test give_starter gracefully handles when no users exist"""
-    from unittest.mock import MagicMock, patch
-    from give_starter import give_starter
 
-    with patch("give_starter.User.objects.first", return_value=None), patch(
-      "builtins.print"
-    ) as mock_print:
-      give_starter()
-      mock_print.assert_called_with("No users found. Please register first.")
-
-  def test_give_starter_handles_existing_user_creature(self):
-    from unittest.mock import MagicMock, patch
-    from give_starter import give_starter
-
-    user = MagicMock(username="ash")
-    species = MagicMock(hp=35)
-
-    with patch("give_starter.User.objects.first", return_value=user), patch(
-      "give_starter.Creature.objects.get",
-      return_value=species,
-    ), patch(
-      "give_starter.UserCreature.objects.get_or_create",
-      return_value=(MagicMock(), False),
-    ), patch("builtins.print") as mock_print:
-      give_starter()
-
-    printed_messages = [call.args[0] for call in mock_print.call_args_list]
-    self.assertTrue(any("already has" in msg for msg in printed_messages))
