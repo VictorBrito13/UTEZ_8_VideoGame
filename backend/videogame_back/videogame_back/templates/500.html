@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Error 500 | Battle Arena</title>
+    <style>
+        :root {
+            --bg: #050A14;
+            --surface: #0B1326;
+            --surface-alt: #171F33;
+            --surface-variant: #222A3D;
+            --outline: #2D3449;
+            --text: #E5E2E3;
+            --text-dim: #B7C4FF;
+            --primary: #FF1F1F;
+            --secondary: #0040CB;
+            --tertiary: #4AE176;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            color: var(--text);
+            font-family: Manrope, "Segoe UI", sans-serif;
+            background-color: var(--bg);
+            background-image:
+                radial-gradient(circle at 16% 13%, rgba(255, 31, 31, 0.22), transparent 38%),
+                radial-gradient(circle at 84% 85%, rgba(74, 225, 118, 0.16), transparent 34%),
+                radial-gradient(circle, rgba(34, 42, 61, 0.45) 1px, transparent 1px);
+            background-size: auto, auto, 24px 24px;
+            display: grid;
+            place-items: center;
+            padding: 24px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            opacity: 0.08;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(255, 255, 255, 0.52) 0,
+                rgba(255, 255, 255, 0.52) 1px,
+                transparent 1px,
+                transparent 3px
+            );
+        }
+
+        .watermark {
+            position: fixed;
+            width: 560px;
+            height: 560px;
+            border-radius: 50%;
+            border: 14px solid rgba(255, 31, 31, 0.08);
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            animation: warning-ring 2.8s ease-in-out infinite;
+        }
+
+        .watermark::before,
+        .watermark::after {
+            content: "";
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            border-radius: 999px;
+        }
+
+        .watermark::before {
+            top: calc(50% - 7px);
+            width: 100%;
+            height: 14px;
+            background: rgba(255, 31, 31, 0.13);
+        }
+
+        .watermark::after {
+            top: 50%;
+            width: 94px;
+            height: 94px;
+            transform: translate(-50%, -50%);
+            border: 12px solid rgba(255, 31, 31, 0.16);
+            background: rgba(5, 10, 20, 0.65);
+        }
+
+        .panel {
+            width: min(760px, 100%);
+            background: linear-gradient(160deg, rgba(11, 19, 38, 0.96), rgba(23, 31, 51, 0.96));
+            border: 4px solid var(--surface-variant);
+            box-shadow:
+                inset 4px 4px 0 rgba(255, 255, 255, 0.04),
+                inset -4px -4px 0 rgba(0, 0, 0, 0.42),
+                16px 16px 0 rgba(0, 0, 0, 0.45);
+            padding: clamp(18px, 4vw, 34px);
+            position: relative;
+            z-index: 1;
+            overflow: hidden;
+        }
+
+        .panel::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            background: linear-gradient(120deg, transparent 20%, rgba(255, 31, 31, 0.07) 52%, transparent 76%);
+            transform: translateX(-100%);
+            animation: sweep 4s linear infinite;
+        }
+
+        .status-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            margin-bottom: 18px;
+        }
+
+        .tag {
+            font: 800 10px/1 Space Grotesk, Manrope, sans-serif;
+            letter-spacing: 0.26em;
+            text-transform: uppercase;
+            color: #FFB4AA;
+        }
+
+        .code {
+            font: 900 clamp(64px, 20vw, 132px)/0.9 Space Grotesk, Manrope, sans-serif;
+            letter-spacing: -0.04em;
+            margin: 0;
+            color: var(--primary);
+            text-shadow: 0 0 28px rgba(255, 31, 31, 0.55);
+            animation: error-flicker 2.3s steps(2, end) infinite;
+        }
+
+        .title {
+            margin: 0 0 10px;
+            font: 900 clamp(28px, 5vw, 44px)/1.03 Space Grotesk, Manrope, sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+
+        .message {
+            margin: 0 0 20px;
+            color: var(--text-dim);
+            line-height: 1.65;
+            max-width: 58ch;
+            font-size: clamp(14px, 2.4vw, 16px);
+        }
+
+        .battle-tip {
+            margin: 0 0 22px;
+            padding: 14px 16px;
+            border: 2px solid var(--outline);
+            background: rgba(255, 31, 31, 0.14);
+            box-shadow: inset 0 0 0 1px rgba(255, 180, 170, 0.2);
+            font-size: 13px;
+            color: #FFDAD4;
+        }
+
+        .actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .btn {
+            appearance: none;
+            border: 2px solid var(--outline);
+            background: #0B1326;
+            color: var(--text);
+            text-decoration: none;
+            font: 800 11px/1 Space Grotesk, Manrope, sans-serif;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            padding: 14px 20px;
+            cursor: pointer;
+            transition: transform 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+            box-shadow: inset 2px 2px 0 rgba(255, 255, 255, 0.07), inset -2px -2px 0 rgba(0, 0, 0, 0.45);
+            position: relative;
+            z-index: 2;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            border-color: #FFB4AA;
+        }
+
+        .btn-primary {
+            background: linear-gradient(180deg, #FF3B3B, #FF1F1F);
+            border-color: #FFB4AA;
+            box-shadow: 0 0 20px rgba(255, 31, 31, 0.35);
+        }
+
+        .footer {
+            margin-top: 18px;
+            font: 700 11px/1.4 Space Grotesk, Manrope, sans-serif;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: #BA8E8A;
+        }
+
+        @keyframes error-flicker {
+            0%, 100% { opacity: 1; transform: translateX(0); }
+            20% { opacity: 0.78; transform: translateX(1px); }
+            22% { opacity: 1; transform: translateX(-1px); }
+            63% { opacity: 0.84; transform: translateX(1px); }
+            65% { opacity: 1; transform: translateX(0); }
+        }
+
+        @keyframes warning-ring {
+            0%, 100% { transform: translate(-50%, -50%) scale(1); }
+            50% { transform: translate(-50%, -50%) scale(1.04); }
+        }
+
+        @keyframes sweep {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(120%); }
+        }
+
+        @media (max-width: 640px) {
+            .status-row {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .actions .btn {
+                width: 100%;
+                text-align: center;
+            }
+
+            .watermark {
+                width: 360px;
+                height: 360px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="watermark" aria-hidden="true"></div>
+
+    <main class="panel" role="main">
+        <div class="status-row">
+            <span class="tag">Critical System Failure</span>
+            <h1 class="code">500</h1>
+        </div>
+
+        <h2 class="title">Caída del Servidor</h2>
+        <p class="message">
+            El núcleo del sistema de combate encontró una falla inesperada al procesar tu jugada.
+            Nuestro equipo ya recibió la alerta automática.
+        </p>
+
+        <div class="battle-tip">
+            Consejo táctico: espera unos segundos, recarga la arena y vuelve a intentar la acción.
+        </div>
+
+        <div class="actions">
+            <a href="/" class="btn btn-primary">Regresar al lobby</a>
+            <button class="btn" type="button" onclick="history.back()">Volver a la pantalla anterior</button>
+        </div>
+
+        <p class="footer">Código de estado: 500 | Internal Server Error</p>
+    </main>
+</body>
+</html>
