@@ -83,6 +83,8 @@ export const BattlePage = () => {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [selectedMoveId, setSelectedMoveId] = useState<number | null>(null);
+  const [isActionSelected, setIsActionSelected] = useState(false);
+  const [showMoveMenu, setShowMoveMenu] = useState(false);
   const chatListRef = useRef<HTMLDivElement | null>(null);
   const [showConfirm, setShowConfirm] = useState<{
     isOpen: boolean;
@@ -188,7 +190,7 @@ export const BattlePage = () => {
   const isPlayer1 = myId !== null && battleState?.player1?.id === myId;
   const me = battleState ? (isPlayer1 ? battleState.player1 : battleState.player2) : null;
   const opponent = battleState ? (isPlayer1 ? battleState.player2 : battleState.player1) : null;
-  const myTurn = battleState?.current_turn === myId;
+  const myTurn = (battleState?.current_turn === myId || !battleState?.current_turn) && !isActionSelected && battleState?.status === "playing";
   const resolvedWinnerId = winnerId ?? battleState?.winner_id ?? null;
 
   useEffect(() => {
@@ -201,8 +203,14 @@ export const BattlePage = () => {
     return undefined;
   }, [battleState?.status, isPlayer1]);
 
-  const handleAttack = async () => {
-    if (selectedMoveId === null) {
+  useEffect(() => {
+    // Reset selection lock when turn advances or battle starts
+    setIsActionSelected(false);
+  }, [battleState?.turn_number, battleState?.status]);
+
+  const handleAttack = async (moveId?: number) => {
+    const finalMoveId = moveId ?? selectedMoveId;
+    if (finalMoveId === null) {
       addLog("System: Selecciona un movimiento primero antes de atacar.");
       return;
     }
@@ -213,7 +221,7 @@ export const BattlePage = () => {
       return;
     }
 
-    const dataPayload = { move_id: selectedMoveId };
+    const dataPayload = { move_id: finalMoveId };
     const data_encrypted = await encryptJson(dataPayload);
 
     ws.send(
@@ -225,6 +233,8 @@ export const BattlePage = () => {
       }),
     );
     setSelectedMoveId(null);
+    setIsActionSelected(true);
+    setShowMoveMenu(false);
   };
 
   const handleSwap = async (creatureId: number) => {
@@ -244,6 +254,7 @@ export const BattlePage = () => {
         data_encrypted,
       }),
     );
+    setIsActionSelected(true);
   };
 
   const handleUseItem = async (itemId: number, forceTargetId?: number) => {
@@ -288,7 +299,9 @@ export const BattlePage = () => {
       isOpen: true,
       title: "SURRENDER",
       message: "Are you sure you want to surrender? This will count as a defeat.",
-      onConfirm: () => navigate("/"),
+      onConfirm: () => {
+        wsRef.current?.send(JSON.stringify({ type: "battle.abandon" }));
+      },
     });
   };
 
@@ -557,7 +570,12 @@ export const BattlePage = () => {
       <div className="absolute top-8 left-1/2 -translate-x-1/2 flex flex-row items-center gap-4 z-20 pointer-events-none">
          {myTurn && (
           <div className="bg-yellow-500/90 text-black font-black uppercase px-6 py-1.5 rounded-full shadow-[0_0_15px_rgba(234,179,8,0.5)] border-2 border-yellow-300 animate-pulse text-sm tracking-widest backdrop-blur-sm pointer-events-auto">
-            YOUR TURN
+            {battleState?.current_turn === null ? "SELECT ACTION" : "YOUR TURN"}
+          </div>
+        )}
+        {isActionSelected && battleState?.status === "playing" && (
+           <div className="bg-blue-500/90 text-white font-black uppercase px-6 py-1.5 rounded-full shadow-[0_0_15px_rgba(59,130,246,0.5)] border-2 border-blue-300 animate-pulse text-sm tracking-widest backdrop-blur-sm pointer-events-auto">
+            WAITING FOR OPPONENT...
           </div>
         )}
         <button
@@ -764,79 +782,75 @@ export const BattlePage = () => {
 
           {/* Attack Button (Pokeball Style) */}
           <div className="flex items-center h-[150px] gap-3">
-            <div className="flex flex-col gap-2 w-[260px]">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">MOVES</span>
-              <div className="grid grid-cols-2 gap-2">
-                {(meActive?.moves && meActive.moves.length > 0 ? meActive.moves : Array.from({ length: 4 }, (_, index) => ({
-                  id: `placeholder-${index}`,
-                  name: "No move",
-                  base_power: 0,
-                  move_type_name: null,
-                  damage_multiplier: 1,
-                  effect: "",
-                  effect_probability: 0,
-                  vfx_type: "",
-                } as const))).map((move) => {
-                  const isRealMove = typeof move.id === "number";
-                  const isSelected = selectedMoveId === move.id;
+             <button
+               onClick={() => setShowMoveMenu(true)}
+               disabled={!myTurn || meActive?.hp === 0 || isActionSelected}
+               className="w-[260px] h-[120px] bg-red-600 hover:bg-red-500 disabled:bg-slate-800 disabled:opacity-50 text-white font-black text-3xl uppercase tracking-tighter rounded-2xl border-4 border-red-900 flex items-center justify-center gap-3 transition-all active:scale-95 shadow-[0_0_20px_rgba(220,38,38,0.3)] group"
+             >
+               <span className="material-symbols-outlined text-5xl group-hover:rotate-12 transition-transform">swords</span>
+               Fight
+             </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Choose Move Modal */}
+      <AnimatePresence>
+        {showMoveMenu && (
+          <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/70 backdrop-blur-md"
+              onClick={() => setShowMoveMenu(false)}
+            />
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="relative w-full max-w-2xl bg-[#0B1326] border-2 border-[#1E293B] rounded-[2.5rem] shadow-[0_0_80px_rgba(0,0,0,0.8)] overflow-hidden"
+            >
+              <div className="p-10 text-center border-b border-[#1E293B]">
+                <h2 className="text-5xl font-black text-white italic tracking-tighter uppercase mb-1">CHOOSE MOVE</h2>
+                <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">SELECT AN ACTION FOR {meActive?.name}</p>
+              </div>
+
+              <div className="p-10 grid grid-cols-2 gap-6">
+                {(meActive?.moves && meActive.moves.length > 0 ? meActive.moves : []).map((move) => {
+                  const typeName = move.move_type_name?.toUpperCase() || "NORMAL";
+                  const typeColorClass = typeColors[typeName] || "bg-slate-500";
+                  const typeIcon = typeIcons[typeName] || "help";
 
                   return (
                     <button
                       key={move.id}
-                      type="button"
-                      onClick={() => isRealMove && setSelectedMoveId(move.id as number)}
-                      disabled={!myTurn || meActive?.hp === 0 || !isRealMove}
-                      className={`text-left p-2 rounded-xl border transition-colors ${
-                        isSelected
-                          ? "border-yellow-400 bg-yellow-500/20 text-white"
-                          : "border-slate-700 bg-slate-900 text-slate-200 hover:border-blue-400"
-                      } ${!myTurn || meActive?.hp === 0 ? "opacity-50 cursor-not-allowed" : ""}`}
+                      onClick={() => handleAttack(move.id as number)}
+                      className={`relative group h-40 rounded-[2rem] overflow-hidden transition-all active:scale-95 ${typeColorClass} shadow-lg hover:brightness-110 hover:shadow-[0_0_20px_rgba(0,0,0,0.3)]`}
                     >
-                      <div className="font-semibold text-xs uppercase truncate">{move.name}</div>
-                      <div className="flex justify-between items-center gap-2">
-                        <span className="text-[10px] text-slate-400">{move.base_power > 0 ? `${move.base_power} power` : "No move"}</span>
-                        {move.move_type_name && (
-                          <span className="text-[8px] uppercase tracking-[.2em] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300">
-                            {move.move_type_name}
-                          </span>
-                        )}
+                      <div className="absolute top-4 left-4 flex items-center gap-2 bg-black/20 backdrop-blur-sm px-3 py-1 rounded-full">
+                        <span className="material-symbols-outlined text-white text-[14px]">{typeIcon}</span>
+                        <span className="text-[10px] font-black text-white uppercase tracking-wider">{typeName}</span>
+                      </div>
+                      
+                      <div className="flex flex-col h-full justify-center px-8 text-left mt-2">
+                        <div className="text-2xl font-black text-white uppercase tracking-tight mb-4">{move.name}</div>
+                        
+                        <div className="flex gap-6">
+                           <div>
+                              <div className="text-[9px] font-black text-white/70 uppercase tracking-tighter">Power</div>
+                              <div className="text-sm font-black text-white">{move.base_power}</div>
+                           </div>
+                        </div>
                       </div>
                     </button>
                   );
                 })}
               </div>
-            </div>
-            <div className="flex items-center h-full">
-              {battleState.status === "playing" && (
-                <button
-                  onClick={handleAttack}
-                  disabled={!myTurn || meActive?.hp === 0}
-                  className={`relative w-28 h-28 rounded-full shadow-2xl flex flex-col items-center justify-center overflow-hidden transition-all duration-300 border-[6px] ${
-                    myTurn && meActive?.hp !== 0
-                      ? "border-black hover:scale-105 active:scale-95 cursor-pointer ring-4 ring-red-500/30"
-                      : "border-slate-800 grayscale opacity-60 cursor-not-allowed"
-                  }`}
-                >
-                  {/* Red Top Half */}
-                  <div className="absolute top-0 left-0 right-0 h-1/2 bg-gradient-to-b from-red-500 to-red-600" />
-                  {/* White Bottom Half */}
-                  <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-gradient-to-t from-slate-200 to-white" />
-                  {/* Black Center Line */}
-                  <div className="absolute top-1/2 left-0 right-0 h-3 bg-black -translate-y-1/2" />
-                  {/* Center Button */}
-                  <div className={`relative z-10 w-12 h-12 bg-white rounded-full border-4 border-black flex items-center justify-center shadow-inner ${myTurn ? "animate-pulse shadow-[0_0_15px_rgba(255,255,255,0.8)]" : ""}`}>
-                    <span className={`w-6 h-6 rounded-full border border-gray-300 ${myTurn ? "bg-red-500" : "bg-gray-200"}`} />
-                  </div>
-                  {/* Attack Text Overlay */}
-                  <span className={`absolute bottom-3 font-black text-xs tracking-widest uppercase z-20 drop-shadow-md ${myTurn ? "text-slate-800" : "text-slate-500"}`}>
-                    ATTACK
-                  </span>
-                </button>
-              )}
-            </div>
+            </motion.div>
           </div>
-        </div>
-      </div>
+        )}
+      </AnimatePresence>
 
       <BattleEndOverlay
         show={battleState.status === "finished" && resolvedWinnerId !== null}
@@ -862,7 +876,7 @@ export const BattlePage = () => {
             >
               <div className="bg-[#1E293B] px-6 py-4 border-b border-[#334155] flex items-center gap-3">
                 <div className="w-10 h-10 rounded-lg bg-red-500/20 flex items-center justify-center">
-                  <span className="material-symbols-outlined text-red-500">warning</span>
+                   <span className="material-symbols-outlined text-red-500">warning</span>
                 </div>
                 <h3 className="font-black text-slate-100 tracking-wider uppercase">{showConfirm.title}</h3>
               </div>

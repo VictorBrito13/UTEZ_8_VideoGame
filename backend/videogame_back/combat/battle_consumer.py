@@ -297,6 +297,8 @@ class BattleConsumer(AsyncWebsocketConsumer):
         await self._handle_start_battle()
       elif msg_type == "battle.action":
         await self._handle_battle_action(payload)
+      elif msg_type == "battle.abandon":
+        await self._handle_manual_abandonment()
       elif msg_type == "battle.end_turn":
         await self._handle_end_turn()
       else:
@@ -331,11 +333,9 @@ class BattleConsumer(AsyncWebsocketConsumer):
       # Update battle state to PLAYING
       await self._update_battle_status(Battle.BattleStatus.PLAYING)
 
-      # Set first turn (random or player1)
-      import random
-
-      first_player = random.choice([self._battle.player1, self._battle.player2])
-      await self._set_current_turn(first_player)
+      # In simultaneous selection, there is no single 'first player' turn.
+      # We set current_turn to None to indicate both players can act.
+      await self._set_current_turn(None)
 
       # Heal both teams to full HP before starting
       await self._heal_team_sync(self._battle.player1)
@@ -351,7 +351,7 @@ class BattleConsumer(AsyncWebsocketConsumer):
         {
           "type": "battle_started",
           "battle_id": self._battle_id,
-          "first_turn": first_player.id,
+          "first_turn": None,
           "status": Battle.BattleStatus.PLAYING,
         },
       )
@@ -360,7 +360,7 @@ class BattleConsumer(AsyncWebsocketConsumer):
       await self._send_battle_state()
 
       logger.info(
-        f"Battle {self._battle_id} started, first turn: {first_player.id}"
+        f"Battle {self._battle_id} started in simultaneous mode"
       )
 
     except Exception as e:
@@ -393,25 +393,52 @@ class BattleConsumer(AsyncWebsocketConsumer):
       if not await self._validate_action(payload):
         return
 
-      action = payload.get("action")
+      # Queue the action in cache
+      user_id = self._user.id
+      action_type = payload.get("action")
+      logger.info(f"Battle action '{action_type}' received from user {user_id} in battle {self._battle_id}")
+      
+      # Item use is special: it doesn't consume the turn and executes immediately
+      if action_type == "use_item":
+        await self._handle_use_item_action_internal(self._user, payload)
+        await self._broadcast_battle_state_to_group()
+        return # Do not set action cache or notify ready
 
-      if action == "attack":
-        await self._handle_attack_action()
-        return
+      cache.set(f"battle_{self._battle_id}_p_{user_id}_action", payload, timeout=300)
 
-      if action == "use_item":
-        await self._handle_use_item_action(payload)
-        return
+      # If it's a swap, execute it immediately so the other player sees it
+      if action_type == "swap":
+        await self._handle_swap_action_internal(self._user, payload)
+        await self._broadcast_battle_state_to_group()
 
-      if action == "swap":
-        await self._handle_swap_action(payload)
-        return
+      # Notify both that a player is ready
+      await self.channel_layer.group_send(
+        f"battle_{self._battle_id}",
+        {
+          "type": "player_ready",
+          "player_id": user_id,
+        },
+      )
 
-      if action == "forced_swap":
-        await self._handle_swap_action(payload)
-        return
+      # Check if both players have submitted their actions
+      p1 = self._battle.player1
+      p2 = self._battle.player2
+      
+      a1 = cache.get(f"battle_{self._battle_id}_p_{p1.id}_action")
+      a2 = cache.get(f"battle_{self._battle_id}_p_{p2.id}_action")
 
-      await self._broadcast_action(payload)
+      logger.debug(f"Action cache status: P1({p1.id})={'READY' if a1 else 'WAITING'}, P2({p2.id})={'READY' if a2 else 'WAITING'}")
+
+      if a1 and a2:
+        logger.info(f"Both players ready in battle {self._battle_id}. Resolving turn...")
+        # Both are ready, resolve the turn
+        await self._resolve_turn_actions(a1, a2)
+      else:
+        # Just notify the sender that their action is registered
+        await self.send_json({
+          "type": "action_queued",
+          "message": "Waiting for opponent to select their action..."
+        })
 
     except Exception:
       logger.exception(
@@ -422,13 +449,87 @@ class BattleConsumer(AsyncWebsocketConsumer):
         {"type": "error", "message": "Failed to process action"}
       )
 
-  async def _handle_attack_action(self) -> None:
-    attacker = self._user
-    defender = await self._get_next_player()
+  async def _handle_manual_abandonment(self) -> None:
+    """Handle manual surrender request"""
+    await self._refresh_battle_sync()
+    if self._battle.status == Battle.BattleStatus.PLAYING:
+      other_player = self._battle.player2 if self._user == self._battle.player1 else self._battle.player1
+      logger.info(f"Player {self._user.id} requested manual surrender in battle {self._battle_id}")
+      await self._award_victory_by_abandonment(other_player)
+
+  async def _resolve_turn_actions(self, a1: dict, a2: dict) -> None:
+    """Resolve both players' actions based on priority and speed."""
+    p1 = self._battle.player1
+    p2 = self._battle.player2
+    
+    actions_list = [
+      {"player": p1, "payload": a1},
+      {"player": p2, "payload": a2},
+    ]
+
+    def get_priority(act):
+      action_type = act["payload"].get("action")
+      if action_type in ["swap", "forced_swap"]:
+        return 100
+      if action_type == "use_item":
+        return 50
+      return 10 # Attack
+
+    # Get speeds for tie-breaking attacks
+    s1 = await self._get_creature_speed_sync(p1)
+    s2 = await self._get_creature_speed_sync(p2)
+
+    # Sort actions: Priority first, then Speed
+    actions_list.sort(
+      key=lambda x: (
+        get_priority(x), 
+        s1 if x["player"] == p1 else s2
+      ), 
+      reverse=True
+    )
+
+    # Clear queued actions BEFORE resolution to avoid race conditions
+    cache.delete(f"battle_{self._battle_id}_p_{p1.id}_action")
+    cache.delete(f"battle_{self._battle_id}_p_{p2.id}_action")
+
+    for act in actions_list:
+      # Survival check: Only execute if active creature is still conscious
+      if not await self._is_active_creature_alive(act["player"]):
+        # If it was an attack, it fails. If it was a swap, it might still happen
+        if act["payload"].get("action") == "attack":
+          continue
+
+      await self._execute_resolved_action(act["player"], act["payload"])
+
+      # Check if battle ended during resolution
+      await self._refresh_battle_sync()
+      if self._battle.status == Battle.BattleStatus.FINISHED:
+        break
+
+    # End of turn processing
+    if self._battle.status == Battle.BattleStatus.PLAYING:
+      await self._set_current_turn(None)
+      await self._increment_turn_number()
+      await self._apply_end_of_turn_statuses()
+      await self._broadcast_battle_state_to_group()
+
+  async def _execute_resolved_action(self, player: User, payload: dict) -> None:
+    """Execute a single action for a specific player."""
+    action = payload.get("action")
+    self._last_action_data = payload.get("data", {}) # For legacy handlers
+
+    if action == "attack":
+      await self._handle_attack_action_internal(player)
+    elif action == "use_item":
+      await self._handle_use_item_action_internal(player, payload)
+    elif action in ["swap", "forced_swap"]:
+      await self._handle_swap_action_internal(player, payload)
+
+  async def _handle_attack_action_internal(self, attacker: User) -> None:
+    # Identify defender
+    defender = self._battle.player2 if attacker == self._battle.player1 else self._battle.player1
     data = getattr(self, "_last_action_data", {})
     move_id = data.get("move_id")
-
-    print(f"[ATTACK] user={attacker.id} move_id={move_id} battle={self._battle_id}", flush=True)
 
     skip_flag = cache.get(f"battle_{self._battle_id}_p_{attacker.id}_skip_turn")
     if skip_flag:
@@ -440,26 +541,17 @@ class BattleConsumer(AsyncWebsocketConsumer):
           "action": "skip_turn",
           "player_id": attacker.id,
           "data": {
-            "message": f"{attacker.username} is paralyzed and cannot act this turn.",
+            "message": f"{attacker.username} is unable to move!",
           },
         },
       )
-      await self._handle_end_turn()
       return
 
     move = await self._get_move_for_attack_sync(attacker, move_id)
-    print(f"[ATTACK] move found: {move}", flush=True)
     if not move:
-      await self.send_json(
-        {
-          "type": "error",
-          "message": "Invalid move selected",
-        }
-      )
       return
 
     result = await self._apply_damage(attacker, defender, move)
-    print(f"[ATTACK] damage result: {result}", flush=True)
     if result and result.get("success"):
       payload = {
         "damage": result["damage"],
@@ -480,98 +572,78 @@ class BattleConsumer(AsyncWebsocketConsumer):
         {
           "type": "battle_action",
           "action": "attack",
-          "player_id": self._user.id,
+          "player_id": attacker.id,
           "data": payload,
         },
       )
 
       if result.get("all_fainted"):
-        print(f"[ATTACK] all fainted → awarding victory", flush=True)
         await self._award_victory_normal(attacker, defender)
-        return
 
-      print(f"[ATTACK] calling _advance_turn...", flush=True)
-      await self._advance_turn()
-      print(f"[ATTACK] _advance_turn done, broadcasting state...", flush=True)
-      await self._broadcast_battle_state_to_group()
-      print(f"[ATTACK] done.", flush=True)
-      return
-
-    print(f"[ATTACK] FAILED - result={result}", flush=True)
-    await self.send_json(
-      {
-        "type": "error",
-        "message": "Attack failed: " + (result.get("error", "Unknown") if result else "No result"),
-      }
-    )
-
-  async def _handle_use_item_action(self, payload: dict) -> None:
+  async def _handle_use_item_action_internal(self, player: User, payload: dict) -> None:
     item_id = payload.get("data", {}).get("item_id")
     target_id = payload.get("data", {}).get("target_id")
     if not item_id:
-      await self.send_json(
-        {"type": "error", "message": "Missing item_id"}
-      )
       return
 
-    result = await self._apply_item_effect(self._user, item_id, target_id)
+    result = await self._apply_item_effect(player, item_id, target_id)
     if result.get("success"):
       await self.channel_layer.group_send(
         f"battle_{self._battle_id}",
         {
           "type": "battle_action",
           "action": "use_item",
-          "player_id": self._user.id,
+          "player_id": player.id,
           "data": result,
         },
       )
-      await self._advance_turn()
-      await self._broadcast_battle_state_to_group()
-      return
 
-    await self.send_json(
-      {
-        "type": "error",
-        "message": "Item use failed: " + result.get("error", "Unknown error"),
-      }
-    )
+  async def _handle_swap_action_internal(self, player: User, payload: dict) -> None:
+    try:
+      data = payload.get("data", {})
+      creature_id = data.get("creature_id")
+      if not creature_id:
+        return
 
+      success = await self._cache_active_creature(player, creature_id)
+      if success:
+        # Get creature name for logging
+        from user_profile.models import UserCreature
+        uc = await self._get_user_creature_async(creature_id)
+        creature_name = uc.creature.name if uc else "Unknown"
 
+        await self.channel_layer.group_send(
+          f"battle_{self._battle_id}",
+          {
+            "type": "battle_action",
+            "action": "swap",
+            "player_id": player.id,
+            "data": {
+              "creature_id": creature_id,
+              "creature_name": creature_name
+            },
+          },
+        )
+    except Exception as e:
+      logger.error(f"Error handling swap action for player {player.id}: {e}")
 
-  async def _handle_swap_action(self, payload: dict) -> None:
-    """Handle Pokemon swap/switch action."""
-    data = payload.get("data", {})
-    creature_id = data.get("creature_id")
-    if not creature_id:
-      await self.send_json(
-        {"type": "error", "message": "Missing creature_id for swap"}
-      )
-      return
+  @sync_to_async
+  def _get_creature_speed_sync(self, user: User) -> int:
+    from user_profile.models import UserCreature
+    active_id = cache.get(f"battle_{self._battle_id}_p_{user.id}_active")
+    if not active_id:
+      return 0
+    tc = UserCreature.objects.filter(id=active_id, user=user).first()
+    return tc.creature.speed if tc else 0
 
-    success = await self._cache_active_creature(self._user, creature_id)
-    if not success:
-      await self.send_json(
-        {"type": "error", "message": "Swap failed: Creature not found, already active, or fainted"}
-      )
-      return
-
-    # Broadcast the swap so both players see it
-    await self.channel_layer.group_send(
-      f"battle_{self._battle_id}",
-      {
-        "type": "battle_action",
-        "action": "swap",
-        "player_id": self._user.id,
-        "data": {"creature_id": creature_id},
-      },
-    )
-
-    # Check if it's the user's turn – if so, consume it
-    is_my_turn = await self._is_current_turn(self._user)
-    if is_my_turn:
-      await self._advance_turn()
-
-    await self._broadcast_battle_state_to_group()
+  @sync_to_async
+  def _is_active_creature_alive(self, user: User) -> bool:
+    from user_profile.models import UserCreature
+    active_id = cache.get(f"battle_{self._battle_id}_p_{user.id}_active")
+    if not active_id:
+      return False
+    tc = UserCreature.objects.filter(id=active_id, user=user).first()
+    return tc and tc.current_hp > 0
 
   async def _broadcast_action(self, payload: dict) -> None:
     # For other items/actions, just broadcast for now
@@ -634,15 +706,8 @@ class BattleConsumer(AsyncWebsocketConsumer):
       logger.error(f"Error advancing turn in battle {self._battle_id}: {e}")
 
   async def _handle_end_turn(self) -> None:
-    """Handle explicit turn-end request sent by the client (battle.end_turn message)."""
-    try:
-      if not await self._is_current_turn(self._user):
-        await self.send_json({"type": "error", "message": "Not your turn"})
-        return
-      await self._advance_turn()
-    except Exception as e:
-      logger.error(f"Error ending turn in battle {self._battle_id}: {e}")
-      await self.send_json({"type": "error", "message": "Failed to end turn"})
+    """End turn handler (deprecated for simultaneous selection)"""
+    pass
 
   # Helper methods
   @sync_to_async
@@ -1520,6 +1585,17 @@ class BattleConsumer(AsyncWebsocketConsumer):
       ),
     }
 
+  async def _get_team_async(self, user: User):
+    from user_profile.models import Team
+    return await sync_to_async(Team.objects.get)(user=user)
+
+  async def _get_user_creature_async(self, creature_id: int):
+    from user_profile.models import UserCreature
+    return await sync_to_async(UserCreature.objects.select_related("creature").get)(id=creature_id)
+
+  async def _refresh_user_creature_async(self, user_creature):
+    return await sync_to_async(user_creature.refresh_from_db)()
+
   def _get_team_sync(self, user: User):
     from user_profile.models import Team
 
@@ -1923,7 +1999,6 @@ class BattleConsumer(AsyncWebsocketConsumer):
 
   async def _validate_action(self, payload: dict) -> bool:
     """Validate battle action"""
-    # Refresh battle from DB to avoid cached status mismatch between instances
     await self._refresh_battle_sync()
 
     action = payload.get("action")
@@ -1934,16 +2009,27 @@ class BattleConsumer(AsyncWebsocketConsumer):
     # Check if battle is in PLAYING state
     if self._battle.status != Battle.BattleStatus.PLAYING:
       await self.send_json(
-        {"type": "error", "message": "Battle not in playing state"}
+        {"type": "error", "message": f"Battle not in playing state (current: {self._battle.status})"}
       )
       return False
 
-    # Check if it's player's turn, EXCEPT if they are just swapping
-    if action != "swap" and not await self._is_current_turn(self._user):
-      await self.send_json({"type": "error", "message": "Not your turn"})
+    # Prevent double submission
+    if cache.get(f"battle_{self._battle_id}_p_{self._user.id}_action"):
+      await self.send_json(
+        {"type": "error", "message": "Action already selected for this turn"}
+      )
+      return False
+
+    # If current_turn is set to a specific player, only they can act (e.g. forced swap)
+    # If it is None, both can act (simultaneous selection)
+    if self._battle.current_turn_id is not None and self._battle.current_turn_id != self._user.id:
+      await self.send_json(
+        {"type": "error", "message": f"It is not your turn (current: {self._battle.current_turn_id})"}
+      )
       return False
 
     return True
+
 
   def _get_team_data_sync(self, user):
     from creatures.models import CreatureAbility
@@ -2197,6 +2283,13 @@ class BattleConsumer(AsyncWebsocketConsumer):
       await self.send_json(event["payload"])
     except Exception as e:
       logger.error(f"Error handling battle_state_broadcast: {e}")
+
+  async def player_ready(self, event: dict) -> None:
+    """Forward player_ready notification to this websocket."""
+    try:
+      await self.send_json(event)
+    except Exception as e:
+      logger.error(f"Error handling player_ready event: {e}")
 
   async def battle_abandoned(self, event: dict) -> None:
     """Handle battle abandonment broadcast"""
