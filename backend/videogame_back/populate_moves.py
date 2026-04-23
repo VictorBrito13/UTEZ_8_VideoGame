@@ -45,6 +45,7 @@ def get_move_details(move_url: str) -> dict | None:
             "power": data["power"] or 40,
             "move_type": data["type"]["name"].lower(),
             "damage_class": data["damage_class"]["name"],
+            "priority": data["priority"] or 0,
         }
     except Exception as exc:
         print(f"  [WARN] Failed to fetch move data from {move_url}: {exc}")
@@ -84,10 +85,32 @@ def pick_moves(pokemon_data: dict) -> list[dict]:
 
 
 def get_ability_for_move(move_data: dict) -> Ability:
+    import random
+    # Tactical Speed Logic 2.0:
+    # 1. Base: (70 - power). A 40-power move starts at 30 speed. A 120-power move at -50.
+    # 2. Type Modifiers:
+    #    - Fast types: Electric, Flying, Psychic, Bug (+10)
+    #    - Heavy types: Rock, Steel, Ground, Ice (-10)
+    # 3. Priority: Massive bonus (+40 per level)
+    # 4. Variance: Small random jitter (+/- 3) to make moves unique.
+    
+    speed_map = {
+        "electric": 10, "flying": 10, "psychic": 10, "bug": 5,
+        "rock": -10, "steel": -10, "ground": -8, "ice": -5
+    }
+    
+    base_calc = (70 - move_data["power"])
+    type_bonus = speed_map.get(move_data["move_type"], 0)
+    priority_bonus = move_data["priority"] * 40
+    variance = random.randint(-3, 3)
+    
+    calculated_speed = base_calc + type_bonus + priority_bonus + variance
+
     ability, created = Ability.objects.get_or_create(
         name=move_data["name"],
         defaults={
             "base_power": move_data["power"],
+            "speed": calculated_speed,
             "damage_multiplier": 1.0,
             "move_type": Type.objects.filter(name=move_data["move_type"]).first(),
             "effect": "",
@@ -100,6 +123,9 @@ def get_ability_for_move(move_data: dict) -> Ability:
         updated = False
         if ability.base_power != move_data["power"]:
             ability.base_power = move_data["power"]
+            updated = True
+        if ability.speed != calculated_speed:
+            ability.speed = calculated_speed
             updated = True
         if ability.move_type is None:
             move_type = Type.objects.filter(name=move_data["move_type"]).first()
@@ -114,10 +140,7 @@ def get_ability_for_move(move_data: dict) -> Ability:
 
 def populate_moves_for_creature(creature: Creature) -> None:
     print(f"Populating moves for {creature}")
-    existing_count = CreatureAbility.objects.filter(creature=creature).count()
-    if existing_count >= 4:
-        print("  Already has 4 or more moves. Skipping.")
-        return
+    # Process moves even if they exist to update speed/power values
 
     if not creature.pokedex_id:
         print("  Creature has no Pokédex ID. Skipping.")

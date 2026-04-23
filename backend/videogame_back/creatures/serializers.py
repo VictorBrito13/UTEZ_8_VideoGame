@@ -17,6 +17,7 @@ class AbilitySerializer(serializers.ModelSerializer):
       "id",
       "name",
       "base_power",
+      "speed",
       "move_type_name",
       "damage_multiplier",
       "effect",

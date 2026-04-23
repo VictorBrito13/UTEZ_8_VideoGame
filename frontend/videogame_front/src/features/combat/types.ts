@@ -2,6 +2,7 @@ export interface CreatureMove {
   id: number;
   name: string;
   base_power: number;
+  speed: number;
   move_type_name?: string | null;
   damage_multiplier: number;
   effect?: string;
@@ -19,6 +20,7 @@ export interface CreatureData {
   back_sprite?: string;
   type_1_name?: string;
   type_2_name?: string;
+  speed: number;
   moves?: CreatureMove[];
   buffs?: {
     atk: number;

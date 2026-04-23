@@ -475,9 +475,9 @@ class BattleConsumer(AsyncWebsocketConsumer):
         return 50
       return 10 # Attack
 
-    # Get speeds for tie-breaking attacks
-    s1 = await self._get_creature_speed_sync(p1)
-    s2 = await self._get_creature_speed_sync(p2)
+    # Get speeds for tie-breaking attacks (Sum of Creature Speed + Move Speed)
+    s1 = await self._calculate_action_speed_async(p1, a1)
+    s2 = await self._calculate_action_speed_async(p2, a2)
 
     # Sort actions: Priority first, then Speed
     actions_list.sort(
@@ -492,14 +492,40 @@ class BattleConsumer(AsyncWebsocketConsumer):
     cache.delete(f"battle_{self._battle_id}_p_{p1.id}_action")
     cache.delete(f"battle_{self._battle_id}_p_{p2.id}_action")
 
+    # BUG FIX #2: Snapshot active creature IDs BEFORE any action executes.
+    # This prevents a newly swapped-in creature from inheriting an attack
+    # that was queued by the fainted predecessor.
+    snapshot_active = {
+      p1.id: await self._get_active_creature_id(p1),
+      p2.id: await self._get_active_creature_id(p2),
+    }
+
+    import asyncio
     for act in actions_list:
-      # Survival check: Only execute if active creature is still conscious
-      if not await self._is_active_creature_alive(act["player"]):
-        # If it was an attack, it fails. If it was a swap, it might still happen
-        if act["payload"].get("action") == "attack":
+      player = act["player"]
+      action_type = act["payload"].get("action")
+
+      # Survival check: Validate that the ORIGINAL creature that queued the
+      # action is still the active, conscious creature. If a forced_switch
+      # happened due to the first attacker KO-ing it, the new creature must
+      # NOT execute the dead creature's queued attack.
+      if action_type == "attack":
+        original_active_id = snapshot_active.get(player.id)
+        current_active_id = await self._get_active_creature_id(player)
+        if original_active_id != current_active_id:
+          logger.info(
+            f"Action skipped (phantom attack): Player {player.id}'s active creature "
+            f"changed from {original_active_id} to {current_active_id}."
+          )
+          continue
+        if not await self._is_specific_creature_alive(player, original_active_id):
+          logger.info(f"Action skipped: Player {player.id} creature {original_active_id} is fainted.")
           continue
 
-      await self._execute_resolved_action(act["player"], act["payload"])
+      await self._execute_resolved_action(player, act["payload"])
+
+      # DRAMATIC PAUSE: Allow users to see the animation and damage result
+      await asyncio.sleep(2.5)
 
       # Check if battle ended during resolution
       await self._refresh_battle_sync()
@@ -627,6 +653,26 @@ class BattleConsumer(AsyncWebsocketConsumer):
     except Exception as e:
       logger.error(f"Error handling swap action for player {player.id}: {e}")
 
+  async def _calculate_action_speed_async(self, player, action_payload) -> int:
+    """Calculate the final speed for an action (Pokemon Speed + Move Speed if applicable)"""
+    base_speed = await self._get_creature_speed_sync(player)
+    
+    action_type = action_payload.get("action")
+    if action_type == "attack":
+        # Extract move_id from payload
+        move_id = action_payload.get("data", {}).get("move_id")
+        if move_id:
+            move_speed = await self._get_move_speed_sync(move_id)
+            return base_speed + move_speed
+            
+    return base_speed
+
+  @sync_to_async
+  def _get_move_speed_sync(self, move_id: int) -> int:
+    from creatures.models import Ability
+    move = Ability.objects.filter(id=move_id).only("speed").first()
+    return move.speed if move else 0
+
   @sync_to_async
   def _get_creature_speed_sync(self, user: User) -> int:
     from user_profile.models import UserCreature
@@ -644,6 +690,19 @@ class BattleConsumer(AsyncWebsocketConsumer):
       return False
     tc = UserCreature.objects.filter(id=active_id, user=user).first()
     return tc and tc.current_hp > 0
+
+  async def _get_active_creature_id(self, user: User) -> int | None:
+    """Return the cached active creature ID for the given player (no DB hit)."""
+    return cache.get(f"battle_{self._battle_id}_p_{user.id}_active")
+
+  @sync_to_async
+  def _is_specific_creature_alive(self, user: User, creature_id: int | None) -> bool:
+    """Check if a SPECIFIC creature (by ID) is still alive. Used after snapshot."""
+    if not creature_id:
+      return False
+    from user_profile.models import UserCreature
+    tc = UserCreature.objects.filter(id=creature_id, user=user).first()
+    return bool(tc and tc.current_hp > 0)
 
   async def _broadcast_action(self, payload: dict) -> None:
     # For other items/actions, just broadcast for now
@@ -2064,6 +2123,7 @@ class BattleConsumer(AsyncWebsocketConsumer):
                 "id": ability.id,
                 "name": ability.name,
                 "base_power": ability.base_power,
+                "speed": ability.speed,
                 "move_type_name": ability.move_type.name if ability.move_type else None,
                 "damage_multiplier": ability.damage_multiplier,
                 "effect": ability.effect,
@@ -2078,6 +2138,7 @@ class BattleConsumer(AsyncWebsocketConsumer):
             "name": c.creature.name,
             "hp": c.current_hp,
             "max_hp": c.creature.hp,
+            "speed": c.creature.speed,
             "level": c.level,
             "sprite": c.creature.front_sprite,
             "back_sprite": c.creature.back_sprite,

@@ -45,16 +45,84 @@ type ProcessActionContext = {
   setInventory?: Dispatch<SetStateAction<InventoryItem[]>>;
   myIdRef: { current: number | null };
   addLogRef: { current: (msg: string) => void };
+  isAnimatingRef: { current: boolean };
+  pendingStateRef: { current: BattleState | null };
+};
+
+/**
+ * Determines animation tags WITHOUT relying on battleStateRef.
+ *
+ * The server sends player1/player2 in every battle_state, but battle_action
+ * messages only send player_id (the attacker). Because battleStateRef.current
+ * may be stale when the message arrives (the useEffect that syncs it runs
+ * asynchronously after rendering), we derive the attacker/victim tags from
+ * myIdRef instead. The logic is simple:
+ *   - If the attacker IS me  → attackerTag = myTag,  victimTag = oppTag
+ *   - If the attacker is NOT me → attackerTag = oppTag, victimTag = myTag
+ *
+ * To know whether I am p1 or p2 we still need battleStateRef, but we fall
+ * back gracefully: if the ref is still null we read from defender_user_id in
+ * the payload (which the server always includes) to resolve the tags.
+ */
+const resolveAnimTags = (
+  playerId: number,
+  payload: Record<string, unknown>,
+  battleStateRef: { current: BattleState | null },
+  myIdRef: { current: number | null },
+): { attackerTag: AnimTarget; victimTag: AnimTarget } | null => {
+  const myId = myIdRef.current;
+
+  // Happy path: we know who we are
+  if (myId !== null) {
+    const iAmAttacker = playerId === myId;
+    // Determine if I am player1 from the cached battle state (may still be null)
+    const battle = battleStateRef.current;
+    const iAmP1 = battle ? battle.player1.id === myId : null;
+
+    // battleState not yet synced to ref — derive p1/p2 from defender_user_id
+    if (iAmP1 === null) {
+      const defUid = payload.defender_user_id as number | undefined;
+      if (defUid === undefined) return null;
+      // If I am the defender, opponent (playerId) attacked me
+      const iAmDefender = defUid === myId;
+      if (iAmAttacker && !iAmDefender) return { attackerTag: "p1", victimTag: "p2" };
+      if (!iAmAttacker && iAmDefender) return { attackerTag: "p2", victimTag: "p1" };
+      return null;
+    }
+
+    const myTag: AnimTarget = iAmP1 ? "p1" : "p2";
+    const oppTag: AnimTarget = iAmP1 ? "p2" : "p1";
+    return {
+      attackerTag: iAmAttacker ? myTag : oppTag,
+      victimTag: iAmAttacker ? oppTag : myTag,
+    };
+  }
+
+  // myId not loaded yet — try to determine from battleStateRef
+  const battle = battleStateRef.current;
+  if (!battle) return null;
+  const attackerTag: AnimTarget = playerId === battle.player1.id ? "p1" : "p2";
+  const victimTag: AnimTarget = attackerTag === "p1" ? "p2" : "p1";
+  return { attackerTag, victimTag };
 };
 
 const processAttackAction = (ctx: ProcessActionContext) => {
   const damage = ctx.payload.damage as number;
-  const currentBattle = ctx.battleStateRef.current;
-  if (!currentBattle) return;
 
-  const attackerTag: AnimTarget =
-    ctx.playerId === currentBattle.player1.id ? "p1" : "p2";
-  const victimTag: AnimTarget = attackerTag === "p1" ? "p2" : "p1";
+  // Resolve animation tags — works even when battleStateRef.current is stale/null
+  const tags = resolveAnimTags(
+    ctx.playerId,
+    ctx.payload,
+    ctx.battleStateRef,
+    ctx.myIdRef,
+  );
+  if (!tags) return; // cannot determine tags yet, skip animation
+
+  const { attackerTag, victimTag } = tags;
+
+  // Mark animation as in-progress so incoming battle_state messages are
+  // deferred and don't wipe out the animation state mid-flight.
+  ctx.isAnimatingRef.current = true;
 
   ctx.setIsAttacking?.(attackerTag);
 
@@ -80,7 +148,7 @@ const processAttackAction = (ctx: ProcessActionContext) => {
       const target = isDefP1 ? newState.player1 : newState.player2;
       const defActiveId = ctx.payload.defender_active_id as number;
       const hpAfter = ctx.payload.defender_hp as number;
- 
+
       const creatureToUpdate = target.team.find((c) => c.id === defActiveId);
       if (creatureToUpdate) {
         creatureToUpdate.hp = Math.max(0, hpAfter);
@@ -90,15 +158,21 @@ const processAttackAction = (ctx: ProcessActionContext) => {
           | number
           | null;
       }
- 
-      // Removed optimistic turn update to let server control simultaneous selection
+
       return newState;
     });
 
     const uid = ctx.myIdRef.current;
     ctx.addLogRef.current(
-      `${ctx.playerId === uid ? "Tú" : "Oponente"} atacaste! Daño: ${damage}`,
+      `${ctx.playerId === uid ? "Tú" : "Oponente"} atacó! Daño: ${damage}`,
     );
+
+    // Release animation gate and flush any deferred battle_state
+    ctx.isAnimatingRef.current = false;
+    if (ctx.pendingStateRef.current) {
+      ctx.setBattleState(ctx.pendingStateRef.current);
+      ctx.pendingStateRef.current = null;
+    }
   }, 1000);
 };
 
@@ -209,6 +283,8 @@ export function useBattleChannel({
 }: UseBattleChannelParams) {
   const myIdRef = useRef<number | null>(null);
   const addLogRef = useRef(addLog);
+  const isAnimatingRef = useRef(false);
+  const pendingStateRef = useRef<BattleState | null>(null);
 
   useEffect(() => {
     myIdRef.current = myId;
@@ -237,7 +313,13 @@ export function useBattleChannel({
 
         switch (data.type) {
           case "battle_state":
-            setBattleState(data as unknown as BattleState);
+            // If an attack animation is playing, defer the state update so
+            // it doesn't wipe out isAttacking/isHit mid-flight.
+            if (isAnimatingRef.current) {
+              pendingStateRef.current = data as unknown as BattleState;
+            } else {
+              setBattleState(data as unknown as BattleState);
+            }
             if (data.status === "playing") {
               setWinnerId(null);
             }
@@ -288,12 +370,23 @@ export function useBattleChannel({
             const playerId = data.player_id as number;
             const payload = data.data as Record<string, unknown>;
 
+            const sharedCtx = {
+              playerId,
+              payload,
+              setBattleState,
+              battleStateRef,
+              myIdRef,
+              addLogRef,
+              isAnimatingRef,
+              pendingStateRef,
+            };
+
             if (action === "attack") {
-              processAttackAction({ playerId, payload, setBattleState, battleStateRef, setIsAttacking, setIsHit, setFloatingDamage, myIdRef, addLogRef });
+              processAttackAction({ ...sharedCtx, setIsAttacking, setIsHit, setFloatingDamage });
             } else if (action === "swap") {
-              processSwapAction({ playerId, payload, setBattleState, battleStateRef, myIdRef, addLogRef });
+              processSwapAction(sharedCtx);
             } else if (action === "use_item") {
-              processUseItemAction({ playerId, payload, setBattleState, battleStateRef, setUseItemVfx, setInventory, myIdRef, addLogRef });
+              processUseItemAction({ ...sharedCtx, setUseItemVfx, setInventory });
             } else if (action === "skip_turn") {
               addLogRef.current(payload.message as string);
             }
