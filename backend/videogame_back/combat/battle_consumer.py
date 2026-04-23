@@ -262,8 +262,8 @@ class BattleConsumer(AsyncWebsocketConsumer):
         {"type": "battle_draw", "reason": "both_disconnected"},
       )
 
-      # Award rewards to both even in draw
-      await self._award_all_rewards(self._battle.player1, self._battle.player2)
+      # Award rewards to both even in draw (1 item each)
+      await self._award_all_rewards(self._battle.player1, self._battle.player2, is_draw=True)
 
       logger.info(f"Battle {self._battle_id} ended in draw")
 
@@ -2254,15 +2254,20 @@ class BattleConsumer(AsyncWebsocketConsumer):
         f"Error broadcasting battle state for {self._battle_id}: {e}"
       )
 
-  async def _award_all_rewards(self, winner: User, loser: User) -> None:
-    """Award rewards to both winner and loser"""
+  async def _award_all_rewards(self, winner: User, loser: User, is_draw: bool = False) -> None:
+    """Award rewards to both winner and loser (or both equally in a draw)"""
     try:
-      # Award to winner
-      winner_rewards = await sync_to_async(award_battle_rewards)(
-        winner, count=50
-      )
-      # Award to loser
-      loser_rewards = await sync_to_async(award_battle_rewards)(loser, count=50)
+      if is_draw:
+        # Both players receive 1 item in a draw
+        winner_rewards = await sync_to_async(award_battle_rewards)(winner, count=1)
+        loser_rewards = await sync_to_async(award_battle_rewards)(loser, count=1)
+      else:
+        # Award to winner (3 items)
+        winner_rewards = await sync_to_async(award_battle_rewards)(
+          winner, count=3
+        )
+        # Award to loser (1 item)
+        loser_rewards = await sync_to_async(award_battle_rewards)(loser, count=1)
 
       # Broadcast to winner channel
       await self.channel_layer.group_send(
