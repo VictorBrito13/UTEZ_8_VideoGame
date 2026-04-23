@@ -490,11 +490,16 @@ class BattleConsumer(AsyncWebsocketConsumer):
     s1 = await self._calculate_action_speed_async(p1, a1)
     s2 = await self._calculate_action_speed_async(p2, a2)
 
-    # Sort actions: Priority first, then Speed
+    import random
+    tiebreaker1 = random.random()
+    tiebreaker2 = random.random()
+
+    # Sort actions: Priority first, then Speed, then Random Tiebreaker (50/50)
     actions_list.sort(
       key=lambda x: (
         get_priority(x), 
-        s1 if x["player"] == p1 else s2
+        s1 if x["player"] == p1 else s2,
+        tiebreaker1 if x["player"] == p1 else tiebreaker2
       ), 
       reverse=True
     )
