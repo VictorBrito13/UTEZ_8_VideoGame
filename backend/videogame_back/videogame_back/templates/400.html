@@ -222,18 +222,17 @@
 
     <main class="panel" role="main">
         <div class="status-row">
-            <span class="tag">Battle System Alert</span>
-            <h1 class="code">400</h1>
+            <span class="tag">{{ error_label|default:"Battle System Alert" }}</span>
+            <h1 class="code">{{ error_code|default:"400" }}</h1>
         </div>
 
-        <h2 class="title">Comando Inválido</h2>
+        <h2 class="title">{{ error_title|default:"Comando Invalido" }}</h2>
         <p class="message">
-            Tu acción no pudo ejecutarse porque los datos enviados al servidor no tienen el formato esperado.
-            Revisa la solicitud y vuelve a intentarlo.
+            {{ error_message|default:"Tu accion no pudo ejecutarse porque los datos enviados al servidor no tienen el formato esperado. Revisa la solicitud y vuelve a intentarlo." }}
         </p>
 
         <div class="battle-tip">
-            Consejo táctico: valida campos obligatorios, tipos de datos y estructura JSON antes de reenviar.
+            {{ error_tip|default:"Consejo tactico: valida campos obligatorios, tipos de datos y estructura JSON antes de reenviar." }}
         </div>
 
         <div class="actions">
@@ -241,7 +240,7 @@
             <button class="btn" type="button" onclick="history.back()">Regresar al combate</button>
         </div>
 
-        <p class="footer">Código de estado: 400 | Bad Request</p>
+        <p class="footer">{{ error_footer|default:"Codigo de estado: 400 | Bad Request" }}</p>
     </main>
 </body>
 </html>
