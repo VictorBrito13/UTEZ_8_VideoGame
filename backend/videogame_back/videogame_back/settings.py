@@ -26,7 +26,7 @@ if not SECRET_KEY:
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 # When True, log one access line per request (method, path, status, duration).
 ACCESS_LOG_ENABLED = (
@@ -92,7 +92,7 @@ ROOT_URLCONF = "videogame_back.urls"
 TEMPLATES = [
   {
     "BACKEND": "django.template.backends.django.DjangoTemplates",
-    "DIRS": [],
+    "DIRS": [os.path.join(BASE_DIR, 'videogame_back', 'templates')],
     "APP_DIRS": True,
     "OPTIONS": {
       "context_processors": [

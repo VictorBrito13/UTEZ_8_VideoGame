@@ -25,3 +25,7 @@ urlpatterns = [
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+# Error handlers for production
+handler400 = 'videogame_back.views.bad_request_400'
+handler500 = 'videogame_back.views.server_error_500'
