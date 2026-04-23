@@ -388,6 +388,8 @@ class BattleConsumer(AsyncWebsocketConsumer):
           return
         payload["data"] = data
 
+      self._last_action_data = payload.get("data", {})
+
       if not await self._validate_action(payload):
         return
 
@@ -405,6 +407,10 @@ class BattleConsumer(AsyncWebsocketConsumer):
         await self._handle_swap_action(payload)
         return
 
+      if action == "forced_swap":
+        await self._handle_swap_action(payload)
+        return
+
       await self._broadcast_action(payload)
 
     except Exception:
@@ -419,107 +425,153 @@ class BattleConsumer(AsyncWebsocketConsumer):
   async def _handle_attack_action(self) -> None:
     attacker = self._user
     defender = await self._get_next_player()
+    data = getattr(self, "_last_action_data", {})
+    move_id = data.get("move_id")
 
-    result = await self._apply_damage(attacker, defender)
+    print(f"[ATTACK] user={attacker.id} move_id={move_id} battle={self._battle_id}", flush=True)
+
+    skip_flag = cache.get(f"battle_{self._battle_id}_p_{attacker.id}_skip_turn")
+    if skip_flag:
+      cache.delete(f"battle_{self._battle_id}_p_{attacker.id}_skip_turn")
+      await self.channel_layer.group_send(
+        f"battle_{self._battle_id}",
+        {
+          "type": "battle_action",
+          "action": "skip_turn",
+          "player_id": attacker.id,
+          "data": {
+            "message": f"{attacker.username} is paralyzed and cannot act this turn.",
+          },
+        },
+      )
+      await self._handle_end_turn()
+      return
+
+    move = await self._get_move_for_attack_sync(attacker, move_id)
+    print(f"[ATTACK] move found: {move}", flush=True)
+    if not move:
+      await self.send_json(
+        {
+          "type": "error",
+          "message": "Invalid move selected",
+        }
+      )
+      return
+
+    result = await self._apply_damage(attacker, defender, move)
+    print(f"[ATTACK] damage result: {result}", flush=True)
     if result and result.get("success"):
+      payload = {
+        "damage": result["damage"],
+        "defender_active_id": result["defender_active_id"],
+        "defender_hp": result["defender_hp"],
+        "is_fainted": result["is_fainted"],
+        "defender_user_id": result["defender_user_id"],
+        "forced_switch": result["forced_switch"],
+        "new_defender_active_id": result["new_defender_active_id"],
+        "move_name": move.name,
+        "move_type_name": move.move_type.name if move.move_type else None,
+        "special_ability_triggered": result.get("special_ability_triggered", False),
+        "special_ability_name": result.get("special_ability_name"),
+        "special_ability_effect": result.get("special_ability_effect"),
+      }
       await self.channel_layer.group_send(
         f"battle_{self._battle_id}",
         {
           "type": "battle_action",
           "action": "attack",
           "player_id": self._user.id,
-          "data": {
-            "damage": result["damage"],
-            "defender_active_id": result["defender_active_id"],
-            "defender_hp": result["defender_hp"],
-            "is_fainted": result["is_fainted"],
-            "defender_user_id": result["defender_user_id"],
-            "forced_switch": result["forced_switch"],
-            "new_defender_active_id": result["new_defender_active_id"],
-          },
+          "data": payload,
         },
       )
 
       if result.get("all_fainted"):
+        print(f"[ATTACK] all fainted → awarding victory", flush=True)
         await self._award_victory_normal(attacker, defender)
         return
 
-      # Automatically end turn
-      await self._handle_end_turn()
+      print(f"[ATTACK] calling _advance_turn...", flush=True)
+      await self._advance_turn()
+      print(f"[ATTACK] _advance_turn done, broadcasting state...", flush=True)
+      await self._broadcast_battle_state_to_group()
+      print(f"[ATTACK] done.", flush=True)
       return
 
+    print(f"[ATTACK] FAILED - result={result}", flush=True)
     await self.send_json(
       {
         "type": "error",
-        "message": "Attack failed: " + result.get("error", "Unknown"),
+        "message": "Attack failed: " + (result.get("error", "Unknown") if result else "No result"),
       }
     )
 
   async def _handle_use_item_action(self, payload: dict) -> None:
     item_id = payload.get("data", {}).get("item_id")
-    target_id = payload.get("data", {}).get("target_id", None)
+    target_id = payload.get("data", {}).get("target_id")
     if not item_id:
       await self.send_json(
-        {"type": "error", "message": "Missing item_id for use_item"}
+        {"type": "error", "message": "Missing item_id"}
       )
       return
 
     result = await self._apply_item_effect(self._user, item_id, target_id)
-    if result and result.get("success"):
+    if result.get("success"):
       await self.channel_layer.group_send(
         f"battle_{self._battle_id}",
         {
           "type": "battle_action",
           "action": "use_item",
           "player_id": self._user.id,
-          "data": {
-            "item_id": item_id,
-            "item_name": result["item_name"],
-            "heal_amount": result.get("heal_amount", 0),
-            "new_hp": result.get("new_hp"),
-            "creature_id": result.get("creature_id"),
-            "vfx_type": result.get("vfx_type"),
-            "buffs": result.get("buffs"),
-          },
+          "data": result,
         },
       )
+      await self._advance_turn()
+      await self._broadcast_battle_state_to_group()
       return
 
     await self.send_json(
       {
         "type": "error",
-        "message": "Item failed: " + result.get("error", "Unknown"),
+        "message": "Item use failed: " + result.get("error", "Unknown error"),
       }
     )
 
+
+
   async def _handle_swap_action(self, payload: dict) -> None:
-    creature_id = payload.get("data", {}).get("creature_id")
+    """Handle Pokemon swap/switch action."""
+    data = payload.get("data", {})
+    creature_id = data.get("creature_id")
     if not creature_id:
       await self.send_json(
         {"type": "error", "message": "Missing creature_id for swap"}
       )
       return
 
-    # This is crucial: update server cache of who is active
     success = await self._cache_active_creature(self._user, creature_id)
-    if success:
-      await self.channel_layer.group_send(
-        f"battle_{self._battle_id}",
-        {
-          "type": "battle_action",
-          "action": "swap",
-          "player_id": self._user.id,
-          "data": {"creature_id": creature_id},
-        },
+    if not success:
+      await self.send_json(
+        {"type": "error", "message": "Swap failed: Creature not found, already active, or fainted"}
       )
       return
 
-    await self.send_json(
+    # Broadcast the swap so both players see it
+    await self.channel_layer.group_send(
+      f"battle_{self._battle_id}",
       {
-        "type": "error",
-        "message": "Swap failed: Creature does not belong to you or is fainted",
-      }
+        "type": "battle_action",
+        "action": "swap",
+        "player_id": self._user.id,
+        "data": {"creature_id": creature_id},
+      },
     )
+
+    # Check if it's the user's turn – if so, consume it
+    is_my_turn = await self._is_current_turn(self._user)
+    if is_my_turn:
+      await self._advance_turn()
+
+    await self._broadcast_battle_state_to_group()
 
   async def _broadcast_action(self, payload: dict) -> None:
     # For other items/actions, just broadcast for now
@@ -539,14 +591,9 @@ class BattleConsumer(AsyncWebsocketConsumer):
       self._battle_id,
     )
 
-  async def _handle_end_turn(self) -> None:
-    """Handle turn end request"""
+  async def _advance_turn(self) -> None:
+    """Advance to the next player's turn. Called internally after attack/item/swap."""
     try:
-      if not await self._is_current_turn(self._user):
-        await self.send_json({"type": "error", "message": "Not your turn"})
-        return
-
-      # Skip turn logic
       next_player = await self._get_next_player()
       skip = cache.get(f"battle_{self._battle_id}_p_{next_player.id}_skip_turn")
       if skip:
@@ -568,6 +615,7 @@ class BattleConsumer(AsyncWebsocketConsumer):
 
       await self._set_current_turn(next_player)
       await self._increment_turn_number()
+      await self._apply_end_of_turn_statuses()
 
       # Broadcast turn change
       await self.channel_layer.group_send(
@@ -582,6 +630,16 @@ class BattleConsumer(AsyncWebsocketConsumer):
         f"Turn {self._battle.turn_number} ended, next player: {next_player.id}"
       )
 
+    except Exception as e:
+      logger.error(f"Error advancing turn in battle {self._battle_id}: {e}")
+
+  async def _handle_end_turn(self) -> None:
+    """Handle explicit turn-end request sent by the client (battle.end_turn message)."""
+    try:
+      if not await self._is_current_turn(self._user):
+        await self.send_json({"type": "error", "message": "Not your turn"})
+        return
+      await self._advance_turn()
     except Exception as e:
       logger.error(f"Error ending turn in battle {self._battle_id}: {e}")
       await self.send_json({"type": "error", "message": "Failed to end turn"})
@@ -841,7 +899,7 @@ class BattleConsumer(AsyncWebsocketConsumer):
     return multiplier
 
   @sync_to_async
-  def _apply_damage(self, attacker: User, defender: User) -> dict:
+  def _apply_damage(self, attacker: User, defender: User, move) -> dict:
     from user_profile.models import Team
 
     try:
@@ -880,7 +938,7 @@ class BattleConsumer(AsyncWebsocketConsumer):
         atk_stat *= 1.5
 
       def_stat = def_tc.creature.defense * def_buff
-      power = 50  # Default baseline power for basic attacks
+      power = move.base_power + atk_tc.creature.attack
 
       # Extract types
       atk_types = [atk_tc.creature.type_1.name]
@@ -891,25 +949,15 @@ class BattleConsumer(AsyncWebsocketConsumer):
       if def_tc.creature.type_2:
         def_types.append(def_tc.creature.type_2.name)
 
-      # Use the primary type of the Pokemon for its basic attack
-      move_type = [atk_types[0]]
-
-      # Fetch type multiplier
+      move_type = [move.move_type.name] if move.move_type else atk_types
       multiplier = self._calculate_type_multiplier_sync(move_type, def_types)
+      stab = 1.5 if move.move_type and move.move_type.name in atk_types else 1.0
 
-      # Pokemon Damage Formula
       import random
+      random_factor = random.uniform(0.90, 1.0)
 
-      random_factor = random.uniform(0.85, 1.0)
-
-      base_damage = (
-        ((2 * level / 5 + 2) * power * (atk_stat / max(1, def_stat))) / 50
-      ) + 2
-      damage = int(
-        base_damage * multiplier * random_factor * 1.5
-      )  # x1.5 STAB bonus for using own type
-
-      # Ensure at least 1 damage is dealt
+      raw_damage = max(1, power - def_stat)
+      damage = int(raw_damage * multiplier * move.damage_multiplier * stab * random_factor)
       damage = max(1, damage)
 
       new_hp = def_tc.current_hp - damage
@@ -924,7 +972,17 @@ class BattleConsumer(AsyncWebsocketConsumer):
 
       def_tc.save()
 
-      # Fresh query so bench HP reflects DB (avoids stale prefetch edge cases)
+      move_effect_result = self._apply_move_effect_sync(
+        move, attacker, defender, atk_tc, def_tc
+      )
+      special_result = self._evaluate_special_ability_sync(def_tc.creature, attacker, atk_tc)
+      if special_result.get("status") == "paralyzed":
+        cache.set(
+          f"battle_{self._battle_id}_p_{attacker.id}_skip_turn",
+          True,
+          timeout=3600,
+        )
+
       all_fainted = not defender_team.team_creatures.filter(
         user_creature__current_hp__gt=0
       ).exists()
@@ -946,16 +1004,232 @@ class BattleConsumer(AsyncWebsocketConsumer):
         "defender_user_id": defender.id,
         "forced_switch": forced_switch,
         "new_defender_active_id": new_defender_active_id,
+        "move_effect_triggered": move_effect_result.get("triggered", False),
+        "move_effect_name": move_effect_result.get("effect"),
+        "move_effect_details": move_effect_result.get("details"),
+        "special_ability_triggered": special_result.get("triggered", False),
+        "special_ability_name": special_result.get("name"),
+        "special_ability_effect": special_result.get("effect"),
       }
     except Exception as e:
       logger.error(f"Error applying damage: {e}")
       return {"success": False, "error": str(e)}
 
-  def _get_active_creatures_sync(self, attacker: User, defender: User) -> dict:
+  @sync_to_async
+  def _get_move_for_attack_sync(self, attacker: User, move_id: int | None):
+    from creatures.models import CreatureAbility
+    from user_profile.models import Team
+
+    active_id = cache.get(f"battle_{self._battle_id}_p_{attacker.id}_active")
+
+    # Fallback: find first alive creature in team if cache is empty
+    if not active_id:
+      try:
+        team = Team.objects.get(user=attacker)
+        for tc in team.team_creatures.all():
+          if tc.user_creature.current_hp > 0:
+            active_id = tc.user_creature.id
+            cache.set(
+              f"battle_{self._battle_id}_p_{attacker.id}_active",
+              active_id,
+              timeout=3600,
+            )
+            break
+      except Exception:
+        pass
+
+    if not active_id:
+      return None
+
+    query = CreatureAbility.objects.filter(
+      creature__usercreature__id=active_id
+    ).select_related("ability__move_type")
+
+    if move_id is None:
+      first = query.first()
+      return first.ability if first else None
+
+    ability_relation = query.filter(ability_id=move_id).first()
+    return ability_relation.ability if ability_relation else None
+
+  def _evaluate_special_ability_sync(self, defender_creature, attacker: User, atk_tc) -> dict:
+    import random
+
+    special_name = defender_creature.special_ability_name
+    special_effect = defender_creature.special_ability_effect.lower()
+    probability = defender_creature.special_ability_probability
+
+    if not special_name or not special_effect or probability <= 0:
+      return {"triggered": False}
+
+    if random.random() > probability:
+      return {"triggered": False}
+
+    result = {
+      "triggered": True,
+      "name": special_name,
+      "effect": special_effect,
+      "status": special_effect,
+    }
+
+    if special_effect == "paralyze":
+      cache.set(
+        f"battle_{self._battle_id}_p_{attacker.id}_skip_turn",
+        True,
+        timeout=3600,
+      )
+    elif special_effect == "burn":
+      cache.set(
+        f"battle_{self._battle_id}_p_{attacker.id}_burned",
+        True,
+        timeout=3600,
+      )
+    elif special_effect == "freeze":
+      cache.set(
+        f"battle_{self._battle_id}_p_{attacker.id}_skip_turn",
+        True,
+        timeout=3600,
+      )
+
+    return result
+
+  def _apply_move_effect_sync(self, move, attacker: User, defender: User, atk_tc, def_tc) -> dict:
+    import random
+
+    if not move.effect or move.effect_probability <= 0:
+      return {"triggered": False}
+
+    if random.random() > move.effect_probability:
+      return {"triggered": False}
+
+    effect = move.effect.lower()
+    result = {"triggered": True, "effect": effect, "details": ""}
+
+    if effect == "burn":
+      cache.set(
+        f"battle_{self._battle_id}_p_{defender.id}_burned",
+        True,
+        timeout=3600,
+      )
+      result["details"] = "Burn applied: damage each turn"
+    elif effect == "poison":
+      cache.set(
+        f"battle_{self._battle_id}_p_{defender.id}_poisoned",
+        True,
+        timeout=3600,
+      )
+      result["details"] = "Poison applied: damage each turn"
+    elif effect in {"paralyze", "freeze", "sleep"}:
+      cache.set(
+        f"battle_{self._battle_id}_p_{defender.id}_skip_turn",
+        True,
+        timeout=3600,
+      )
+      result["details"] = f"{effect.capitalize()} applied: defender may miss next turn"
+    elif effect == "heal":
+      heal_amount = max(1, int(atk_tc.creature.hp * 0.25))
+      atk_tc.current_hp = min(atk_tc.creature.hp, atk_tc.current_hp + heal_amount)
+      atk_tc.save()
+      result["details"] = f"Healed {heal_amount} HP"
+    elif effect == "buff_atk":
+      cache.set(
+        f"battle_{self._battle_id}_p_{attacker.id}_b_{atk_tc.id}_buff_atk",
+        1.2,
+        timeout=3600,
+      )
+      result["details"] = "Attack boosted by 20%"
+    elif effect == "debuff_def":
+      cache.set(
+        f"battle_{self._battle_id}_p_{defender.id}_b_{def_tc.id}_buff_def",
+        0.8,
+        timeout=3600,
+      )
+      result["details"] = "Defense reduced by 20%"
+    else:
+      result["details"] = "Effect applied"
+
+    return result
+
+  async def _apply_end_of_turn_statuses(self) -> None:
+    for user in [self._battle.player1, self._battle.player2]:
+      status_result = await self._apply_end_of_turn_statuses_sync(user)
+      if status_result.get("damage"):
+        await self.channel_layer.group_send(
+          f"battle_{self._battle_id}",
+          {
+            "type": "battle_action",
+            "action": "status_tick",
+            "player_id": status_result["user_id"],
+            "data": {
+              "creature_id": status_result["creature_id"],
+              "damage": status_result["damage"],
+              "current_hp": status_result["current_hp"],
+              "status": status_result["status"],
+            },
+          },
+        )
+
+  @sync_to_async
+  def _apply_end_of_turn_statuses_sync(self, user: User) -> dict:
     from user_profile.models import UserCreature
 
-    atk_id = cache.get(f"battle_{self._battle_id}_p_{attacker.id}_active")
-    def_id = cache.get(f"battle_{self._battle_id}_p_{defender.id}_active")
+    active_id = cache.get(f"battle_{self._battle_id}_p_{user.id}_active")
+    if not active_id:
+      return {}
+
+    tc = UserCreature.objects.filter(id=active_id, user=user).first()
+    if not tc or tc.current_hp <= 0:
+      return {}
+
+    damage = 0
+    status = None
+    if cache.get(f"battle_{self._battle_id}_p_{user.id}_burned"):
+      damage += max(1, int(tc.creature.hp * 0.08))
+      status = "burned"
+    if cache.get(f"battle_{self._battle_id}_p_{user.id}_poisoned"):
+      damage += max(1, int(tc.creature.hp * 0.06))
+      status = status or "poisoned"
+
+    if damage <= 0:
+      return {}
+
+    tc.current_hp = max(0, tc.current_hp - damage)
+    tc.save()
+
+    return {
+      "creature_id": tc.id,
+      "user_id": user.id,
+      "damage": damage,
+      "current_hp": tc.current_hp,
+      "status": status,
+    }
+
+  def _get_active_creatures_sync(self, attacker: User, defender: User) -> dict:
+    from user_profile.models import Team, UserCreature
+
+    def _resolve_active(user):
+      """Get active creature id from cache, or fall back to first alive in team."""
+      active_id = cache.get(f"battle_{self._battle_id}_p_{user.id}_active")
+      if active_id:
+        return active_id
+      # Fallback: pick first alive creature and prime the cache
+      try:
+        team = Team.objects.get(user=user)
+        for tc in team.team_creatures.all():
+          if tc.user_creature.current_hp > 0:
+            active_id = tc.user_creature.id
+            cache.set(
+              f"battle_{self._battle_id}_p_{user.id}_active",
+              active_id,
+              timeout=3600,
+            )
+            return active_id
+      except Exception:
+        pass
+      return None
+
+    atk_id = _resolve_active(attacker)
+    def_id = _resolve_active(defender)
 
     if not atk_id or not def_id:
       return {"error": "Active creatures not set properly in cache"}
@@ -1671,8 +1945,8 @@ class BattleConsumer(AsyncWebsocketConsumer):
 
     return True
 
-  @sync_to_async
-  def _get_team_data(self, user):
+  def _get_team_data_sync(self, user):
+    from creatures.models import CreatureAbility
     from user_profile.models import Profile, Team
 
     try:
@@ -1692,6 +1966,26 @@ class BattleConsumer(AsyncWebsocketConsumer):
 
       for tc in team.team_creatures.all():
         c = tc.user_creature
+        moves = []
+        creature_moves = CreatureAbility.objects.filter(
+          creature=c.creature
+        ).select_related("ability__move_type")
+        for ca in creature_moves:
+          ability = ca.ability
+          if ability:
+            moves.append(
+              {
+                "id": ability.id,
+                "name": ability.name,
+                "base_power": ability.base_power,
+                "move_type_name": ability.move_type.name if ability.move_type else None,
+                "damage_multiplier": ability.damage_multiplier,
+                "effect": ability.effect,
+                "effect_probability": ability.effect_probability,
+                "vfx_type": ability.vfx_type,
+              }
+            )
+
         team_data.append(
           {
             "id": c.id,
@@ -1700,8 +1994,10 @@ class BattleConsumer(AsyncWebsocketConsumer):
             "max_hp": c.creature.hp,
             "level": c.level,
             "sprite": c.creature.front_sprite,
+            "back_sprite": c.creature.back_sprite,
             "type_1_name": c.creature.type_1.name if c.creature.type_1 else None,
             "type_2_name": c.creature.type_2.name if c.creature.type_2 else None,
+            "moves": moves,
             "buffs": {
               "atk": cache.get(
                 f"battle_{self._battle_id}_p_{user.id}_b_{c.id}_buff_atk", 1.0
@@ -1746,67 +2042,46 @@ class BattleConsumer(AsyncWebsocketConsumer):
       logger.error(f"Error getting team data: {e}")
       return {"team": [], "active_creature_id": None, "trainer_sprite": ""}
 
+  @sync_to_async
+  def _get_battle_state_payload_sync(self):
+    self._refresh_battle_sync.__wrapped__(self)
+    p1_data = self._get_team_data_sync(self._battle.player1)
+    p2_data = self._get_team_data_sync(self._battle.player2)
+    return {
+      "type": "battle_state",
+      "battle_id": self._battle_id,
+      "status": self._battle.status,
+      "winner_id": self._battle.winner_id,
+      "current_turn": self._battle.current_turn_id,
+      "turn_number": self._battle.turn_number,
+      "player1": {
+        "id": self._battle.player1.id,
+        "username": self._battle.player1.username,
+        "team": p1_data["team"],
+        "active_creature_id": p1_data["active_creature_id"],
+        "trainer_sprite": p1_data["trainer_sprite"],
+      },
+      "player2": {
+        "id": self._battle.player2.id,
+        "username": self._battle.player2.username,
+        "team": p2_data["team"],
+        "active_creature_id": p2_data["active_creature_id"],
+        "trainer_sprite": p2_data["trainer_sprite"],
+      },
+    }
+
   async def _send_battle_state(self) -> None:
     """Send current battle state to player"""
     try:
-      p1_data = await self._get_team_data(self._battle.player1)
-      p2_data = await self._get_team_data(self._battle.player2)
-
-      await self.send_json(
-        {
-          "type": "battle_state",
-          "battle_id": self._battle_id,
-          "status": self._battle.status,
-          "winner_id": self._battle.winner_id,
-          "current_turn": self._battle.current_turn_id,
-          "turn_number": self._battle.turn_number,
-          "player1": {
-            "id": self._battle.player1.id,
-            "username": self._battle.player1.username,
-            "team": p1_data["team"],
-            "active_creature_id": p1_data["active_creature_id"],
-            "trainer_sprite": p1_data["trainer_sprite"],
-          },
-          "player2": {
-            "id": self._battle.player2.id,
-            "username": self._battle.player2.username,
-            "team": p2_data["team"],
-            "active_creature_id": p2_data["active_creature_id"],
-            "trainer_sprite": p2_data["trainer_sprite"],
-          },
-        }
-      )
+      payload = await self._get_battle_state_payload_sync()
+      await self.send_json(payload)
     except Exception as e:
       logger.error(f"Error sending battle state for {self._battle_id}: {e}")
 
   async def _broadcast_battle_state_to_group(self) -> None:
     """Push full battle_state to every client in the battle group."""
     try:
-      await self._refresh_battle_sync()
-      p1_data = await self._get_team_data(self._battle.player1)
-      p2_data = await self._get_team_data(self._battle.player2)
-      payload = {
-        "type": "battle_state",
-        "battle_id": self._battle_id,
-        "status": self._battle.status,
-        "winner_id": self._battle.winner_id,
-        "current_turn": self._battle.current_turn_id,
-        "turn_number": self._battle.turn_number,
-        "player1": {
-          "id": self._battle.player1.id,
-          "username": self._battle.player1.username,
-          "team": p1_data["team"],
-          "active_creature_id": p1_data["active_creature_id"],
-          "trainer_sprite": p1_data["trainer_sprite"],
-        },
-        "player2": {
-          "id": self._battle.player2.id,
-          "username": self._battle.player2.username,
-          "team": p2_data["team"],
-          "active_creature_id": p2_data["active_creature_id"],
-          "trainer_sprite": p2_data["trainer_sprite"],
-        },
-      }
+      payload = await self._get_battle_state_payload_sync()
       await self.channel_layer.group_send(
         f"battle_{self._battle_id}",
         {"type": "battle_state_broadcast", "payload": payload},

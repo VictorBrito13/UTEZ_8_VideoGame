@@ -1,3 +1,4 @@
+from django.core.exceptions import ValidationError
 from django.db import models
 
 
@@ -36,6 +37,11 @@ class Creature(models.Model):
   special_defense = models.IntegerField()
   speed = models.IntegerField()
 
+  # Battle configuration
+  special_ability_name = models.CharField(max_length=100, blank=True, default="")
+  special_ability_effect = models.CharField(max_length=100, blank=True, default="")
+  special_ability_probability = models.FloatField(default=0.3)
+
   # Sprites
   front_sprite = models.URLField(max_length=500, null=True, blank=True)
   back_sprite = models.URLField(max_length=500, null=True, blank=True)
@@ -59,7 +65,7 @@ class Creature(models.Model):
 class Ability(models.Model):
   """
   Abilities/Moves for Creatures.
-  Enhanced with VFX types for the UI.
+  Enhanced with base power, type, and effect probability.
   """
 
   VFX_CHOICES = [
@@ -72,9 +78,17 @@ class Ability(models.Model):
   ]
 
   name = models.CharField(max_length=100)
-  damage_multiplier = models.FloatField()
-  effect = models.CharField(max_length=100, blank=True)
-  effect_probability = models.FloatField()
+  move_type = models.ForeignKey(
+    Type,
+    on_delete=models.CASCADE,
+    related_name="abilities",
+    null=True,
+    blank=True,
+  )
+  base_power = models.PositiveIntegerField(default=50)
+  damage_multiplier = models.FloatField(default=1.0)
+  effect = models.CharField(max_length=100, blank=True, default="")
+  effect_probability = models.FloatField(default=0.0)
 
   # Final Sprint Field
   vfx_type = models.CharField(
@@ -83,7 +97,11 @@ class Ability(models.Model):
 
   def clean(self):
     if not (0 <= self.effect_probability <= 1):
-      raise ValueError("Probability must be between 0 and 1")
+      raise ValidationError("Probability must be between 0 and 1")
+    if self.base_power < 0:
+      raise ValidationError("Base power must be zero or positive")
+    if self.damage_multiplier <= 0:
+      raise ValidationError("Damage multiplier must be positive")
 
   def save(self, *args, **kwargs):
     self.full_clean()
@@ -99,3 +117,13 @@ class CreatureAbility(models.Model):
 
   class Meta:
     unique_together = ("creature", "ability")
+
+  def clean(self):
+    if not self.pk:
+      existing_moves = CreatureAbility.objects.filter(creature=self.creature).count()
+      if existing_moves >= 4:
+        raise ValidationError("A creature can have at most 4 moves")
+
+  def save(self, *args, **kwargs):
+    self.full_clean()
+    super().save(*args, **kwargs)

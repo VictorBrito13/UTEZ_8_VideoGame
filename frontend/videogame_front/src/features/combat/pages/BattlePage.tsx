@@ -12,7 +12,6 @@ import type {
   InventoryItem,
   PlayerData,
 } from "../types";
-import { Zap } from "lucide-react";
 import { ElementalVfx } from "../components/ElementalVfx";
 
 const typeColors: Record<string, string> = {
@@ -83,6 +82,7 @@ export const BattlePage = () => {
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState("");
+  const [selectedMoveId, setSelectedMoveId] = useState<number | null>(null);
   const chatListRef = useRef<HTMLDivElement | null>(null);
   const [showConfirm, setShowConfirm] = useState<{
     isOpen: boolean;
@@ -185,7 +185,11 @@ export const BattlePage = () => {
     };
   }, [battleState?.status, navigate]);
 
-  const isPlayer1 = myId === battleState?.player1.id;
+  const isPlayer1 = myId !== null && battleState?.player1?.id === myId;
+  const me = battleState ? (isPlayer1 ? battleState.player1 : battleState.player2) : null;
+  const opponent = battleState ? (isPlayer1 ? battleState.player2 : battleState.player1) : null;
+  const myTurn = battleState?.current_turn === myId;
+  const resolvedWinnerId = winnerId ?? battleState?.winner_id ?? null;
 
   useEffect(() => {
     if (battleState?.status === "matched" && isPlayer1) {
@@ -197,24 +201,53 @@ export const BattlePage = () => {
     return undefined;
   }, [battleState?.status, isPlayer1]);
 
-  const handleAttack = () => {
-    wsRef.current?.send(
-      JSON.stringify({ type: "battle.action", action: "attack" }),
+  const handleAttack = async () => {
+    if (selectedMoveId === null) {
+      addLog("System: Selecciona un movimiento primero antes de atacar.");
+      return;
+    }
+
+    const ws = wsRef.current;
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      addLog("System: La conexión aún no está lista. Vuelve a intentarlo en un momento.");
+      return;
+    }
+
+    const dataPayload = { move_id: selectedMoveId };
+    const data_encrypted = await encryptJson(dataPayload);
+
+    ws.send(
+      JSON.stringify({
+        type: "battle.action",
+        action: "attack",
+        data: dataPayload,
+        data_encrypted,
+      }),
     );
+    setSelectedMoveId(null);
   };
 
   const handleSwap = async (creatureId: number) => {
-    const data_encrypted = await encryptJson({ creature_id: creatureId });
-    wsRef.current?.send(
+    const ws = wsRef.current;
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      addLog("System: La conexión aún no está lista. Vuelve a intentarlo en un momento.");
+      return;
+    }
+
+    const dataPayload = { creature_id: creatureId };
+    const data_encrypted = await encryptJson(dataPayload);
+    ws.send(
       JSON.stringify({
         type: "battle.action",
         action: "swap",
+        data: dataPayload,
         data_encrypted,
       }),
     );
   };
 
   const handleUseItem = async (itemId: number, forceTargetId?: number) => {
+    if (!me) return;
     const item = inventory.find((i) => i.id === itemId);
     if (!item) return;
 
@@ -278,20 +311,7 @@ export const BattlePage = () => {
   }, [chatMessages]);
 
   // Early return check - AFTER all hooks
-  if (!battleState || !myId) {
-    return (
-      <div className="min-h-screen bg-[#0B1326] flex items-center justify-center font-headline text-error font-bold uppercase tracking-widest terminal-glow">
-        INITIALIZING ARENA...
-      </div>
-    );
-  }
-
-  const me = isPlayer1 ? battleState.player1 : battleState.player2;
-  const opponent = isPlayer1 ? battleState.player2 : battleState.player1;
-  const myTurn = battleState.current_turn === myId;
-  const resolvedWinnerId = winnerId ?? battleState.winner_id ?? null;
-
-  const getActive = (p: PlayerData | undefined) => {
+  const getActive = (p: PlayerData | null | undefined) => {
     if (!p) return null;
     const creature = p.team.find((c) => c.id === p.active_creature_id);
     if (!creature && p.team.length > 0) return p.team[0];
@@ -299,6 +319,20 @@ export const BattlePage = () => {
   };
   const oppActive = getActive(opponent);
   const meActive = getActive(me);
+
+  useEffect(() => {
+    if (meActive?.id !== undefined) {
+      setSelectedMoveId(null);
+    }
+  }, [meActive?.id]);
+
+  if (!battleState || !myId || !me || !opponent) {
+    return (
+      <div className="min-h-screen bg-[#0B1326] flex items-center justify-center font-headline text-error font-bold uppercase tracking-widest terminal-glow">
+        INITIALIZING ARENA...
+      </div>
+    );
+  }
 
   const getAttackerType = () => {
     const myTag = isPlayer1 ? "p1" : "p2";
@@ -729,37 +763,78 @@ export const BattlePage = () => {
           </div>
 
           {/* Attack Button (Pokeball Style) */}
-          <div className="flex items-center h-[150px]">
-            {battleState.status === "playing" && (
-              <button
-                onClick={handleAttack}
-                disabled={!myTurn || meActive?.hp === 0}
-                className={`relative w-28 h-28 rounded-full shadow-2xl flex flex-col items-center justify-center overflow-hidden transition-all duration-300 border-[6px] ${
-                  myTurn && meActive?.hp !== 0
-                    ? "border-black hover:scale-105 active:scale-95 cursor-pointer ring-4 ring-red-500/30"
-                    : "border-slate-800 grayscale opacity-60 cursor-not-allowed"
-                }`}
-              >
-                {/* Red Top Half */}
-                <div className="absolute top-0 left-0 right-0 h-1/2 bg-gradient-to-b from-red-500 to-red-600" />
-                {/* White Bottom Half */}
-                <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-gradient-to-t from-slate-200 to-white" />
-                {/* Black Center Line */}
-                <div className="absolute top-1/2 left-0 right-0 h-3 bg-black -translate-y-1/2" />
-                
-                {/* Center Button */}
-                <div className={`relative z-10 w-12 h-12 bg-white rounded-full border-4 border-black flex items-center justify-center shadow-inner ${myTurn ? "animate-pulse shadow-[0_0_15px_rgba(255,255,255,0.8)]" : ""}`}>
-                   <span className={`w-6 h-6 rounded-full border border-gray-300 ${myTurn ? "bg-red-500" : "bg-gray-200"}`} />
-                </div>
-                
-                {/* Attack Text Overlay */}
-                <span className={`absolute bottom-3 font-black text-xs tracking-widest uppercase z-20 drop-shadow-md ${myTurn ? "text-slate-800" : "text-slate-500"}`}>
-                  ATTACK
-                </span>
-              </button>
-            )}
-          </div>
+          <div className="flex items-center h-[150px] gap-3">
+            <div className="flex flex-col gap-2 w-[260px]">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">MOVES</span>
+              <div className="grid grid-cols-2 gap-2">
+                {(meActive?.moves && meActive.moves.length > 0 ? meActive.moves : Array.from({ length: 4 }, (_, index) => ({
+                  id: `placeholder-${index}`,
+                  name: "No move",
+                  base_power: 0,
+                  move_type_name: null,
+                  damage_multiplier: 1,
+                  effect: "",
+                  effect_probability: 0,
+                  vfx_type: "",
+                } as const))).map((move) => {
+                  const isRealMove = typeof move.id === "number";
+                  const isSelected = selectedMoveId === move.id;
 
+                  return (
+                    <button
+                      key={move.id}
+                      type="button"
+                      onClick={() => isRealMove && setSelectedMoveId(move.id as number)}
+                      disabled={!myTurn || meActive?.hp === 0 || !isRealMove}
+                      className={`text-left p-2 rounded-xl border transition-colors ${
+                        isSelected
+                          ? "border-yellow-400 bg-yellow-500/20 text-white"
+                          : "border-slate-700 bg-slate-900 text-slate-200 hover:border-blue-400"
+                      } ${!myTurn || meActive?.hp === 0 ? "opacity-50 cursor-not-allowed" : ""}`}
+                    >
+                      <div className="font-semibold text-xs uppercase truncate">{move.name}</div>
+                      <div className="flex justify-between items-center gap-2">
+                        <span className="text-[10px] text-slate-400">{move.base_power > 0 ? `${move.base_power} power` : "No move"}</span>
+                        {move.move_type_name && (
+                          <span className="text-[8px] uppercase tracking-[.2em] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300">
+                            {move.move_type_name}
+                          </span>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="flex items-center h-full">
+              {battleState.status === "playing" && (
+                <button
+                  onClick={handleAttack}
+                  disabled={!myTurn || meActive?.hp === 0}
+                  className={`relative w-28 h-28 rounded-full shadow-2xl flex flex-col items-center justify-center overflow-hidden transition-all duration-300 border-[6px] ${
+                    myTurn && meActive?.hp !== 0
+                      ? "border-black hover:scale-105 active:scale-95 cursor-pointer ring-4 ring-red-500/30"
+                      : "border-slate-800 grayscale opacity-60 cursor-not-allowed"
+                  }`}
+                >
+                  {/* Red Top Half */}
+                  <div className="absolute top-0 left-0 right-0 h-1/2 bg-gradient-to-b from-red-500 to-red-600" />
+                  {/* White Bottom Half */}
+                  <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-gradient-to-t from-slate-200 to-white" />
+                  {/* Black Center Line */}
+                  <div className="absolute top-1/2 left-0 right-0 h-3 bg-black -translate-y-1/2" />
+                  {/* Center Button */}
+                  <div className={`relative z-10 w-12 h-12 bg-white rounded-full border-4 border-black flex items-center justify-center shadow-inner ${myTurn ? "animate-pulse shadow-[0_0_15px_rgba(255,255,255,0.8)]" : ""}`}>
+                    <span className={`w-6 h-6 rounded-full border border-gray-300 ${myTurn ? "bg-red-500" : "bg-gray-200"}`} />
+                  </div>
+                  {/* Attack Text Overlay */}
+                  <span className={`absolute bottom-3 font-black text-xs tracking-widest uppercase z-20 drop-shadow-md ${myTurn ? "text-slate-800" : "text-slate-500"}`}>
+                    ATTACK
+                  </span>
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 

@@ -1,3 +1,14 @@
+export interface CreatureMove {
+  id: number;
+  name: string;
+  base_power: number;
+  move_type_name?: string | null;
+  damage_multiplier: number;
+  effect?: string;
+  effect_probability: number;
+  vfx_type: string;
+}
+
 export interface CreatureData {
   id: number;
   name: string;
@@ -8,6 +19,7 @@ export interface CreatureData {
   back_sprite?: string;
   type_1_name?: string;
   type_2_name?: string;
+  moves?: CreatureMove[];
   buffs?: {
     atk: number;
     def: number;

@@ -90,8 +90,8 @@ def try_match_for_user(
       continue
     
     # Verificación anti-cuentas secundarias
-    if _have_played_together_recently(seeker.user_id, ticket.user_id):
-      continue
+    # if _have_played_together_recently(seeker.user_id, ticket.user_id):
+    #   continue
     
     diff = abs(ticket.elo - seeker.elo)
     if diff <= seeker_range:
