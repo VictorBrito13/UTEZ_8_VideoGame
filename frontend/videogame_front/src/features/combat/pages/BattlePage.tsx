@@ -83,6 +83,7 @@ export const BattlePage = () => {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState("");
   const [selectedMoveId, setSelectedMoveId] = useState<number | null>(null);
+  const [isActionSelected, setIsActionSelected] = useState(false);
   const chatListRef = useRef<HTMLDivElement | null>(null);
   const [showConfirm, setShowConfirm] = useState<{
     isOpen: boolean;
@@ -188,7 +189,7 @@ export const BattlePage = () => {
   const isPlayer1 = myId !== null && battleState?.player1?.id === myId;
   const me = battleState ? (isPlayer1 ? battleState.player1 : battleState.player2) : null;
   const opponent = battleState ? (isPlayer1 ? battleState.player2 : battleState.player1) : null;
-  const myTurn = battleState?.current_turn === myId;
+  const myTurn = (battleState?.current_turn === myId || !battleState?.current_turn) && !isActionSelected && battleState?.status === "playing";
   const resolvedWinnerId = winnerId ?? battleState?.winner_id ?? null;
 
   useEffect(() => {
@@ -201,8 +202,14 @@ export const BattlePage = () => {
     return undefined;
   }, [battleState?.status, isPlayer1]);
 
-  const handleAttack = async () => {
-    if (selectedMoveId === null) {
+  useEffect(() => {
+    // Reset selection lock when turn advances or battle starts
+    setIsActionSelected(false);
+  }, [battleState?.turn_number, battleState?.status]);
+
+  const handleAttack = async (moveId?: number) => {
+    const finalMoveId = moveId ?? selectedMoveId;
+    if (finalMoveId === null) {
       addLog("System: Selecciona un movimiento primero antes de atacar.");
       return;
     }
@@ -213,7 +220,7 @@ export const BattlePage = () => {
       return;
     }
 
-    const dataPayload = { move_id: selectedMoveId };
+    const dataPayload = { move_id: finalMoveId };
     const data_encrypted = await encryptJson(dataPayload);
 
     ws.send(
@@ -225,6 +232,7 @@ export const BattlePage = () => {
       }),
     );
     setSelectedMoveId(null);
+    setIsActionSelected(true);
   };
 
   const handleSwap = async (creatureId: number) => {
@@ -244,6 +252,7 @@ export const BattlePage = () => {
         data_encrypted,
       }),
     );
+    setIsActionSelected(true);
   };
 
   const handleUseItem = async (itemId: number, forceTargetId?: number) => {
@@ -288,7 +297,9 @@ export const BattlePage = () => {
       isOpen: true,
       title: "SURRENDER",
       message: "Are you sure you want to surrender? This will count as a defeat.",
-      onConfirm: () => navigate("/"),
+      onConfirm: () => {
+        wsRef.current?.send(JSON.stringify({ type: "battle.abandon" }));
+      },
     });
   };
 
@@ -557,7 +568,12 @@ export const BattlePage = () => {
       <div className="absolute top-8 left-1/2 -translate-x-1/2 flex flex-row items-center gap-4 z-20 pointer-events-none">
          {myTurn && (
           <div className="bg-yellow-500/90 text-black font-black uppercase px-6 py-1.5 rounded-full shadow-[0_0_15px_rgba(234,179,8,0.5)] border-2 border-yellow-300 animate-pulse text-sm tracking-widest backdrop-blur-sm pointer-events-auto">
-            YOUR TURN
+            {battleState?.current_turn === null ? "SELECT ACTION" : "YOUR TURN"}
+          </div>
+        )}
+        {isActionSelected && battleState?.status === "playing" && (
+           <div className="bg-blue-500/90 text-white font-black uppercase px-6 py-1.5 rounded-full shadow-[0_0_15px_rgba(59,130,246,0.5)] border-2 border-blue-300 animate-pulse text-sm tracking-widest backdrop-blur-sm pointer-events-auto">
+            WAITING FOR OPPONENT...
           </div>
         )}
         <button
@@ -784,7 +800,7 @@ export const BattlePage = () => {
                     <button
                       key={move.id}
                       type="button"
-                      onClick={() => isRealMove && setSelectedMoveId(move.id as number)}
+                      onClick={() => isRealMove && handleAttack(move.id as number)}
                       disabled={!myTurn || meActive?.hp === 0 || !isRealMove}
                       className={`text-left p-2 rounded-xl border transition-colors ${
                         isSelected
@@ -807,32 +823,7 @@ export const BattlePage = () => {
               </div>
             </div>
             <div className="flex items-center h-full">
-              {battleState.status === "playing" && (
-                <button
-                  onClick={handleAttack}
-                  disabled={!myTurn || meActive?.hp === 0}
-                  className={`relative w-28 h-28 rounded-full shadow-2xl flex flex-col items-center justify-center overflow-hidden transition-all duration-300 border-[6px] ${
-                    myTurn && meActive?.hp !== 0
-                      ? "border-black hover:scale-105 active:scale-95 cursor-pointer ring-4 ring-red-500/30"
-                      : "border-slate-800 grayscale opacity-60 cursor-not-allowed"
-                  }`}
-                >
-                  {/* Red Top Half */}
-                  <div className="absolute top-0 left-0 right-0 h-1/2 bg-gradient-to-b from-red-500 to-red-600" />
-                  {/* White Bottom Half */}
-                  <div className="absolute bottom-0 left-0 right-0 h-1/2 bg-gradient-to-t from-slate-200 to-white" />
-                  {/* Black Center Line */}
-                  <div className="absolute top-1/2 left-0 right-0 h-3 bg-black -translate-y-1/2" />
-                  {/* Center Button */}
-                  <div className={`relative z-10 w-12 h-12 bg-white rounded-full border-4 border-black flex items-center justify-center shadow-inner ${myTurn ? "animate-pulse shadow-[0_0_15px_rgba(255,255,255,0.8)]" : ""}`}>
-                    <span className={`w-6 h-6 rounded-full border border-gray-300 ${myTurn ? "bg-red-500" : "bg-gray-200"}`} />
-                  </div>
-                  {/* Attack Text Overlay */}
-                  <span className={`absolute bottom-3 font-black text-xs tracking-widest uppercase z-20 drop-shadow-md ${myTurn ? "text-slate-800" : "text-slate-500"}`}>
-                    ATTACK
-                  </span>
-                </button>
-              )}
+              {/* Attack button removed - attacks are now triggered immediately upon move selection */}
             </div>
           </div>
         </div>

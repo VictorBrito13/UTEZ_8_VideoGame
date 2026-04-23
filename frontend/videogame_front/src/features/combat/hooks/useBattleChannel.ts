@@ -80,7 +80,7 @@ const processAttackAction = (ctx: ProcessActionContext) => {
       const target = isDefP1 ? newState.player1 : newState.player2;
       const defActiveId = ctx.payload.defender_active_id as number;
       const hpAfter = ctx.payload.defender_hp as number;
-
+ 
       const creatureToUpdate = target.team.find((c) => c.id === defActiveId);
       if (creatureToUpdate) {
         creatureToUpdate.hp = Math.max(0, hpAfter);
@@ -90,13 +90,8 @@ const processAttackAction = (ctx: ProcessActionContext) => {
           | number
           | null;
       }
-
-      const nextTurnId =
-        ctx.playerId === newState.player1.id
-          ? newState.player2.id
-          : newState.player1.id;
-      newState.current_turn = nextTurnId;
-
+ 
+      // Removed optimistic turn update to let server control simultaneous selection
       return newState;
     });
 
@@ -109,10 +104,27 @@ const processAttackAction = (ctx: ProcessActionContext) => {
 
 const processSwapAction = (ctx: ProcessActionContext) => {
   const targetId = ctx.payload.creature_id as number;
+  const creatureName = (ctx.payload.creature_name as string) || "otra criatura";
+  const currentBattle = ctx.battleStateRef.current;
+  if (!currentBattle) return;
+
+  const trainerName =
+    ctx.playerId === currentBattle.player1.id
+      ? currentBattle.player1.username
+      : currentBattle.player2.username;
+
+  let changed = false;
   ctx.setBattleState((prev) => {
     if (!prev) return prev;
+    const isP1 = ctx.playerId === prev.player1.id;
+    const currentActiveId = isP1
+      ? prev.player1.active_creature_id
+      : prev.player2.active_creature_id;
+
+    if (currentActiveId === targetId) return prev;
+
+    changed = true;
     const newState = structuredClone(prev) as BattleState;
-    const isP1 = ctx.playerId === newState.player1.id;
     if (isP1) {
       newState.player1.active_creature_id = targetId;
     } else {
@@ -120,6 +132,10 @@ const processSwapAction = (ctx: ProcessActionContext) => {
     }
     return newState;
   });
+
+  if (changed) {
+    ctx.addLogRef.current(`${trainerName} retiró a su criatura y envió a ${creatureName}!`);
+  }
 };
 
 const processUseItemAction = (ctx: ProcessActionContext) => {
@@ -252,11 +268,19 @@ export function useBattleChannel({
               prev
                 ? {
                     ...prev,
-                    current_turn: data.next_player_id as number,
+                    current_turn: data.next_player_id as number | null,
                     turn_number: data.turn_number as number,
                   }
                 : prev,
             );
+            break;
+
+          case "player_ready":
+            addLogRef.current(`System: El jugador ${data.player_id === myIdRef.current ? "tú" : "oponente"} está listo.`);
+            break;
+
+          case "action_queued":
+            addLogRef.current(`System: ${data.message as string}`);
             break;
 
           case "battle_action": {
