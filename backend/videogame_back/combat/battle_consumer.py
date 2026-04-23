@@ -436,8 +436,14 @@ class BattleConsumer(AsyncWebsocketConsumer):
 
       if a1 and a2:
         logger.info(f"Both players ready in battle {self._battle_id}. Resolving turn...")
-        # Both are ready, resolve the turn
-        await self._resolve_turn_actions(a1, a2)
+        # Both are ready, resolve the turn in the background so the consumer isn't blocked
+        import asyncio
+        async def run_resolve():
+            try:
+                await self._resolve_turn_actions(a1, a2)
+            except Exception:
+                logger.exception("Error in background turn resolution")
+        asyncio.create_task(run_resolve())
       else:
         # Just notify the sender that their action is registered
         await self.send_json({
