@@ -24,7 +24,6 @@ const LoginPage: React.FC = () => {
           </div>
           <div className="w-full flex items-center justify-between">
             <Heading level={2}>TRAINER LOGIN</Heading>
-            <div className="font-headline text-[10px] text-primary font-bold opacity-80">STATION_001_AUTH</div>
           </div>
           <div className="h-1 w-full bg-[#2d3449] mt-3 relative">
             <div className="absolute left-0 top-0 h-full w-1/4 bg-primary shadow-[2px_0_4px_rgba(255,31,31,0.5)]"></div>
@@ -36,7 +35,7 @@ const LoginPage: React.FC = () => {
         <form onSubmit={handleLogin} className="space-y-6">
           <div className="space-y-4">
             <div className="space-y-2">
-              <label className="font-headline text-[10px] uppercase tracking-[0.2em] text-outline font-bold block ml-1">Archive Identity</label>
+              <label className="font-headline text-[10px] uppercase tracking-[0.2em] text-outline font-bold block ml-1">USERNAME</label>
               <div className="relative group">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                   <span className="material-symbols-outlined text-primary text-lg" style={{ fontVariationSettings: "'FILL' 1" }}>person</span>
@@ -56,7 +55,7 @@ const LoginPage: React.FC = () => {
 
             <div className="space-y-2">
               <div className="flex justify-between items-end">
-                <label className="font-headline text-[10px] uppercase tracking-[0.2em] text-outline font-bold block ml-1">Access Key</label>
+                <label className="font-headline text-[10px] uppercase tracking-[0.2em] text-outline font-bold block ml-1">PASSWORD</label>
               </div>
               <div className="relative group">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">

@@ -255,12 +255,6 @@ const DashboardPage: React.FC = () => {
 
             {/* User Info & Stats */}
             <div>
-              <Text
-                variant="secondary"
-                className="text-[9px] font-black uppercase tracking-[0.4em] text-primary mb-1 block"
-              >
-                STATION_IDENTITY
-              </Text>
               <Heading
                 level={2}
                 className="text-3xl font-black tracking-widest uppercase text-white mb-2 terminal-glow"
@@ -306,7 +300,6 @@ const DashboardPage: React.FC = () => {
         {/* ROW 2: COMBAT HERO SELECTOR */}
         <div className="bg-surface-container-low beveled-border p-6 md:p-8 mb-8 shadow-[12px_12px_0px_0px_rgba(0,0,0,0.5)]">
           <div className="flex items-center gap-3 mb-6 pl-2">
-            <span className="material-symbols-outlined text-primary text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>catching_pokemon</span>
             <Heading
               level={2}
             >
@@ -335,7 +328,7 @@ const DashboardPage: React.FC = () => {
                 </div>
               )}
               <span className="absolute bottom-4 text-[9px] font-headline font-black uppercase tracking-[0.3em] text-primary bg-black/80 border border-primary/50 px-4 py-1">
-                SYNCED_HERO
+                ACTIVE HERO
               </span>
             </div>
 
@@ -345,7 +338,7 @@ const DashboardPage: React.FC = () => {
                 variant="secondary"
                 className="mb-4 block"
               >
-                SELECT YOUR BIOMETRIC SYNCHRONIZATION
+                SELECT YOUR AVATAR
               </Text>
               <TrainerAvatarGrid profile={profile} loadingAvatar={loadingAvatar} handleSelectAvatar={handleSelectAvatar} />
             </div>
