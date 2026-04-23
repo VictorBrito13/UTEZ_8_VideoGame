@@ -2,7 +2,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 from asgiref.sync import async_to_sync
-from creatures.models import Creature, Type
+from creatures.models import Ability, Creature, Type
 from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.test import SimpleTestCase, TestCase
@@ -138,9 +138,11 @@ class BattleConsumerTests(TestCase):
       timeout=7200,
     )
 
+    move = Ability.objects.create(name="Tackle", base_power=40, speed=0)
     result = async_to_sync(self.consumer._apply_damage)(
       self.player1,
       self.player2,
+      move,
     )
 
     self.assertTrue(result["success"])

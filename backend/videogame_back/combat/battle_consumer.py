@@ -118,10 +118,15 @@ class BattleConsumer(AsyncWebsocketConsumer):
   async def _handle_potential_abandonment(self, disconnect_code: int) -> None:
     """Handle potential battle abandonment"""
     try:
+      # Refresh battle state to ensure we have the latest status from DB
+      # This prevents double-abandonment when one player surrenders and
+      # the other player subsequently disconnects (e.g. by leaving the page).
+      await self._refresh_battle_sync()
+
       # Only process abandonment if battle is active
       if not self._battle or self._battle.status != Battle.BattleStatus.PLAYING:
         logger.info(
-          f"Battle {self._battle_id} not in playing state, skipping abandonment"
+          f"Battle {self._battle_id} not in playing state (current: {getattr(self._battle, 'status', 'unknown')}), skipping abandonment"
         )
         return
 
