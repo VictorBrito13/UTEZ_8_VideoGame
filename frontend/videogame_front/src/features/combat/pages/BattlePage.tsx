@@ -493,8 +493,12 @@ export const BattlePage = () => {
                 )}
               </div>
             </div>
-            <div className="flex justify-between text-[10px] text-slate-400 font-bold mb-1">
-              <span>HP {meActive?.hp || 0} / {meActive?.max_hp || 1}</span>
+            <div className="flex justify-between text-[10px] font-bold mb-1">
+              <span className="text-slate-400 uppercase tracking-tighter">HP {meActive?.hp || 0} / {meActive?.max_hp || 1}</span>
+              <span className="text-yellow-400 uppercase tracking-tighter flex items-center gap-0.5">
+                <span className="material-symbols-outlined text-[12px]">bolt</span>
+                SPD {meActive?.speed || 0}
+              </span>
             </div>
             <div className="w-full h-3 bg-slate-900 rounded-full overflow-hidden border border-slate-700">
               <motion.div
@@ -539,8 +543,12 @@ export const BattlePage = () => {
                 )}
               </div>
             </div>
-            <div className="flex justify-between text-[10px] text-slate-400 font-bold mb-1 flex-row-reverse">
-              <span>HP {oppActive?.hp || 0} / {oppActive?.max_hp || 1}</span>
+            <div className="flex justify-between text-[10px] font-bold mb-1 flex-row-reverse">
+              <span className="text-slate-400 uppercase tracking-tighter">HP {oppActive?.hp || 0} / {oppActive?.max_hp || 1}</span>
+              <span className="text-yellow-400 uppercase tracking-tighter flex items-center gap-0.5 flex-row-reverse">
+                <span className="material-symbols-outlined text-[12px]">bolt</span>
+                SPD {oppActive?.speed || 0}
+              </span>
             </div>
             <div className="w-full h-3 bg-slate-900 rounded-full overflow-hidden border border-slate-700 transform rotate-180">
               <motion.div
@@ -840,6 +848,10 @@ export const BattlePage = () => {
                            <div>
                               <div className="text-[9px] font-black text-white/70 uppercase tracking-tighter">Power</div>
                               <div className="text-sm font-black text-white">{move.base_power}</div>
+                           </div>
+                           <div>
+                              <div className="text-[9px] font-black text-white/70 uppercase tracking-tighter">Speed</div>
+                              <div className="text-sm font-black text-white">{move.speed || 0}</div>
                            </div>
                         </div>
                       </div>

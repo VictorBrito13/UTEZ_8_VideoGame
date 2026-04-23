@@ -86,6 +86,7 @@ class Ability(models.Model):
     blank=True,
   )
   base_power = models.PositiveIntegerField(default=50)
+  speed = models.IntegerField(default=0)
   damage_multiplier = models.FloatField(default=1.0)
   effect = models.CharField(max_length=100, blank=True, default="")
   effect_probability = models.FloatField(default=0.0)
