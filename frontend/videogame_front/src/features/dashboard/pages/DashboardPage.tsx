@@ -233,6 +233,12 @@ const DashboardPage: React.FC = () => {
                       alt="Profile"
                       className="w-full h-full object-cover group-hover:opacity-50 transition-opacity"
                     />
+                  ) : profile?.trainer_sprite ? (
+                    <img
+                      src={profile.trainer_sprite}
+                      alt="Avatar"
+                      className="w-full h-full object-contain image-rendering-pixelated group-hover:opacity-50 transition-opacity bg-slate-800"
+                    />
                   ) : (
                     <span className="material-symbols-outlined text-4xl text-outline group-hover:opacity-50 transition-opacity" style={{ fontVariationSettings: "'FILL' 1" }}>person</span>
                   )}
